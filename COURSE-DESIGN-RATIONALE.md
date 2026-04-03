@@ -2,7 +2,7 @@
 
 **Course:** Practical Usage of Claude Code for DevOps Automation  
 **Learning Path:** AIOps & DevOps  
-**Audience for this document:** Course reviewers, instructional designers, L&D stakeholders  
+**Audience for this document:** Course reviewers 
 **Status:** Tier 1 complete · Tiers 2 & 3 in design  
 **Maintainer:** SourceFuse Learning & Development  
 
