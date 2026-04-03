@@ -1,0 +1,912 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Example 8 — Argo CD Application Promotion Flow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Merriweather+Sans:wght@300;400;600;700&family=Source+Code+Pro:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+  :root {
+    --bg:#eef2f7; --bg2:#ffffff; --bg3:#f0f4f9; --border:#d0dae8;
+    --text:#1a2332; --text-dim:#4a5568; --text-dimmer:#8fa3bc;
+    --blue:#1a6eb5; --blue-light:#e8f1fb; --blue-mid:#b8d0ed; --blue-dark:#0f4a7a;
+    --teal:#0e7a6b; --teal-light:#e6f4f2;
+    --coral:#c0392b; --coral-light:#fdf0ee; --coral-mid:#f0b8b2;
+    --green:#1a6b3a; --green-light:#e8f5ed;
+    --amber:#92600a; --amber-light:#fdf3e3;
+    --purple:#5b4fcf; --purple-light:#f0effe;
+    --code-bg:#1e2433; --code-text:#cdd6f4; --radius:12px;
+  }
+  html,body { min-height:100%; background:var(--bg); color:var(--text); font-family:'Merriweather Sans',sans-serif; font-size:15px; line-height:1.6; }
+  .topnav { background:var(--bg2); border-bottom:1px solid var(--border); padding:0 40px; height:52px; display:flex; align-items:center; gap:8px; font-size:12px; color:var(--text-dimmer); font-family:'Source Code Pro',monospace; position:sticky; top:0; z-index:100; }
+  .topnav a { color:var(--blue); text-decoration:none; } .topnav a:hover { text-decoration:underline; }
+  .topnav .sep { margin:0 4px; color:var(--text-dimmer); }
+  .stepnav { background:var(--bg2); border-bottom:1px solid var(--border); padding:0 40px; display:flex; align-items:stretch; position:sticky; top:52px; z-index:99; overflow-x:auto; }
+  .stepnav-item { display:flex; align-items:center; gap:8px; padding:14px 20px; font-size:12px; font-family:'Source Code Pro',monospace; color:var(--text-dimmer); cursor:pointer; border-bottom:3px solid transparent; white-space:nowrap; transition:color .15s,border-color .15s; text-decoration:none; }
+  .stepnav-item:hover { color:var(--text-dim); }
+  .stepnav-item.active { color:var(--blue); border-bottom-color:var(--blue); font-weight:600; }
+  .stepnav-num { width:20px; height:20px; border-radius:50%; background:var(--bg3); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; flex-shrink:0; }
+  .stepnav-item.active .stepnav-num { background:var(--blue); border-color:var(--blue); color:white; }
+  .hero { background:var(--bg2); border-bottom:2px solid var(--border); padding:40px 40px 32px; }
+  .hero-inner { max-width:900px; margin:0 auto; }
+  .hero-eyebrow { font-size:10px; letter-spacing:.2em; text-transform:uppercase; color:var(--blue); font-weight:600; margin-bottom:10px; font-family:'Source Code Pro',monospace; }
+  .hero h1 { font-size:clamp(18px,2.5vw,26px); font-weight:700; color:var(--text); line-height:1.25; }
+  .hero h1 span { color:var(--blue); }
+  .hero-meta { margin-top:14px; display:flex; flex-wrap:wrap; gap:8px; }
+  .meta-pill { font-size:10.5px; font-family:'Source Code Pro',monospace; padding:3px 10px; border-radius:20px; font-weight:600; }
+  .pill-tier { background:var(--purple-light); color:var(--purple); border:1px solid #c4bdf0; }
+  .pill-topic { background:var(--teal-light); color:var(--teal); border:1px solid #a3d4ce; }
+  .pill-turns { background:var(--bg3); color:var(--text-dim); border:1px solid var(--border); font-weight:400; }
+  .main { max-width:900px; margin:0 auto; padding:40px 40px 80px; }
+  .step-section { margin-bottom:56px; scroll-margin-top:120px; }
+  .step-header { display:flex; align-items:center; gap:14px; margin-bottom:20px; padding-bottom:16px; border-bottom:2px solid var(--border); }
+  .step-number { width:40px; height:40px; border-radius:50%; background:var(--blue); color:white; display:flex; align-items:center; justify-content:center; font-size:16px; font-weight:700; font-family:'Source Code Pro',monospace; flex-shrink:0; }
+  .step-label { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:.18em; text-transform:uppercase; color:var(--blue); font-weight:600; margin-bottom:3px; }
+  .step-title { font-size:18px; font-weight:700; color:var(--text); line-height:1.25; }
+  .prose { font-size:14.5px; color:var(--text-dim); line-height:1.8; margin-bottom:20px; }
+  .prose strong { color:var(--text); font-weight:600; }
+  .prose code { font-family:'Source Code Pro',monospace; font-size:13px; background:var(--bg3); border:1px solid var(--border); padding:1px 5px; border-radius:4px; color:var(--blue-dark); }
+  .file-map { background:var(--bg2); border:1px solid var(--border); border-top:3px solid var(--blue); border-radius:var(--radius); overflow:hidden; margin:20px 0; }
+  .file-map-header { padding:12px 18px; background:var(--blue-light); border-bottom:1px solid var(--border); font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:.18em; text-transform:uppercase; color:var(--blue); font-weight:600; }
+  .file-map table { width:100%; border-collapse:collapse; }
+  .file-map th { padding:10px 16px; font-size:11px; font-family:'Source Code Pro',monospace; color:var(--text-dimmer); font-weight:600; text-align:left; border-bottom:1px solid var(--border); background:var(--bg3); }
+  .file-map td { padding:10px 16px; font-size:13px; color:var(--text-dim); border-bottom:1px solid var(--border); vertical-align:top; }
+  .file-map tr:last-child td { border-bottom:none; }
+  .file-map td:first-child { font-family:'Source Code Pro',monospace; font-size:12px; color:var(--blue-dark); font-weight:600; white-space:nowrap; }
+  .stage-pill { font-size:9.5px; font-family:'Source Code Pro',monospace; padding:2px 8px; border-radius:20px; font-weight:600; white-space:nowrap; }
+  .stage-app    { background:var(--blue-light); color:var(--blue); border:1px solid var(--blue-mid); }
+  .stage-config { background:var(--teal-light); color:var(--teal); border:1px solid #a3d4ce; }
+  .stage-image  { background:var(--amber-light); color:var(--amber); border:1px solid #f0d4a0; }
+  .stage-policy { background:var(--purple-light); color:var(--purple); border:1px solid #c4bdf0; }
+  .callout { border-radius:var(--radius); padding:16px 18px; margin:20px 0; font-size:13.5px; line-height:1.7; }
+  .callout-label { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:.15em; text-transform:uppercase; font-weight:700; margin-bottom:6px; }
+  .callout.info { background:var(--blue-light); border:1px solid var(--blue-mid); border-left:3px solid var(--blue); color:var(--text-dim); }
+  .callout.info .callout-label { color:var(--blue); }
+  .callout.warn { background:#fdf5f5; border:1px solid var(--coral-mid); border-left:3px solid var(--coral); color:var(--text-dim); }
+  .callout.warn .callout-label { color:var(--coral); }
+  .callout.good { background:var(--green-light); border:1px solid #a3d4b8; border-left:3px solid var(--green); color:var(--text-dim); }
+  .callout.good .callout-label { color:var(--green); }
+  .callout.tip  { background:var(--amber-light); border:1px solid #f0d4a0; border-left:3px solid var(--amber); color:var(--text-dim); }
+  .callout.tip  .callout-label { color:var(--amber); }
+  .callout strong { color:var(--text); font-weight:600; }
+  .callout code { font-family:'Source Code Pro',monospace; font-size:12.5px; background:rgba(0,0,0,.06); padding:1px 5px; border-radius:4px; }
+  .code-wrap { margin:20px 0; border-radius:0; overflow:hidden; border:1px solid #2a3144; background:#1e2433; }
+  .code-header { background:#252b3b; padding:10px 16px; display:flex; align-items:center; justify-content:space-between; }
+  .code-filename { font-size:11px; font-family:'Source Code Pro',monospace; color:#ffffff; letter-spacing:.05em; }
+  .code-copy { font-size:10px; font-family:'Source Code Pro',monospace; color:#7a8ab0; background:none; border:1px solid #3a4155; border-radius:4px; padding:2px 8px; cursor:pointer; transition:color .15s,border-color .15s; }
+  .code-copy:hover { color:#cdd6f4; border-color:#6a7ab0; }
+  pre { background:#1e2433 !important; padding:20px; overflow-x:auto; margin:0; }
+  code.block { font-family:'Source Code Pro',monospace; font-size:13px; line-height:1.7; color:var(--code-text); background:none; border:none; padding:0; display:block; }
+  .kw{color:#cba6f7;} .cm{color:#6c7086;font-style:italic;} .st{color:#a6e3a1;}
+  .nm{color:#fab387;} .op{color:#89dceb;} .an{color:#f38ba8;} .fn{color:#89b4fa;}
+  .diff-wrap { margin:20px 0; border-radius:0; overflow:hidden; border:1px solid #2a3144; background:#1e2433; }
+  .diff-header { background:#252b3b; padding:10px 16px; font-size:11px; font-family:'Source Code Pro',monospace; color:#ffffff; }
+  .diff-body { background:#1e2433 !important; padding:16px 0; overflow-x:auto; }
+  .diff-line { padding:1px 20px; font-family:'Source Code Pro',monospace; font-size:13px; line-height:1.65; color:var(--code-text); display:block; }
+  .diff-line.add { background:rgba(166,227,161,.12); color:#a6e3a1; }
+  .diff-line.add::before { content:'+  '; color:#a6e3a1; }
+  .diff-line.rem { background:rgba(243,139,168,.12); color:#f38ba8; }
+  .diff-line.rem::before { content:'-  '; color:#f38ba8; }
+  .diff-line.neu::before { content:'   '; }
+  .annotation-list { list-style:none; display:flex; flex-direction:column; gap:12px; margin:20px 0; }
+  .annotation-list li { display:flex; gap:12px; align-items:flex-start; font-size:13.5px; color:var(--text-dim); line-height:1.7; }
+  .ann-badge { flex-shrink:0; font-size:10px; font-family:'Source Code Pro',monospace; font-weight:700; padding:2px 8px; border-radius:4px; margin-top:2px; }
+  .ann-good { background:var(--green-light); color:var(--green); border:1px solid #a3d4b8; }
+  .ann-warn { background:var(--coral-light); color:var(--coral); border:1px solid var(--coral-mid); }
+  .ann-info { background:var(--blue-light); color:var(--blue); border:1px solid var(--blue-mid); }
+  .annotation-list li strong { color:var(--text); font-weight:600; }
+  .annotation-list li code { font-family:'Source Code Pro',monospace; font-size:12.5px; background:var(--bg3); border:1px solid var(--border); padding:1px 5px; border-radius:4px; color:var(--blue-dark); }
+  .conversation { display:flex; flex-direction:column; gap:0; margin:16px 0; border:1px solid #2a3144; border-radius:var(--radius); overflow:hidden; }
+  .conv-turn { padding:18px 22px; }
+  .conv-turn + .conv-turn { border-top:1px solid #2a3144; }
+  .conv-turn.engineer { background:var(--bg3); }
+  .conv-turn.claude   { background:#1e2433; }
+  .conv-role { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:.18em; text-transform:uppercase; font-weight:700; margin-bottom:8px; }
+  .conv-turn.engineer .conv-role { color:var(--teal); }
+  .conv-turn.claude   .conv-role { color:#7a8ab0; }
+  .conv-body { font-size:13.5px; line-height:1.75; }
+  .conv-turn.engineer .conv-body { color:var(--text-dim); }
+  .conv-turn.claude   .conv-body { color:#cdd6f4; }
+  .conv-turn.engineer .conv-body strong { color:var(--text); font-weight:600; }
+  .conv-turn.claude   .conv-body strong { color:#ffffff; font-weight:600; }
+  .conv-turn.engineer .conv-body code { font-family:'Source Code Pro',monospace; font-size:12.5px; background:var(--bg3); border:1px solid var(--border); padding:1px 5px; border-radius:4px; color:var(--blue-dark); }
+  .conv-turn.claude   .conv-body code { font-family:'Source Code Pro',monospace; font-size:12.5px; background:#252b3b; border:1px solid #3a4155; padding:1px 5px; border-radius:4px; color:#89dceb; }
+  .conv-turn.claude   .conv-body em { font-style:italic; color:#6c7086; }
+  .conv-turn.claude   .code-wrap { margin:12px 0; }
+  .turn-nav { display:flex; align-items:center; gap:6px; margin-bottom:16px; flex-wrap:wrap; }
+  .turn-nav-label { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:.15em; text-transform:uppercase; color:var(--text-dimmer); font-weight:600; margin-right:4px; }
+  .turn-pip { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; font-family:'Source Code Pro',monospace; border:1px solid var(--border); background:var(--bg3); color:var(--text-dimmer); }
+  .turn-pip.active { background:var(--blue); border-color:var(--blue); color:#fff; }
+  .turn-pip.done   { background:var(--green-light); border-color:#a3d4b8; color:var(--green); }
+  .turn-connector  { width:20px; height:1px; background:var(--border); }
+  .file-connect { background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); padding:20px 24px; margin:24px 0; }
+  .file-connect-label { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:.18em; text-transform:uppercase; color:var(--blue); font-weight:600; margin-bottom:14px; }
+  .fc-row { display:flex; align-items:flex-start; gap:12px; margin-bottom:12px; }
+  .fc-row:last-child { margin-bottom:0; }
+  .fc-file { font-family:'Source Code Pro',monospace; font-size:11.5px; font-weight:600; color:var(--blue-dark); background:var(--blue-light); border:1px solid var(--blue-mid); border-radius:6px; padding:4px 10px; white-space:nowrap; flex-shrink:0; }
+  .fc-arrow { color:var(--text-dimmer); font-size:14px; margin-top:3px; flex-shrink:0; }
+  .fc-desc { font-size:13px; color:var(--text-dim); line-height:1.6; padding-top:2px; }
+  .fc-desc strong { color:var(--text); font-weight:600; }
+  .turn-label { display:inline-flex; align-items:center; gap:6px; font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:.12em; text-transform:uppercase; color:var(--text-dimmer); background:var(--bg3); border:1px solid var(--border); border-radius:20px; padding:3px 10px; margin-bottom:14px; font-weight:600; }
+  .section-divider { height:1px; background:var(--border); margin:40px 0; }
+  .bottom-nav { display:flex; justify-content:space-between; align-items:center; padding:20px 0 0; border-top:1px solid var(--border); margin-top:40px; }
+  .nav-btn { display:inline-flex; align-items:center; gap:8px; font-size:13px; font-family:'Source Code Pro',monospace; color:var(--blue); text-decoration:none; padding:10px 18px; border:1px solid var(--blue-mid); border-radius:8px; background:var(--blue-light); transition:background .15s,border-color .15s; font-weight:600; }
+  .nav-btn:hover { background:var(--blue-mid); border-color:var(--blue); }
+  .nav-btn.secondary { background:var(--bg2); color:var(--text-dim); border-color:var(--border); }
+  .nav-btn.secondary:hover { background:var(--bg3); }
+  footer { background:var(--bg2); border-top:1px solid var(--border); padding:14px 40px; font-size:11px; font-family:'Source Code Pro',monospace; color:var(--text-dimmer); display:flex; justify-content:space-between; align-items:center; }
+  @media(max-width:640px){.topnav,.main,footer{padding-left:20px;padding-right:20px;}.hero{padding:28px 20px;}.stepnav{padding:0 20px;}}
+</style>
+</head>
+<body>
+
+<nav class="topnav">
+  <a href="course-map.html">Course map</a>
+  <span class="sep">/</span>
+  <a href="course-map.html">Tier 2 examples</a>
+  <span class="sep">/</span>
+  <span>Example 8 — Argo CD application promotion</span>
+</nav>
+
+<nav class="stepnav" id="stepnav">
+  <a class="stepnav-item active" href="#step-1"><span class="stepnav-num">1</span>Problem</a>
+  <a class="stepnav-item" href="#step-2"><span class="stepnav-num">2</span>Naive approach</a>
+  <a class="stepnav-item" href="#step-3"><span class="stepnav-num">3</span>Claude Code interaction</a>
+  <a class="stepnav-item" href="#step-4"><span class="stepnav-num">4</span>Refined output</a>
+  <a class="stepnav-item" href="#step-5"><span class="stepnav-num">5</span>Watch out</a>
+</nav>
+
+<div class="hero">
+  <div class="hero-inner">
+    <div class="hero-eyebrow">Example 8 of 13 · Tier 2 · Multi-step workflow</div>
+    <h1>Argo CD <span>application promotion flow</span></h1>
+    <div class="hero-meta">
+      <span class="meta-pill pill-tier">Tier 2 — Multi-step workflow</span>
+      <span class="meta-pill pill-topic">GitOps · Argo CD</span>
+      <span class="meta-pill pill-turns">5-turn interaction</span>
+      <span class="meta-pill pill-turns">5 files · GitOps promotion pattern</span>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- ══ STEP 1 ══ -->
+  <section class="step-section" id="step-1">
+    <div class="step-header">
+      <div class="step-number">1</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 1 of 5</div>
+        <div class="step-title">The problem</div>
+      </div>
+    </div>
+
+    <p class="prose">
+      The team has adopted GitOps: all Kubernetes configuration lives in a Git repository, and Argo CD syncs the cluster state to match. Currently, promotion from staging to prod requires an engineer to manually edit the image tag in the prod manifest, commit, push, and watch the Argo CD UI. This process is error-prone — wrong tag, wrong file, wrong environment — and has no automated health verification before the sync completes.
+    </p>
+
+    <p class="prose">
+      The task is to build a proper GitOps promotion flow: an <code>ApplicationSet</code> that manages dev, staging, and prod as separate Argo CD Applications, a Kustomize overlay structure that manages image tags per environment, a promotion script that updates the tag via a Git commit rather than a manual edit, and sync policy configurations that are appropriately conservative for prod.
+    </p>
+
+    <div class="callout info">
+      <div class="callout-label">Requirements</div>
+      — <strong>ApplicationSet:</strong> single manifest manages dev, staging, prod Applications — each targeting its own overlay directory<br>
+      — <strong>Kustomize overlays:</strong> base manifest from Example 7's deployment, per-environment <code>kustomization.yaml</code> with image tag override<br>
+      — <strong>Sync policy:</strong> dev auto-syncs; staging auto-syncs with a health check gate; prod requires manual sync, <code>prune</code> and <code>selfHeal</code> explicitly disabled<br>
+      — <strong>Promotion script:</strong> updates the image tag in the target environment's kustomization file, commits to Git, and triggers an Argo CD sync — no manual file editing<br>
+      — <strong>Health check:</strong> sync waits for the Application to reach <code>Healthy</code> status before reporting success<br>
+      — <strong>targetRevision:</strong> pinned to a specific commit SHA for prod, never a branch
+    </div>
+
+    <div class="file-map">
+      <div class="file-map-header">Files involved in this example</div>
+      <table>
+        <thead><tr><th>File</th><th>Purpose</th><th>Layer</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>argocd/applicationset.yaml</td>
+            <td>ApplicationSet managing all three environment Applications from a single manifest</td>
+            <td><span class="stage-pill stage-app">Argo CD</span></td>
+          </tr>
+          <tr>
+            <td>k8s/overlays/dev/kustomization.yaml</td>
+            <td>Dev overlay — image tag override, dev-specific patches</td>
+            <td><span class="stage-pill stage-config">Kustomize</span></td>
+          </tr>
+          <tr>
+            <td>k8s/overlays/staging/kustomization.yaml</td>
+            <td>Staging overlay — image tag override, staging-specific patches</td>
+            <td><span class="stage-pill stage-config">Kustomize</span></td>
+          </tr>
+          <tr>
+            <td>k8s/overlays/prod/kustomization.yaml</td>
+            <td>Prod overlay — image tag pinned to SHA, prod-specific resource limits</td>
+            <td><span class="stage-pill stage-config">Kustomize</span></td>
+          </tr>
+          <tr>
+            <td>scripts/promote.sh</td>
+            <td>Promotion script — updates image tag in Git, commits, triggers Argo CD sync</td>
+            <td><span class="stage-pill stage-image">Promotion</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ══ STEP 2 ══ -->
+  <section class="step-section" id="step-2">
+    <div class="step-header">
+      <div class="step-number">2</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 2 of 5</div>
+        <div class="step-title">The naive approach</div>
+      </div>
+    </div>
+
+    <p class="prose">
+      The naive GitOps setup has one Argo CD Application per environment, each configured manually, and a "promotion process" that is just an engineer editing a YAML file. It looks like GitOps but retains all the failure modes of manual deployment.
+    </p>
+
+    <div class="code-wrap">
+      <div class="code-header"><span class="code-filename">argocd/prod-application.yaml (naive — one Application per env, manually maintained)</span></div>
+      <pre><code class="block"><span class="kw">apiVersion:</span> <span class="st">argoproj.io/v1alpha1</span>
+<span class="kw">kind:</span> <span class="st">Application</span>
+<span class="kw">metadata:</span>
+  <span class="kw">name:</span> <span class="st">payment-api-prod</span>
+  <span class="kw">namespace:</span> <span class="st">argocd</span>
+<span class="kw">spec:</span>
+  <span class="kw">project:</span> <span class="st">default</span>
+  <span class="kw">source:</span>
+    <span class="kw">repoURL:</span> <span class="st">https://github.com/sourcefuse/payment-api</span>
+    <span class="kw">targetRevision:</span> <span class="st">main</span>    <span class="cm"># Branch — not pinned to a SHA</span>
+    <span class="kw">path:</span> <span class="st">k8s</span>
+  <span class="kw">destination:</span>
+    <span class="kw">server:</span> <span class="st">https://kubernetes.default.svc</span>
+    <span class="kw">namespace:</span> <span class="st">payment</span>
+  <span class="kw">syncPolicy:</span>
+    <span class="kw">automated:</span>
+      <span class="kw">prune:</span> <span class="nm">true</span>    <span class="cm"># Deletes resources removed from Git — dangerous in prod</span>
+      <span class="kw">selfHeal:</span> <span class="nm">true</span> <span class="cm"># Reverts manual changes — blocks emergency hotfixes</span></code></pre>
+    </div>
+
+    <p class="prose">Five failure modes — each one a pattern that is common in early GitOps adoptions:</p>
+
+    <ul class="annotation-list">
+      <li>
+        <span class="ann-badge ann-warn">Safety</span>
+        <div><strong><code>targetRevision: main</code> in prod.</strong> Prod tracks a branch, not a commit SHA. Any commit pushed to <code>main</code> — including a commit that was intended for dev — is automatically picked up by the prod Application. There is no pinning, no explicit promotion step, and no human decision point between a Git commit and a prod deployment.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Safety</span>
+        <div><strong><code>prune: true</code> in prod.</strong> If a resource is removed from the Git repository — accidentally deleted, refactored into a different directory, or moved to a different Application — Argo CD will delete it from the cluster. A misconfigured refactor can delete a running Deployment, Service, or PDB without any explicit <code>kubectl delete</code> command.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Safety</span>
+        <div><strong><code>selfHeal: true</code> in prod.</strong> Any manual change to a Kubernetes resource — an emergency memory limit increase, a temporary replica count adjustment during an incident — will be immediately reverted by Argo CD. This blocks the most common emergency mitigation pattern: a quick <code>kubectl set</code> or <code>kubectl edit</code> to stabilise a service while a proper fix is prepared.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Maintainability</span>
+        <div><strong>One Application manifest per environment, maintained separately.</strong> Three environments means three Application manifests with duplicated configuration. When a field needs to change — the repo URL, the project name, the sync options — it must be changed in three places. An ApplicationSet generates all three from a single template, eliminating the duplication.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Correctness</span>
+        <div><strong>No Kustomize overlays — all environments share the same manifest.</strong> Without overlays, image tag promotion means editing a file that affects all environments simultaneously, or maintaining separate manifest directories that diverge over time. Kustomize overlays let a base manifest be shared while per-environment values (image tag, resource limits, replica count) are applied as targeted patches.</div>
+      </li>
+    </ul>
+
+    <div class="callout warn">
+      <div class="callout-label">The core problem</div>
+      The naive setup has the visual structure of GitOps — Git is the source of truth, Argo CD syncs the cluster. But <code>prune: true</code> and <code>selfHeal: true</code> in prod mean that Git has unlimited write authority over the production cluster with no human checkpoint. A wrong commit, a refactored directory, or an accidental file deletion becomes a prod incident. True GitOps for prod requires automation with guardrails, not automation without limits.
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ══ STEP 3 ══ -->
+  <section class="step-section" id="step-3">
+    <div class="step-header">
+      <div class="step-number">3</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 3 of 5</div>
+        <div class="step-title">The Claude Code interaction</div>
+      </div>
+    </div>
+
+    <p class="prose">Five turns. Turn 1 generates the ApplicationSet. Turn 2 generates the Kustomize overlay structure. Turn 3 generates the promotion script. Turn 4 pastes a real Argo CD sync degraded health error and resolves it. Turn 5 adds the prod-specific resource limit patch and audits the overlay structure.</p>
+
+    <!-- Turn 1 -->
+    <div class="turn-nav">
+      <span class="turn-nav-label">Turns</span>
+      <span class="turn-pip active">1</span><span class="turn-connector"></span>
+      <span class="turn-pip">2</span><span class="turn-connector"></span>
+      <span class="turn-pip">3</span><span class="turn-connector"></span>
+      <span class="turn-pip">4</span><span class="turn-connector"></span>
+      <span class="turn-pip">5</span>
+    </div>
+
+    <div class="turn-label">Turn 1 of 5 — ApplicationSet with per-environment sync policies</div>
+    <div class="conversation">
+      <div class="conv-turn engineer">
+        <div class="conv-role">Engineer → Claude Code</div>
+        <div class="conv-body">
+          <p>Generate an Argo CD ApplicationSet that manages dev, staging, and prod Applications for payment-api. Requirements:</p>
+          <p style="margin-top:10px;">
+          — Repo: <code>https://github.com/sourcefuse/payment-api</code><br>
+          — Source path per environment: <code>k8s/overlays/{env}</code><br>
+          — Destination namespace: <code>payment</code> for all environments<br>
+          — <strong>Dev:</strong> auto-sync, prune true, selfHeal true, targetRevision main<br>
+          — <strong>Staging:</strong> auto-sync, prune true, selfHeal false, targetRevision main, health check required before sync complete<br>
+          — <strong>Prod:</strong> no auto-sync, prune false, selfHeal false, targetRevision must be injected at sync time (not hardcoded)<br>
+          — Add retry logic on sync failure: 5 attempts, exponential backoff
+          </p>
+        </div>
+      </div>
+      <div class="conv-turn claude">
+        <div class="conv-role">Claude Code</div>
+        <div class="conv-body">
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">argocd/applicationset.yaml (turn 1)</span><button class="code-copy" onclick="copyCode(this)">copy</button></div>
+            <pre><code class="block"><span class="kw">apiVersion:</span> <span class="st">argoproj.io/v1alpha1</span>
+<span class="kw">kind:</span> <span class="st">ApplicationSet</span>
+<span class="kw">metadata:</span>
+  <span class="kw">name:</span> <span class="st">payment-api</span>
+  <span class="kw">namespace:</span> <span class="st">argocd</span>
+<span class="kw">spec:</span>
+  <span class="kw">generators:</span>
+    - <span class="kw">list:</span>
+        <span class="kw">elements:</span>
+          - <span class="kw">env:</span> <span class="st">dev</span>
+            <span class="kw">autoSync:</span> <span class="st">"true"</span>
+            <span class="kw">prune:</span> <span class="st">"true"</span>
+            <span class="kw">selfHeal:</span> <span class="st">"true"</span>
+            <span class="kw">targetRevision:</span> <span class="st">main</span>
+          - <span class="kw">env:</span> <span class="st">staging</span>
+            <span class="kw">autoSync:</span> <span class="st">"true"</span>
+            <span class="kw">prune:</span> <span class="st">"true"</span>
+            <span class="kw">selfHeal:</span> <span class="st">"false"</span>
+            <span class="kw">targetRevision:</span> <span class="st">main</span>
+          - <span class="kw">env:</span> <span class="st">prod</span>
+            <span class="kw">autoSync:</span> <span class="st">"false"</span>
+            <span class="kw">prune:</span> <span class="st">"false"</span>
+            <span class="kw">selfHeal:</span> <span class="st">"false"</span>
+            <span class="kw">targetRevision:</span> <span class="st">HEAD</span>   <span class="cm"># Overridden at sync time by promotion script</span>
+
+  <span class="kw">template:</span>
+    <span class="kw">metadata:</span>
+      <span class="kw">name:</span> <span class="st">payment-api-{{env}}</span>
+    <span class="kw">spec:</span>
+      <span class="kw">project:</span> <span class="st">default</span>
+      <span class="kw">source:</span>
+        <span class="kw">repoURL:</span> <span class="st">https://github.com/sourcefuse/payment-api</span>
+        <span class="kw">targetRevision:</span> <span class="st">"{{targetRevision}}"</span>
+        <span class="kw">path:</span> <span class="st">k8s/overlays/{{env}}</span>
+      <span class="kw">destination:</span>
+        <span class="kw">server:</span> <span class="st">https://kubernetes.default.svc</span>
+        <span class="kw">namespace:</span> <span class="st">payment</span>
+
+      <span class="kw">syncPolicy:</span>
+        <span class="kw">automated:</span> <span class="st">"{{#if (eq autoSync \"true\")}}"</span>
+          <span class="kw">prune:</span> <span class="st">"{{prune}}"</span>
+          <span class="kw">selfHeal:</span> <span class="st">"{{selfHeal}}"</span>
+        <span class="st">"{{/if}}"</span>
+        <span class="kw">syncOptions:</span>
+          - <span class="st">CreateNamespace=true</span>
+          - <span class="st">ApplyOutOfSyncOnly=true</span>   <span class="cm"># Only apply resources that differ — faster syncs</span>
+        <span class="kw">retry:</span>
+          <span class="kw">limit:</span> <span class="nm">5</span>
+          <span class="kw">backoff:</span>
+            <span class="kw">duration:</span> <span class="st">5s</span>
+            <span class="kw">factor:</span> <span class="nm">2</span>
+            <span class="kw">maxDuration:</span> <span class="st">3m</span>
+
+      <span class="kw">info:</span>
+        - <span class="kw">name:</span> <span class="st">environment</span>
+          <span class="kw">value:</span> <span class="st">"{{env}}"</span></code></pre>
+          </div>
+          <p style="margin-top:10px;"><strong>On the conditional <code>automated</code> block:</strong> ApplicationSet uses Go templates. The <code>{{#if}}</code> block conditionally includes the <code>automated</code> section only when <code>autoSync</code> is <code>"true"</code>. For prod, where <code>autoSync: "false"</code>, the <code>automated</code> block is omitted entirely — which is correct: an <code>automated: {}</code> block with no policies still enables auto-sync with defaults in some Argo CD versions.</p>
+          <p style="margin-top:8px;"><strong>On <code>ApplyOutOfSyncOnly=true</code>:</strong> this sync option tells Argo CD to apply only resources that differ from the cluster state, rather than reapplying all resources on every sync. For a deployment with many resources this significantly reduces sync duration and the number of rolling restarts triggered by syncs.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Turn 2 -->
+    <div class="turn-nav" style="margin-top:28px;">
+      <span class="turn-nav-label">Turns</span>
+      <span class="turn-pip done">1</span><span class="turn-connector"></span>
+      <span class="turn-pip active">2</span><span class="turn-connector"></span>
+      <span class="turn-pip">3</span><span class="turn-connector"></span>
+      <span class="turn-pip">4</span><span class="turn-connector"></span>
+      <span class="turn-pip">5</span>
+    </div>
+
+    <div class="turn-label">Turn 2 of 5 — Kustomize overlay structure</div>
+    <div class="conversation">
+      <div class="conv-turn engineer">
+        <div class="conv-role">Engineer → Claude Code</div>
+        <div class="conv-body">
+          <p>Generate the Kustomize overlay structure. The base is the deployment from Example 7 (<code>k8s/deployment.yaml</code>, <code>k8s/hpa.yaml</code>, <code>k8s/pdb.yaml</code>, <code>k8s/service.yaml</code>). Each overlay needs a <code>kustomization.yaml</code> that:</p>
+          <p style="margin-top:10px;">
+          — References the base manifests<br>
+          — Overrides the image tag for that environment<br>
+          — Sets the namespace to <code>payment</code><br>
+          — For prod only: increases memory limit to 1Gi (the service uses more memory under prod load)
+          </p>
+        </div>
+      </div>
+      <div class="conv-turn claude">
+        <div class="conv-role">Claude Code</div>
+        <div class="conv-body">
+          <p>Directory structure first, then the overlay files:</p>
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">Kustomize directory structure</span></div>
+            <pre><code class="block">k8s/
+├── deployment.yaml         <span class="cm"># Base — from Example 7</span>
+├── hpa.yaml
+├── pdb.yaml
+├── service.yaml
+├── kustomization.yaml      <span class="cm"># Base kustomization</span>
+└── overlays/
+    ├── dev/
+    │   └── kustomization.yaml
+    ├── staging/
+    │   └── kustomization.yaml
+    └── prod/
+        ├── kustomization.yaml
+        └── memory-patch.yaml   <span class="cm"># Prod-specific memory limit increase</span></code></pre>
+          </div>
+          <div class="code-wrap" style="margin-top:14px;">
+            <div class="code-header"><span class="code-filename">k8s/kustomization.yaml (base)</span><button class="code-copy" onclick="copyCode(this)">copy</button></div>
+            <pre><code class="block"><span class="kw">apiVersion:</span> <span class="st">kustomize.config.k8s.io/v1beta1</span>
+<span class="kw">kind:</span> <span class="st">Kustomization</span>
+<span class="kw">resources:</span>
+  - <span class="st">deployment.yaml</span>
+  - <span class="st">hpa.yaml</span>
+  - <span class="st">pdb.yaml</span>
+  - <span class="st">service.yaml</span></code></pre>
+          </div>
+          <div class="code-wrap" style="margin-top:14px;">
+            <div class="code-header"><span class="code-filename">k8s/overlays/dev/kustomization.yaml</span><button class="code-copy" onclick="copyCode(this)">copy</button></div>
+            <pre><code class="block"><span class="kw">apiVersion:</span> <span class="st">kustomize.config.k8s.io/v1beta1</span>
+<span class="kw">kind:</span> <span class="st">Kustomization</span>
+<span class="kw">namespace:</span> <span class="st">payment</span>
+<span class="kw">resources:</span>
+  - <span class="st">../../</span>   <span class="cm"># References the base kustomization</span>
+<span class="kw">images:</span>
+  - <span class="kw">name:</span> <span class="st">REGISTRY/payment-api</span>
+    <span class="kw">newTag:</span> <span class="st">latest</span>   <span class="cm"># Updated by promotion script for dev</span></code></pre>
+          </div>
+          <div class="code-wrap" style="margin-top:14px;">
+            <div class="code-header"><span class="code-filename">k8s/overlays/staging/kustomization.yaml</span><button class="code-copy" onclick="copyCode(this)">copy</button></div>
+            <pre><code class="block"><span class="kw">apiVersion:</span> <span class="st">kustomize.config.k8s.io/v1beta1</span>
+<span class="kw">kind:</span> <span class="st">Kustomization</span>
+<span class="kw">namespace:</span> <span class="st">payment</span>
+<span class="kw">resources:</span>
+  - <span class="st">../../</span>
+<span class="kw">images:</span>
+  - <span class="kw">name:</span> <span class="st">REGISTRY/payment-api</span>
+    <span class="kw">newTag:</span> <span class="st">latest</span>   <span class="cm"># Updated by promotion script for staging</span></code></pre>
+          </div>
+          <div class="code-wrap" style="margin-top:14px;">
+            <div class="code-header"><span class="code-filename">k8s/overlays/prod/kustomization.yaml</span><button class="code-copy" onclick="copyCode(this)">copy</button></div>
+            <pre><code class="block"><span class="kw">apiVersion:</span> <span class="st">kustomize.config.k8s.io/v1beta1</span>
+<span class="kw">kind:</span> <span class="st">Kustomization</span>
+<span class="kw">namespace:</span> <span class="st">payment</span>
+<span class="kw">resources:</span>
+  - <span class="st">../../</span>
+<span class="kw">images:</span>
+  - <span class="kw">name:</span> <span class="st">REGISTRY/payment-api</span>
+    <span class="kw">newTag:</span> <span class="st">PLACEHOLDER</span>   <span class="cm"># Always replaced by promotion script with a SHA tag</span>
+<span class="kw">patches:</span>
+  - <span class="kw">path:</span> <span class="st">memory-patch.yaml</span>   <span class="cm"># Prod-specific memory limit increase</span></code></pre>
+          </div>
+          <div class="code-wrap" style="margin-top:14px;">
+            <div class="code-header"><span class="code-filename">k8s/overlays/prod/memory-patch.yaml</span><button class="code-copy" onclick="copyCode(this)">copy</button></div>
+            <pre><code class="block"><span class="kw">apiVersion:</span> <span class="st">apps/v1</span>
+<span class="kw">kind:</span> <span class="st">Deployment</span>
+<span class="kw">metadata:</span>
+  <span class="kw">name:</span> <span class="st">payment-api</span>
+<span class="kw">spec:</span>
+  <span class="kw">template:</span>
+    <span class="kw">spec:</span>
+      <span class="kw">containers:</span>
+        - <span class="kw">name:</span> <span class="st">payment-api</span>
+          <span class="kw">resources:</span>
+            <span class="kw">limits:</span>
+              <span class="kw">memory:</span> <span class="st">1Gi</span>   <span class="cm"># Prod: higher limit for production load</span></code></pre>
+          </div>
+          <p style="margin-top:10px;">The <code>images</code> block in each kustomization is the promotion target — the promotion script replaces <code>newTag</code> with the target SHA. The prod overlay's <code>PLACEHOLDER</code> tag serves as a visual signal that this value must always be explicitly set — the string <code>PLACEHOLDER</code> is intentionally invalid as a real image tag, so any attempt to apply the prod overlay without running the promotion script will fail at the image pull step.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Turn 3 -->
+    <div class="turn-nav" style="margin-top:28px;">
+      <span class="turn-nav-label">Turns</span>
+      <span class="turn-pip done">1</span><span class="turn-connector"></span>
+      <span class="turn-pip done">2</span><span class="turn-connector"></span>
+      <span class="turn-pip active">3</span><span class="turn-connector"></span>
+      <span class="turn-pip">4</span><span class="turn-connector"></span>
+      <span class="turn-pip">5</span>
+    </div>
+
+    <div class="turn-label">Turn 3 of 5 — Promotion script</div>
+    <div class="conversation">
+      <div class="conv-turn engineer">
+        <div class="conv-role">Engineer → Claude Code</div>
+        <div class="conv-body">
+          <p>Generate <code>scripts/promote.sh</code>. It must:</p>
+          <p style="margin-top:10px;">
+          — Accept: <code>TARGET_ENV</code> (dev/staging/prod), <code>IMAGE_TAG</code> (the SHA tag to promote)<br>
+          — Update <code>newTag</code> in <code>k8s/overlays/{TARGET_ENV}/kustomization.yaml</code><br>
+          — Commit the change with a descriptive message<br>
+          — Push to the repo<br>
+          — For prod: also pin the ApplicationSet's <code>targetRevision</code> to the new commit SHA using <code>argocd app set</code><br>
+          — Trigger an Argo CD sync and wait for <code>Healthy</code> status (timeout: 5 minutes)<br>
+          — Exit 0 only if the Application reaches Healthy; exit 1 and print the sync status if it does not<br>
+          — Requires: <code>argocd</code> CLI authenticated, <code>git</code>, <code>yq</code> for YAML editing
+          </p>
+        </div>
+      </div>
+      <div class="conv-turn claude">
+        <div class="conv-role">Claude Code</div>
+        <div class="conv-body">
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">scripts/promote.sh (turn 3)</span><button class="code-copy" onclick="copyCode(this)">copy</button></div>
+            <pre><code class="block"><span class="cm">#!/usr/bin/env bash
+# scripts/promote.sh — GitOps image promotion
+# Usage: ./promote.sh TARGET_ENV IMAGE_TAG
+# Example: ./promote.sh prod abc1234f
+# Requires: argocd CLI (authenticated), git, yq v4+</span>
+<span class="kw">set</span> -euo pipefail
+
+<span class="kw">readonly</span> <span class="fn">TARGET_ENV</span>=<span class="st">"${1:?TARGET_ENV required (dev|staging|prod)}"</span>
+<span class="kw">readonly</span> <span class="fn">IMAGE_TAG</span>=<span class="st">"${2:?IMAGE_TAG required}"</span>
+<span class="kw">readonly</span> <span class="fn">APP_NAME</span>=<span class="st">"payment-api-${TARGET_ENV}"</span>
+<span class="kw">readonly</span> <span class="fn">KUSTOMIZATION</span>=<span class="st">"k8s/overlays/${TARGET_ENV}/kustomization.yaml"</span>
+<span class="kw">readonly</span> <span class="fn">SYNC_TIMEOUT</span>=<span class="nm">300</span>
+
+<span class="fn">log</span>() { <span class="fn">echo</span> <span class="st">"[$(date -u +%H:%M:%S)] $*"</span>; }
+
+<span class="cm"># ── Validate environment ───────────────────────────────────────────────────</span>
+<span class="kw">if</span> [[ ! <span class="st">"$TARGET_ENV"</span> =~ ^(dev|staging|prod)$ ]]; <span class="kw">then</span>
+  <span class="fn">echo</span> <span class="st">"Error: TARGET_ENV must be dev, staging, or prod" >&2</span>
+  <span class="fn">exit</span> <span class="nm">1</span>
+<span class="kw">fi</span>
+
+<span class="kw">if</span> [[ ! -f <span class="st">"$KUSTOMIZATION"</span> ]]; <span class="kw">then</span>
+  <span class="fn">echo</span> <span class="st">"Error: $KUSTOMIZATION not found — run from repo root" >&2</span>
+  <span class="fn">exit</span> <span class="nm">1</span>
+<span class="kw">fi</span>
+
+<span class="fn">log</span> <span class="st">"Promoting $IMAGE_TAG to $TARGET_ENV"</span>
+
+<span class="cm"># ── Update image tag via yq ────────────────────────────────────────────────</span>
+<span class="fn">log</span> <span class="st">"Updating $KUSTOMIZATION..."</span>
+<span class="fn">yq</span> e <span class="st">'.images[0].newTag = "'"$IMAGE_TAG"'"'</span> -i <span class="st">"$KUSTOMIZATION"</span>
+
+<span class="cm"># ── Commit and push ────────────────────────────────────────────────────────</span>
+<span class="fn">git</span> add <span class="st">"$KUSTOMIZATION"</span>
+<span class="fn">git</span> commit -m <span class="st">"chore(gitops): promote $IMAGE_TAG to $TARGET_ENV
+
+Automated promotion via scripts/promote.sh
+Environment: $TARGET_ENV
+Image tag:   $IMAGE_TAG
+Triggered by: ${GITHUB_ACTOR:-$(git config user.name)}"</span>
+
+<span class="fn">log</span> <span class="st">"Pushing to remote..."</span>
+<span class="fn">git</span> push origin HEAD
+
+<span class="cm"># ── Prod: pin targetRevision to the new commit SHA ────────────────────────</span>
+<span class="kw">if</span> [[ <span class="st">"$TARGET_ENV"</span> == <span class="st">"prod"</span> ]]; <span class="kw">then</span>
+  <span class="va">COMMIT_SHA</span>=$(<span class="fn">git</span> rev-parse HEAD)
+  <span class="fn">log</span> <span class="st">"Pinning prod targetRevision to $COMMIT_SHA"</span>
+  <span class="fn">argocd</span> app set <span class="st">"$APP_NAME"</span> --revision <span class="st">"$COMMIT_SHA"</span>
+<span class="kw">fi</span>
+
+<span class="cm"># ── Trigger sync ───────────────────────────────────────────────────────────</span>
+<span class="fn">log</span> <span class="st">"Triggering Argo CD sync for $APP_NAME..."</span>
+<span class="fn">argocd</span> app sync <span class="st">"$APP_NAME"</span> --async
+
+<span class="cm"># ── Wait for Healthy status ────────────────────────────────────────────────</span>
+<span class="fn">log</span> <span class="st">"Waiting for $APP_NAME to reach Healthy status (timeout: ${SYNC_TIMEOUT}s)..."</span>
+<span class="kw">if</span> <span class="fn">argocd</span> app wait <span class="st">"$APP_NAME"</span> \
+    --health \
+    --timeout <span class="st">"$SYNC_TIMEOUT"</span>; <span class="kw">then</span>
+  <span class="fn">log</span> <span class="st">"SUCCESS — $APP_NAME is Healthy after promotion to $TARGET_ENV"</span>
+  <span class="fn">exit</span> <span class="nm">0</span>
+<span class="kw">else</span>
+  <span class="fn">log</span> <span class="st">"FAILED — $APP_NAME did not reach Healthy within ${SYNC_TIMEOUT}s" >&2</span>
+  <span class="fn">log</span> <span class="st">"Current status:" >&2</span>
+  <span class="fn">argocd</span> app get <span class="st">"$APP_NAME"</span> --output json | \
+    <span class="fn">jq</span> <span class="st">'.status | {health: .health.status, sync: .sync.status, conditions: .conditions}'</span> >&2
+  <span class="fn">exit</span> <span class="nm">1</span>
+<span class="kw">fi</span></code></pre>
+          </div>
+          <p style="margin-top:10px;">The prod-specific <code>argocd app set --revision COMMIT_SHA</code> step is the enforcement mechanism that closes the loop: after committing the image tag change, the exact commit SHA is pinned as the prod Application's <code>targetRevision</code>. Any subsequent commits to <code>main</code> will not affect prod — it will only sync to this exact SHA until the promotion script runs again.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Turn 4 -->
+    <div class="turn-nav" style="margin-top:28px;">
+      <span class="turn-nav-label">Turns</span>
+      <span class="turn-pip done">1</span><span class="turn-connector"></span>
+      <span class="turn-pip done">2</span><span class="turn-connector"></span>
+      <span class="turn-pip done">3</span><span class="turn-connector"></span>
+      <span class="turn-pip active">4</span><span class="turn-connector"></span>
+      <span class="turn-pip">5</span>
+    </div>
+
+    <div class="turn-label">Turn 4 of 5 — Real Argo CD degraded health error pasted verbatim</div>
+    <p class="prose">After the first promotion to staging, the Argo CD Application shows <code>Degraded</code> health. The promotion script exits 1. The engineer pastes the exact Argo CD status output.</p>
+    <div class="conversation">
+      <div class="conv-turn engineer">
+        <div class="conv-role">Engineer → Claude Code</div>
+        <div class="conv-body">
+          <p>Promotion to staging failed. promote.sh exit 1. Exact Argo CD status JSON:</p>
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">argocd app get payment-api-staging --output json (excerpt)</span></div>
+            <pre><code class="block">{
+  "status": {
+    "health": {
+      "status": "Degraded",
+      "message": "Deployment payment-api: Minimum number of live pods not available"
+    },
+    "sync": {
+      "status": "Synced"
+    },
+    "conditions": [
+      {
+        "type": "ComparisonError",
+        "message": "Failed to compare desired state to live state: error comparing \"/apis/autoscaling/v2/namespaces/payment/horizontalpodautoscalers/payment-api\": error converting unsupported type \"autoscaling/v2/HorizontalPodAutoscaler\""
+      }
+    ]
+  }
+}</code></pre>
+          </div>
+          <p style="margin-top:10px;"><code>kubectl get hpa -n payment</code> returns <code>No resources found</code> — the HPA was not applied.</p>
+        </div>
+      </div>
+      <div class="conv-turn claude">
+        <div class="conv-role">Claude Code</div>
+        <div class="conv-body">
+          <p>Two separate issues visible in the status output:</p>
+          <p style="margin-top:10px;"><strong>Issue 1 — HPA API version not supported:</strong> the error <code>error converting unsupported type "autoscaling/v2/HorizontalPodAutoscaler"</code> means the staging cluster's Kubernetes version does not support <code>autoscaling/v2</code>. This API was promoted to stable in Kubernetes 1.26. Check the cluster version:</p>
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">Check cluster version</span></div>
+            <pre><code class="block"><span class="fn">kubectl</span> version --short
+<span class="cm"># If server version < 1.26, autoscaling/v2 is not available</span>
+<span class="cm"># Downgrade the HPA manifest to autoscaling/v2beta2 for k8s 1.23–1.25</span></code></pre>
+          </div>
+          <p style="margin-top:10px;">If the staging cluster is on Kubernetes &lt; 1.26, update <code>k8s/hpa.yaml</code>:</p>
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">k8s/hpa.yaml — API version downgrade if cluster < 1.26</span><button class="code-copy" onclick="copyCode(this)">copy</button></div>
+            <pre><code class="block"><span class="cm"># Change:</span>
+<span class="an">apiVersion: autoscaling/v2</span>
+<span class="cm"># To:</span>
+<span class="kw">apiVersion:</span> <span class="st">autoscaling/v2beta2</span>
+<span class="cm"># Note: v2beta2 supports the same CPU and memory metrics as v2
+# but was only available as beta in Kubernetes 1.23–1.25</span></code></pre>
+          </div>
+          <p style="margin-top:10px;"><strong>Issue 2 — Degraded health is a consequence:</strong> the HPA not being applied means the Deployment has no autoscaler. The <code>Minimum number of live pods not available</code> message means the Deployment cannot reach its desired replica count — likely because the HPA would normally adjust the replica count and it is absent. Once the HPA API version is corrected and the HPA is applied, the Deployment health should recover. The two issues are connected.</p>
+          <p style="margin-top:8px;">The prod cluster version should be verified before the prod promotion — prod may be on the same version as staging, in which case the same fix is needed there.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Turn 5 -->
+    <div class="turn-nav" style="margin-top:28px;">
+      <span class="turn-nav-label">Turns</span>
+      <span class="turn-pip done">1</span><span class="turn-connector"></span>
+      <span class="turn-pip done">2</span><span class="turn-connector"></span>
+      <span class="turn-pip done">3</span><span class="turn-connector"></span>
+      <span class="turn-pip done">4</span><span class="turn-connector"></span>
+      <span class="turn-pip active">5</span>
+    </div>
+
+    <div class="turn-label">Turn 5 of 5 — Overlay audit and GitOps consistency check</div>
+    <div class="conversation">
+      <div class="conv-turn engineer">
+        <div class="conv-role">Engineer → Claude Code</div>
+        <div class="conv-body">
+          <p>Audit the Kustomize overlay structure for three things:</p>
+          <p style="margin-top:10px;">1. All three overlays reference the same base path — confirm no drift<br>
+          2. The image name in all three <code>images[0].name</code> fields matches the image name in the base deployment manifest<br>
+          3. Prod overlay has the memory-patch applied and staging/dev do not — confirm the patch is environment-scoped correctly</p>
+        </div>
+      </div>
+      <div class="conv-turn claude">
+        <div class="conv-role">Claude Code</div>
+        <div class="conv-body">
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">Overlay audit results</span></div>
+            <pre><code class="block"><span class="cm"># 1. Base path consistency</span>
+<span class="st">dev/kustomization.yaml     resources: ../../</span>    <span class="an">✓</span>
+<span class="st">staging/kustomization.yaml resources: ../../</span>    <span class="an">✓</span>
+<span class="st">prod/kustomization.yaml    resources: ../../</span>    <span class="an">✓</span>
+<span class="cm"># All three resolve to k8s/ — consistent</span>
+
+<span class="cm"># 2. Image name alignment</span>
+<span class="st">k8s/deployment.yaml        image: REGISTRY/payment-api:latest</span>
+<span class="st">dev/kustomization.yaml     images[0].name: REGISTRY/payment-api</span>    <span class="an">✓</span>
+<span class="st">staging/kustomization.yaml images[0].name: REGISTRY/payment-api</span>    <span class="an">✓</span>
+<span class="st">prod/kustomization.yaml    images[0].name: REGISTRY/payment-api</span>    <span class="an">✓</span>
+<span class="cm"># All match — Kustomize will correctly override the tag in all three environments
+# If the image name in deployment.yaml changes, all three overlay names must be updated</span>
+
+<span class="cm"># 3. Patch scope</span>
+<span class="st">dev/kustomization.yaml     patches: (none)</span>    <span class="an">✓</span>
+<span class="st">staging/kustomization.yaml patches: (none)</span>    <span class="an">✓</span>
+<span class="st">prod/kustomization.yaml    patches: [memory-patch.yaml]</span>    <span class="an">✓</span>
+<span class="cm"># Memory limit increase (768Mi → 1Gi) applied only in prod</span>
+
+<span class="cm"># Summary: overlay structure is consistent. One risk to flag:
+# The image name "REGISTRY/payment-api" is a placeholder.
+# Replace REGISTRY with your actual ECR registry URL in all four locations:
+# k8s/deployment.yaml and k8s/overlays/{dev,staging,prod}/kustomization.yaml
+# Kustomize matches image names exactly — a partial match will silently not override.</span></code></pre>
+          </div>
+          <p style="margin-top:10px;">The audit is clean. The one flagged item — the <code>REGISTRY</code> placeholder — is not a structural issue but a deployment prerequisite: the actual ECR registry URL must be substituted in all four locations before the overlays will correctly override the image. The promotion script's <code>yq</code> command only updates the <code>newTag</code> field, not the image name — the name must be correct before the first promotion.</p>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ══ STEP 4 ══ -->
+  <section class="step-section" id="step-4">
+    <div class="step-header">
+      <div class="step-number">4</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 4 of 5</div>
+        <div class="step-title">The refined output</div>
+      </div>
+    </div>
+
+    <p class="prose">Five files implementing a complete GitOps promotion flow. The diff below shows the key changes from the naive Application manifest, and the connection diagram maps how the files coordinate.</p>
+
+    <div class="diff-wrap">
+      <div class="diff-header">Naive Application → refined ApplicationSet: key differences</div>
+      <div class="diff-body">
+        <span class="diff-line rem">kind: Application              # One per env — three separate files</span>
+        <span class="diff-line add">kind: ApplicationSet           # One file generates all three Applications</span>
+        <span class="diff-line neu"> </span>
+        <span class="diff-line rem">targetRevision: main           # Branch — any push promotes to prod</span>
+        <span class="diff-line add">targetRevision: "{{targetRevision}}"   # Per-env: main for dev/staging, SHA for prod</span>
+        <span class="diff-line neu"> </span>
+        <span class="diff-line rem">automated:</span>
+        <span class="diff-line rem">  prune: true                  # Deletes resources removed from Git</span>
+        <span class="diff-line rem">  selfHeal: true               # Reverts manual emergency changes</span>
+        <span class="diff-line add">automated:                     # Dev only — staging/prod omit or restrict</span>
+        <span class="diff-line add">  prune: "{{prune}}"           # Controlled per environment</span>
+        <span class="diff-line add">  selfHeal: "{{selfHeal}}"     # Prod: false — manual changes permitted</span>
+        <span class="diff-line neu"> </span>
+        <span class="diff-line add">syncOptions:</span>
+        <span class="diff-line add">  - ApplyOutOfSyncOnly=true    # Only apply changed resources</span>
+        <span class="diff-line add">retry:                         # 5 attempts, exponential backoff</span>
+        <span class="diff-line add">  limit: 5</span>
+        <span class="diff-line add">  backoff: { duration: 5s, factor: 2, maxDuration: 3m }</span>
+      </div>
+    </div>
+
+    <div class="file-connect">
+      <div class="file-connect-label">How the five files coordinate</div>
+
+      <div class="fc-row">
+        <span class="fc-file">argocd/applicationset.yaml</span>
+        <span class="fc-arrow">→</span>
+        <div class="fc-desc"><strong>Generates three Argo CD Applications from a single template.</strong> Each Application targets its environment's overlay directory (<code>k8s/overlays/{env}</code>) and has its own sync policy. The ApplicationSet controller watches this file — any change to the template propagates to all three Applications.</div>
+      </div>
+
+      <div class="fc-row">
+        <span class="fc-file">k8s/overlays/{env}/kustomization.yaml</span>
+        <span class="fc-arrow">→</span>
+        <div class="fc-desc"><strong>The promotion target — the only file the promotion script modifies.</strong> The <code>images[0].newTag</code> field is the single source of truth for which image is running in each environment. Argo CD reads this file on each sync cycle; changing the tag triggers a diff and initiates a rollout. The prod overlay additionally applies the memory limit patch.</div>
+      </div>
+
+      <div class="fc-row">
+        <span class="fc-file">k8s/ (base manifests)</span>
+        <span class="fc-arrow">→</span>
+        <div class="fc-desc"><strong>Referenced by all three overlays via <code>resources: ../../</code>.</strong> The base deployment, HPA, PDB, and service manifests are shared across all environments. Environment differences are applied as overlays, not as separate copies of the base files. This prevents base manifest changes from requiring updates in three places.</div>
+      </div>
+
+      <div class="fc-row">
+        <span class="fc-file">scripts/promote.sh</span>
+        <span class="fc-arrow">→</span>
+        <div class="fc-desc"><strong>Orchestrates the promotion: Git commit → Argo CD sync → health check.</strong> The script is the human-triggerable automation that replaces manual file editing. For prod, it additionally pins the ApplicationSet's <code>targetRevision</code> to the exact commit SHA, closing the branch-tracking gap in the naive approach.</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ══ STEP 5 ══ -->
+  <section class="step-section" id="step-5">
+    <div class="step-header">
+      <div class="step-number">5</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 5 of 5</div>
+        <div class="step-title">Watch out</div>
+      </div>
+    </div>
+
+    <p class="prose">Claude Code produced a correct GitOps promotion structure with appropriate per-environment sync policies. Here is what requires cluster-specific verification.</p>
+
+    <div class="callout good">
+      <div class="callout-label">What Claude Code handled well</div>
+      Per-environment sync policy differences expressed correctly in a single ApplicationSet template, <code>prune: false</code> and <code>selfHeal: false</code> for prod with clear reasoning, <code>PLACEHOLDER</code> tag as an intentional fail-safe in the prod overlay, <code>argocd app set --revision COMMIT_SHA</code> to pin prod after promotion, two-issue diagnosis in Turn 4 (HPA API version incompatibility causing Deployment health degradation), <code>ApplyOutOfSyncOnly=true</code> sync option included without prompting, overlay audit correctly flagging the <code>REGISTRY</code> placeholder as the one deployment prerequisite.
+    </div>
+
+    <ul class="annotation-list" style="margin-top:24px;">
+      <li>
+        <span class="ann-badge ann-warn">Verify</span>
+        <div><strong>The ApplicationSet conditional template syntax requires Argo CD ≥ 2.6.</strong> The <code>{{#if (eq autoSync "true")}}</code> Go template syntax for conditionally including the <code>automated</code> block requires Argo CD 2.6 or later. Earlier versions do not support conditional blocks in ApplicationSet templates. Check your Argo CD version with <code>argocd version</code> and verify the template syntax matches your version's supported features.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Verify</span>
+        <div><strong>The promotion script requires the <code>argocd</code> CLI to be authenticated.</strong> <code>argocd app sync</code> and <code>argocd app wait</code> require an active argocd CLI session. In CI, this means authenticating with a service account token before the promotion script runs: <code>argocd login --auth-token $ARGOCD_TOKEN</code>. The script does not handle authentication — it assumes the CLI is pre-authenticated in the environment that calls it.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Verify</span>
+        <div><strong>Replace the <code>REGISTRY</code> placeholder in all four locations before the first promotion.</strong> The image name <code>REGISTRY/payment-api</code> appears in <code>k8s/deployment.yaml</code> and all three overlay <code>kustomization.yaml</code> files. Kustomize matches image names exactly — if the name in the overlay does not exactly match the name in the deployment manifest (including the registry prefix), the tag override is silently skipped and the base image runs instead. Verify with <code>kustomize build k8s/overlays/prod | grep image:</code> after substituting the real registry.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Verify</span>
+        <div><strong>The <code>yq</code> command targets <code>images[0].newTag</code> — verify index.</strong> The promotion script uses <code>yq e '.images[0].newTag = "..."'</code>. This updates the first image in the <code>images</code> array. If any overlay ever adds a second image (e.g. an init container or sidecar image), the index may need to change. Use a more specific selector in production: <code>yq e '(.images[] | select(.name == "REGISTRY/payment-api")).newTag = "..."'</code> to target by name rather than index.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-info">Note</span>
+        <div><strong>The prod commit SHA pinning survives only until the next ApplicationSet reconciliation.</strong> When <code>argocd app set --revision COMMIT_SHA</code> pins the prod Application's revision, it modifies the live Application object in the cluster. If the ApplicationSet reconciles (due to a change to the ApplicationSet manifest itself), the <code>targetRevision</code> field will be reset to the value in the template — which is <code>HEAD</code>. For durable SHA pinning, the SHA should be written back into the ApplicationSet template itself or managed via a dedicated prod Application manifest outside the ApplicationSet.</div>
+      </li>
+    </ul>
+
+    <div class="callout tip">
+      <div class="callout-label">Prompting tip for GitOps configuration</div>
+      The most important framing for any Argo CD or GitOps prompt is <strong>stating the sync policy intent explicitly for each environment</strong> — not just "auto-sync for dev, manual for prod." The specific flags matter: <code>prune</code>, <code>selfHeal</code>, and <code>targetRevision</code> each have non-obvious production implications that Claude Code will get right when told the intent (e.g. "selfHeal false so manual emergency changes are not reverted") but may default incorrectly when told only the outcome (e.g. "conservative sync for prod"). Name the operational risk you are guarding against for each flag, not just the desired setting.
+    </div>
+  </section>
+
+  <div class="bottom-nav">
+    <a class="nav-btn secondary" href="example-7-kubernetes-hpa-pdb.html">← Example 7 — Kubernetes HPA and PDB</a>
+    <a class="nav-btn" href="example-9-python-automation.html">Example 9 — Python automation script →</a>
+  </div>
+
+</div>
+
+<footer>
+  <span>AIOps &amp; DevOps Learning Path · SourceFuse L&amp;D</span>
+  <span>Example 8 of 13 · Tier 2 · Argo CD promotion flow</span>
+</footer>
+
+<script>
+  const sections = document.querySelectorAll('.step-section');
+  const navItems = document.querySelectorAll('.stepnav-item');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const id = entry.target.id;
+        navItems.forEach(item => {
+          item.classList.toggle('active', item.getAttribute('href') === '#' + id);
+        });
+      }
+    });
+  }, { rootMargin:'-30% 0px -60% 0px', threshold:0 });
+  sections.forEach(s => observer.observe(s));
+
+  function copyCode(btn) {
+    const pre = btn.closest('.code-wrap').querySelector('pre');
+    navigator.clipboard.writeText(pre.innerText).then(() => {
+      btn.textContent = 'copied!';
+      setTimeout(() => btn.textContent = 'copy', 2000);
+    });
+  }
+</script>
+</body>
+</html>
