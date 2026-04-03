@@ -179,6 +179,25 @@ The engineer asks how to handle environment-differentiated lifecycle rules given
 
 ---
 
+#### Example 7 — Kubernetes deployment with HPA and PDB
+
+**Naive approach failure mode: visible during the first node maintenance window.**
+The naive workload is a Deployment and nothing else. Three replicas with no topology constraints, no PDB, no HPA, and no Service. The failure mode — all replicas on one node, node drained, four-minute outage — is exactly what happened. This is the Tier 2 version of a failure that is invisible in normal operations and catastrophic in the first operational event. The example is built around a real incident rather than a hypothetical, which grounds the solution choices in consequence rather than theory.
+
+**Turn 1: <code>DoNotSchedule</code> is produced because the failure mode was named.**
+The topology spread constraint uses `whenUnsatisfiable: DoNotSchedule` — the hard constraint that blocks scheduling rather than merely attempting spread. Claude Code chose this over `ScheduleAnyway` because the prompt described an outage caused by pod concentration: "all three replicas landed on the same node." A prompt that said only "spread pods across zones" would likely have produced `ScheduleAnyway`. The failure mode made the constraint choice unambiguous. This is the prompting principle articulated in the tip: naming the operational scenario you are guarding against produces more precise constraint choices than stating the desired behaviour abstractly.
+
+**Turn 3: the <code>minAvailable</code> vs <code>maxUnavailable</code> explanation is the most technically precise moment in the example.**
+The engineer asks Claude Code to explain the choice between the two PDB constraint types. The answer is correct and non-obvious: `maxUnavailable: 1` looks equivalent to `minAvailable: 2` at 3 replicas but behaves very differently at 10 replicas (HPA maximum). At 10 replicas, `maxUnavailable: 1` serialises all node drains — one pod at a time, very slowly. `minAvailable: 2` allows 8 simultaneous evictions — node maintenance proceeds quickly at scale. The operational rule derived from this (`minReplicas ≥ minAvailable + 1`) is a constraint that Kubernetes does not validate — it is the kind of operational knowledge that only surfaces when someone hits the problem in production. The course presents it proactively.
+
+**Turn 4: the metrics-server error is the expected first-run failure for HPA.**
+The `<unknown>` metrics and `the server could not find the requested resource (get pods.metrics.k8s.io)` error is the universal first encounter with HPA on a cluster where metrics-server has not been installed. Claude Code warned of this prerequisite in Turn 2; Turn 4 confirms it happened as predicted. The response includes both the standard installation and the EKS private endpoint TLS patch — the latter produced without prompting, based on Claude Code knowing that EKS private API endpoints commonly require it. This is the same pattern as Example 3 Turn 2: a specific failure mode diagnosed precisely from a short error excerpt.
+
+**Turn 5: label alignment audit across five reference points.**
+The Service, HPA, PDB, topology spread constraints, and Deployment pod template all reference the label `app: payment-api`. Claude Code produces a structured audit of all five reference points and names the failure mode if they drift: traffic not routed, autoscaling not applied, PDB protecting nothing, spread not enforced. This is the multi-file integration audit pattern at the Kubernetes manifest level — analogous to the Turn 5 convention check in Example 5, but operating on semantic correctness rather than naming conventions.
+
+---
+
 ## 4. Callout taxonomy
 
 The course uses four callout types. Each has a specific pedagogical purpose. They are not used interchangeably.
