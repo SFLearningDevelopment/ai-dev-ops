@@ -20,7 +20,7 @@ It is intentionally internal. The course itself does not reference or link to th
 
 ### 2.1 Why this course exists in the learning path
 
-The AIOps & DevOps learning path covers two domains that are increasingly inseparable: operational automation and AI-assisted tooling. Most existing training on AI coding tools treats them as code generators — tools you prompt once and review the output. This course is built around a different and more accurate model: **Claude Code as a contextual participant** in DevOps workflows, not a one-shot generator.
+The AIOps & DevOps learning path covers two domains that are increasingly inseparable: **operational automation and AI-assisted tooling**. Most existing training on AI coding tools treats them as code generators — tools you prompt once and review the output. This course is built around a different and more accurate model: **Claude Code as a contextual participant** in DevOps workflows, not a one-shot generator.
 
 This distinction is not cosmetic. An engineer who treats Claude Code as a generator will use it for first-pass boilerplate and then disengage. An engineer who understands it as a participant — one that maintains context across turns, correlates runtime signals with code it wrote, and produces output that improves with each feedback cycle — will extract ten times the value from the same tool.
 
