@@ -2,7 +2,7 @@
 
 **Course:** Practical Usage of Claude Code for DevOps Automation  
 **Learning Path:** AIOps & DevOps  
-**Audience for this document:** Course reviewers
+**Audience for this document:** Course reviewers  
 **Status:** Tier 1 complete · Tiers 2 & 3 in design  
 **Maintainer:** SourceFuse Learning & Development  
 
@@ -20,7 +20,7 @@ It is intentionally internal. The course itself does not reference or link to th
 
 ### 2.1 Why this course exists in the learning path
 
-The AIOps & DevOps learning path covers two domains that are increasingly inseparable: **operational automation and AI-assisted tooling**. Most existing training on AI coding tools treats them as code generators — tools you prompt once and review the output. This course is built around a different and more accurate model: **Claude Code as a contextual participant** in DevOps workflows, not a one-shot generator.
+The AIOps & DevOps learning path covers two domains that are increasingly inseparable: **operational automation** and **AI-assisted tooling**. Most existing training on AI coding tools treats them as code generators — tools you prompt once and review the output. This course is built around a different and more accurate model: **Claude Code as a contextual participant** in DevOps workflows, not a one-shot generator.
 
 This distinction is not cosmetic. An engineer who treats Claude Code as a generator will use it for first-pass boilerplate and then disengage. An engineer who understands it as a participant — one that maintains context across turns, correlates runtime signals with code it wrote, and produces output that improves with each feedback cycle — will extract ten times the value from the same tool.
 
@@ -160,6 +160,22 @@ The rollout failure log contains `Exit Code: 137` and `CrashLoopBackOff`. Exit c
 
 **Turn 5: targeted convention fixes at the multi-file level.**
 The engineer identifies two convention mismatches across the four files — a label value in the Kubernetes manifest and a log prefix pattern in the rollback script — and asks for only the changed lines, not full file regeneration. Claude Code produces exactly that: the two changed lines with context, and introduces a `log()` helper function in the rollback script that centralises the timestamp format so future additions automatically use the correct prefix. This is the targeted-fix pattern operating at the multi-file level, and the `log()` helper demonstrates that a targeted fix can include a design improvement (centralised formatting) without expanding scope beyond what was asked.
+
+---
+
+#### Example 6 — Multi-environment Terraform with remote state
+
+**Naive approach failure mode: configuration difference as the only environment barrier.**
+The naive structure has three `.tfvars` files pointing at a single local state file. The only thing preventing a prod outage from a mistyped `terraform apply` command is the engineer selecting the correct `.tfvars` file. There is no structural isolation between environments, no state locking, and no resource naming that distinguishes which environment a resource belongs to. The Step 2 `warn` callout frames this precisely: "it is not a system; it is a hope." This framing is important for reviewers because it articulates why multi-environment Terraform is an isolation problem, not a configuration problem — a distinction that motivates the entire structure of the example.
+
+**Turn 1: the backend key injection pattern is the non-obvious architectural decision.**
+The `backend.tf` is committed to the repo without a `key` value. The key (`payment-api/dev/terraform.tfstate`) is injected at `terraform init` time via `-backend-config`. This means the same committed file serves all three environments — the environment is never hardcoded in version control. Claude Code chose this pattern without being asked, and explained why: hardcoding the key in `backend.tf` would require either three separate backend files or a file that gets modified before each init, both of which are error-prone. The injection pattern is the correct engineering choice and it is introduced here because it is a prerequisite for the CI pipeline integration described in the example.
+
+**Turn 4: the chicken-and-egg bootstrap problem is named and solved correctly.**
+The `terraform init` failure — S3 bucket does not exist — is the canonical first-run problem with remote state backends. Terraform cannot initialise the backend until the backend resources exist, but you cannot use Terraform to create those resources because the backend is not yet initialised. Claude Code names this correctly ("the expected chicken-and-egg problem") and solves it with an AWS CLI bootstrap script rather than suggesting a workaround that would compromise the architecture (such as using local state for the first apply). The idempotency of the bootstrap script — using `aws s3api head-bucket` and `aws dynamodb describe-table` to skip creation if resources exist — is applied correctly and mirrors the shell script discipline established in Example 4.
+
+**Turn 5: the `prevent_destroy` vs `deletion_protection` distinction is the most technically precise moment in the example.**
+The engineer asks how to handle environment-differentiated lifecycle rules given that Terraform does not support dynamic lifecycle blocks. Claude Code's answer correctly identifies the constraint, explains why `prevent_destroy` is a Terraform client-side guard (removable by editing the config before running destroy), and proposes `deletion_protection = var.enable_deletion_protection` as an AWS API-level alternative that cannot be bypassed without a separate API call. This is a real architectural decision that experienced Terraform engineers debate — the course takes a clear position with a clear rationale. The default value of `true` for `enable_deletion_protection` in the new variable is deliberate: engineers must explicitly opt out of protection rather than opting in, which is the correct default posture for a module that will be used across environments.
 
 ---
 
