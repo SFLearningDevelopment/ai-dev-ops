@@ -1,0 +1,1192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Example 1 — Dockerfile for a Node.js API Service</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Merriweather+Sans:wght@300;400;600;700&family=Source+Code+Pro:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:           #eef2f7;
+    --bg2:          #ffffff;
+    --bg3:          #f0f4f9;
+    --border:       #d0dae8;
+    --text:         #1a2332;
+    --text-dim:     #4a5568;
+    --text-dimmer:  #8fa3bc;
+    --blue:         #1a6eb5;
+    --blue-light:   #e8f1fb;
+    --blue-mid:     #b8d0ed;
+    --blue-dark:    #0f4a7a;
+    --teal:         #0e7a6b;
+    --teal-light:   #e6f4f2;
+    --coral:        #c0392b;
+    --coral-light:  #fdf0ee;
+    --coral-mid:    #f0b8b2;
+    --green:        #1a6b3a;
+    --green-light:  #e8f5ed;
+    --amber:        #92600a;
+    --amber-light:  #fdf3e3;
+    --code-bg:      #1e2433;
+    --code-text:    #cdd6f4;
+    --radius:       12px;
+  }
+
+  html, body {
+    min-height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Merriweather Sans', sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  /* ── Top nav ── */
+  .topnav {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 0 40px;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-dimmer);
+    font-family: 'Source Code Pro', monospace;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .topnav a { color: var(--blue); text-decoration: none; }
+  .topnav a:hover { text-decoration: underline; }
+  .topnav .sep { margin: 0 4px; color: var(--text-dimmer); }
+
+  /* ── Step nav bar ── */
+  .stepnav {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 0 40px;
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    position: sticky;
+    top: 52px;
+    z-index: 99;
+    overflow-x: auto;
+  }
+
+  .stepnav-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 20px;
+    font-size: 12px;
+    font-family: 'Source Code Pro', monospace;
+    color: var(--text-dimmer);
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    white-space: nowrap;
+    transition: color 0.15s, border-color 0.15s;
+    text-decoration: none;
+  }
+
+  .stepnav-item:hover { color: var(--text-dim); }
+
+  .stepnav-item.active {
+    color: var(--blue);
+    border-bottom-color: var(--blue);
+    font-weight: 600;
+  }
+
+  .stepnav-num {
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px;
+    font-weight: 700;
+    flex-shrink: 0;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+  }
+
+  .stepnav-item.active .stepnav-num {
+    background: var(--blue);
+    border-color: var(--blue);
+    color: white;
+  }
+
+  /* ── Hero ── */
+  .hero {
+    background: var(--bg2);
+    border-bottom: 2px solid var(--border);
+    padding: 40px 40px 32px;
+  }
+
+  .hero-inner { max-width: 860px; margin: 0 auto; }
+
+  .hero-eyebrow {
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--blue);
+    font-weight: 600;
+    margin-bottom: 10px;
+    font-family: 'Source Code Pro', monospace;
+  }
+
+  .hero h1 {
+    font-size: clamp(18px, 2.5vw, 26px);
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.25;
+  }
+
+  .hero h1 span { color: var(--blue); }
+
+  .hero-meta {
+    margin-top: 14px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .meta-pill {
+    font-size: 10.5px;
+    font-family: 'Source Code Pro', monospace;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-weight: 600;
+  }
+
+  .pill-tier  { background: var(--blue-light); color: var(--blue); border: 1px solid var(--blue-mid); }
+  .pill-topic { background: var(--teal-light); color: var(--teal); border: 1px solid #a3d4ce; }
+  .pill-turns { background: var(--bg3); color: var(--text-dim); border: 1px solid var(--border); font-weight: 400; }
+
+  /* ── Main layout ── */
+  .main {
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 40px 40px 80px;
+  }
+
+  /* ── Section blocks ── */
+  .step-section {
+    margin-bottom: 56px;
+    scroll-margin-top: 120px;
+  }
+
+  .step-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 2px solid var(--border);
+  }
+
+  .step-number {
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    background: var(--blue);
+    color: white;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    font-weight: 700;
+    font-family: 'Source Code Pro', monospace;
+    flex-shrink: 0;
+  }
+
+  .step-header-text {}
+
+  .step-label {
+    font-size: 9px;
+    font-family: 'Source Code Pro', monospace;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--blue);
+    font-weight: 600;
+    margin-bottom: 3px;
+  }
+
+  .step-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.25;
+  }
+
+  /* ── Prose ── */
+  .prose {
+    font-size: 14.5px;
+    color: var(--text-dim);
+    line-height: 1.8;
+    margin-bottom: 20px;
+  }
+
+  .prose strong { color: var(--text); font-weight: 600; }
+  .prose code {
+    font-family: 'Source Code Pro', monospace;
+    font-size: 13px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    padding: 1px 5px;
+    border-radius: 4px;
+    color: var(--blue-dark);
+  }
+
+  .prose em { color: var(--text-dim); font-style: italic; }
+
+  /* ── Callout boxes ── */
+  .callout {
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    margin: 20px 0;
+    font-size: 13.5px;
+    line-height: 1.7;
+  }
+
+  .callout-label {
+    font-size: 9px;
+    font-family: 'Source Code Pro', monospace;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+
+  .callout.info {
+    background: var(--blue-light);
+    border: 1px solid var(--blue-mid);
+    border-left: 3px solid var(--blue);
+    color: var(--text-dim);
+  }
+  .callout.info .callout-label { color: var(--blue); }
+
+  .callout.warn {
+    background: #fdf5f5;
+    border: 1px solid var(--coral-mid);
+    border-left: 3px solid var(--coral);
+    color: var(--text-dim);
+  }
+  .callout.warn .callout-label { color: var(--coral); }
+
+  .callout.good {
+    background: var(--green-light);
+    border: 1px solid #a3d4b8;
+    border-left: 3px solid var(--green);
+    color: var(--text-dim);
+  }
+  .callout.good .callout-label { color: var(--green); }
+
+  .callout.tip {
+    background: var(--amber-light);
+    border: 1px solid #f0d4a0;
+    border-left: 3px solid var(--amber);
+    color: var(--text-dim);
+  }
+  .callout.tip .callout-label { color: var(--amber); }
+
+  .callout strong { color: var(--text); font-weight: 600; }
+  .callout code {
+    font-family: 'Source Code Pro', monospace;
+    font-size: 12.5px;
+    background: rgba(0,0,0,0.06);
+    padding: 1px 5px;
+    border-radius: 4px;
+  }
+
+  /* ── Code blocks ── */
+  .code-wrap {
+    margin: 20px 0;
+    border-radius: var(--radius);
+    overflow: hidden;
+    border: 1px solid #2a3144;
+  }
+
+  .code-header {
+    background: #252b3b;
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .code-filename {
+    font-size: 11px;
+    font-family: 'Source Code Pro', monospace;
+    color: #7a8ab0;
+    letter-spacing: 0.05em;
+  }
+
+  .code-lang {
+    font-size: 10px;
+    font-family: 'Source Code Pro', monospace;
+    color: #4a5568;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .code-copy {
+    font-size: 10px;
+    font-family: 'Source Code Pro', monospace;
+    color: #7a8ab0;
+    background: none;
+    border: 1px solid #3a4155;
+    border-radius: 4px;
+    padding: 2px 8px;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+  }
+
+  .code-copy:hover { color: #cdd6f4; border-color: #6a7ab0; }
+
+  pre {
+    background: var(--code-bg);
+    padding: 20px;
+    overflow-x: auto;
+    margin: 0;
+  }
+
+  code.block {
+    font-family: 'Source Code Pro', monospace;
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--code-text);
+    background: none;
+    border: none;
+    padding: 0;
+    display: block;
+  }
+
+  /* Syntax colours */
+  .kw  { color: #cba6f7; } /* keyword / instruction */
+  .cm  { color: #6c7086; font-style: italic; } /* comment */
+  .st  { color: #a6e3a1; } /* string / value */
+  .nm  { color: #fab387; } /* number / flag */
+  .op  { color: #89dceb; } /* operator / directive */
+  .an  { color: #f38ba8; } /* annotation / highlight */
+
+  /* ── Diff blocks ── */
+  .diff-wrap {
+    margin: 20px 0;
+    border-radius: var(--radius);
+    overflow: hidden;
+    border: 1px solid #2a3144;
+  }
+
+  .diff-header {
+    background: #252b3b;
+    padding: 10px 16px;
+    font-size: 11px;
+    font-family: 'Source Code Pro', monospace;
+    color: #7a8ab0;
+  }
+
+  .diff-body {
+    background: var(--code-bg);
+    padding: 16px 0;
+    overflow-x: auto;
+  }
+
+  .diff-line {
+    padding: 1px 20px;
+    font-family: 'Source Code Pro', monospace;
+    font-size: 13px;
+    line-height: 1.65;
+    color: var(--code-text);
+    display: block;
+  }
+
+  .diff-line.add { background: rgba(166,227,161,0.12); color: #a6e3a1; }
+  .diff-line.add::before { content: '+  '; color: #a6e3a1; }
+  .diff-line.rem { background: rgba(243,139,168,0.12); color: #f38ba8; }
+  .diff-line.rem::before { content: '-  '; color: #f38ba8; }
+  .diff-line.neu::before { content: '   '; }
+
+  /* ── Annotation list ── */
+  .annotation-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin: 20px 0;
+  }
+
+  .annotation-list li {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    font-size: 13.5px;
+    color: var(--text-dim);
+    line-height: 1.7;
+  }
+
+  .ann-badge {
+    flex-shrink: 0;
+    font-size: 10px;
+    font-family: 'Source Code Pro', monospace;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-top: 2px;
+  }
+
+  .ann-good { background: var(--green-light); color: var(--green); border: 1px solid #a3d4b8; }
+  .ann-warn { background: var(--coral-light); color: var(--coral); border: 1px solid var(--coral-mid); }
+  .ann-info { background: var(--blue-light); color: var(--blue); border: 1px solid var(--blue-mid); }
+
+  .annotation-list li strong { color: var(--text); font-weight: 600; }
+  .annotation-list li code {
+    font-family: 'Source Code Pro', monospace;
+    font-size: 12.5px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    padding: 1px 5px;
+    border-radius: 4px;
+    color: var(--blue-dark);
+  }
+
+  /* ── Conversation blocks ── */
+  .conversation {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin: 24px 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  .conv-turn {
+    padding: 18px 22px;
+  }
+
+  .conv-turn + .conv-turn {
+    border-top: 1px solid var(--border);
+  }
+
+  .conv-turn.engineer { background: var(--bg3); }
+  .conv-turn.claude   { background: var(--bg2); }
+
+  .conv-role {
+    font-size: 9px;
+    font-family: 'Source Code Pro', monospace;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  .conv-turn.engineer .conv-role { color: var(--teal); }
+  .conv-turn.claude   .conv-role { color: var(--blue); }
+
+  .conv-body {
+    font-size: 13.5px;
+    color: var(--text-dim);
+    line-height: 1.75;
+  }
+
+  .conv-body strong { color: var(--text); font-weight: 600; }
+  .conv-body code {
+    font-family: 'Source Code Pro', monospace;
+    font-size: 12.5px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    padding: 1px 5px;
+    border-radius: 4px;
+    color: var(--blue-dark);
+  }
+
+  .conv-body em { font-style: italic; color: var(--text-dimmer); }
+
+  .turn-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 9px;
+    font-family: 'Source Code Pro', monospace;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--text-dimmer);
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 3px 10px;
+    margin-bottom: 14px;
+    font-weight: 600;
+  }
+
+  /* ── Section divider ── */
+  .section-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 40px 0;
+  }
+
+  /* ── Bottom nav ── */
+  .bottom-nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 0 0;
+    border-top: 1px solid var(--border);
+    margin-top: 40px;
+  }
+
+  .nav-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-family: 'Source Code Pro', monospace;
+    color: var(--blue);
+    text-decoration: none;
+    padding: 10px 18px;
+    border: 1px solid var(--blue-mid);
+    border-radius: 8px;
+    background: var(--blue-light);
+    transition: background 0.15s, border-color 0.15s;
+    font-weight: 600;
+  }
+
+  .nav-btn:hover { background: var(--blue-mid); border-color: var(--blue); }
+  .nav-btn.secondary { background: var(--bg2); color: var(--text-dim); border-color: var(--border); }
+  .nav-btn.secondary:hover { background: var(--bg3); }
+
+  /* ── Footer ── */
+  footer {
+    background: var(--bg2);
+    border-top: 1px solid var(--border);
+    padding: 14px 40px;
+    font-size: 11px;
+    font-family: 'Source Code Pro', monospace;
+    color: var(--text-dimmer);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  /* ── Responsive ── */
+  @media (max-width: 640px) {
+    .topnav, .main, footer { padding-left: 20px; padding-right: 20px; }
+    .hero { padding: 28px 20px; }
+    .stepnav { padding: 0 20px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Top nav -->
+<nav class="topnav">
+  <a href="course-map.html">Course map</a>
+  <span class="sep">/</span>
+  <a href="course-map.html">Tier 1 examples</a>
+  <span class="sep">/</span>
+  <span>Example 1 — Dockerfile</span>
+</nav>
+
+<!-- Step nav -->
+<nav class="stepnav" id="stepnav">
+  <a class="stepnav-item active" href="#step-1"><span class="stepnav-num">1</span>Problem</a>
+  <a class="stepnav-item" href="#step-2"><span class="stepnav-num">2</span>Naive approach</a>
+  <a class="stepnav-item" href="#step-3"><span class="stepnav-num">3</span>Claude Code interaction</a>
+  <a class="stepnav-item" href="#step-4"><span class="stepnav-num">4</span>Refined output</a>
+  <a class="stepnav-item" href="#step-5"><span class="stepnav-num">5</span>Watch out</a>
+</nav>
+
+<!-- Hero -->
+<div class="hero">
+  <div class="hero-inner">
+    <div class="hero-eyebrow">Example 1 of 4 · Tier 1 · Single-file task</div>
+    <h1>Dockerfile for a <span>Node.js API</span> service</h1>
+    <div class="hero-meta">
+      <span class="meta-pill pill-tier">Tier 1 — Single-file task</span>
+      <span class="meta-pill pill-topic">Containerisation</span>
+      <span class="meta-pill pill-turns">3-turn interaction</span>
+      <span class="meta-pill pill-turns">DevOps automation</span>
+    </div>
+  </div>
+</div>
+
+<!-- Main content -->
+<div class="main">
+
+  <!-- ══ STEP 1: PROBLEM ══ -->
+  <section class="step-section" id="step-1">
+    <div class="step-header">
+      <div class="step-number">1</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 1 of 5</div>
+        <div class="step-title">The problem</div>
+      </div>
+    </div>
+
+    <p class="prose">
+      You have a Node.js Express API service — <code>payment-api</code> — that runs fine locally and passes all tests. The service needs to be containerised so it can be deployed to an EKS cluster via an existing CI/CD pipeline. The pipeline expects an image pushed to ECR, built from a <code>Dockerfile</code> in the repo root.
+    </p>
+
+    <p class="prose">
+      The team is small, the deadline is today, and no one has containerised a Node.js service for this repo before. There is no existing <code>Dockerfile</code> to reference.
+    </p>
+
+    <div class="callout info">
+      <div class="callout-label">Context you have</div>
+      The service runs on <strong>Node 20</strong>. It listens on <strong>port 3000</strong>. It has a <code>/health</code> endpoint that returns <code>200 OK</code>. Dependencies are in <code>package.json</code>. There is no build step — it runs <code>node src/index.js</code> directly. The ECR repo and EKS namespace are already provisioned.
+    </div>
+
+    <p class="prose">
+      This is about as common a scenario as exists in DevOps. The question is not whether you can write a Dockerfile — it's whether the one you write under time pressure will be production-worthy, or whether it will accumulate security and performance debt that surfaces six months later.
+    </p>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ══ STEP 2: NAIVE APPROACH ══ -->
+  <section class="step-section" id="step-2">
+    <div class="step-header">
+      <div class="step-number">2</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 2 of 5</div>
+        <div class="step-title">The naive approach</div>
+      </div>
+    </div>
+
+    <p class="prose">
+      Under time pressure, most engineers reach for a Dockerfile they've used before — or copy one from a tutorial. Here is what typically gets written, and what gets committed to the repo:
+    </p>
+
+    <div class="code-wrap">
+      <div class="code-header">
+        <span class="code-filename">Dockerfile (naive)</span>
+        <span class="code-lang">dockerfile</span>
+      </div>
+      <pre><code class="block"><span class="kw">FROM</span> <span class="st">node:latest</span>
+
+<span class="kw">WORKDIR</span> <span class="st">/app</span>
+
+<span class="kw">COPY</span> <span class="st">. .</span>
+
+<span class="kw">RUN</span> <span class="st">npm install</span>
+
+<span class="kw">EXPOSE</span> <span class="nm">3000</span>
+
+<span class="kw">CMD</span> <span class="st">["node", "src/index.js"]</span></code></pre>
+    </div>
+
+    <p class="prose">
+      It works. The image builds, the container runs, the CI pipeline goes green. But this Dockerfile carries six distinct problems that will surface in production or security review:
+    </p>
+
+    <ul class="annotation-list">
+      <li>
+        <span class="ann-badge ann-warn">Security</span>
+        <div><strong>Runs as root.</strong> The container process has UID 0 inside the container. If the application is compromised, the attacker has root access to the container filesystem and any mounted volumes. Every security benchmark flags this.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Security</span>
+        <div><strong><code>node:latest</code> is unpinned and bloated.</strong> <code>latest</code> resolves to a different image on every build — your prod image and your dev image may differ. The full <code>node</code> image includes compilers, package managers, and hundreds of packages that have no business being in a production container. Attack surface is proportional to image size.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Performance</span>
+        <div><strong>Layer cache always misses on <code>npm install</code>.</strong> <code>COPY . .</code> copies everything — including <code>src/</code> — before <code>npm install</code>. Any change to any source file invalidates the layer cache and forces a full reinstall of all dependencies. On a large <code>node_modules</code>, this adds 2–4 minutes to every build.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Correctness</span>
+        <div><strong>No <code>.dockerignore</code>.</strong> Without it, <code>COPY . .</code> copies <code>node_modules/</code>, <code>.git/</code>, <code>.env</code> files, test fixtures, and local build artifacts into the image. <code>node_modules</code> alone can add hundreds of megabytes and the wrong platform binaries.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Operations</span>
+        <div><strong>No <code>HEALTHCHECK</code>.</strong> Docker and Kubernetes cannot distinguish between a container that is running and one that is running but unhealthy. Without a health check, a crashed-but-running process will not trigger a restart until a liveness probe is separately configured — if one is configured at all.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Correctness</span>
+        <div><strong>Installs dev dependencies.</strong> <code>npm install</code> without <code>--omit=dev</code> includes testing frameworks, type checkers, linters, and build tools in the production image. These add size and expose tools that serve no purpose at runtime.</div>
+      </li>
+    </ul>
+
+    <div class="callout warn">
+      <div class="callout-label">The core problem</div>
+      None of these issues cause an immediate failure. The service runs. The tests pass. The CI pipeline is green. This is exactly why naive Dockerfiles persist in codebases for years — they only become problems at the worst possible time: a security audit, a production incident, or a compliance review.
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ══ STEP 3: CLAUDE CODE INTERACTION ══ -->
+  <section class="step-section" id="step-3">
+    <div class="step-header">
+      <div class="step-number">3</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 3 of 5</div>
+        <div class="step-title">The Claude Code interaction</div>
+      </div>
+    </div>
+
+    <p class="prose">
+      This interaction runs three turns. Notice what changes at each turn and why — the engineer is not just accepting output, they are feeding back specific real results and asking for targeted refinements. That discipline is what makes the difference between a first-pass Dockerfile and a production-grade one.
+    </p>
+
+    <!-- Turn 1 -->
+    <div class="turn-label">Turn 1 of 3 — Initial generation with context</div>
+
+    <div class="conversation">
+      <div class="conv-turn engineer">
+        <div class="conv-role">Engineer → Claude Code</div>
+        <div class="conv-body">
+          <p>I need a production-grade Dockerfile for a Node.js Express API service called payment-api. Here is the context:</p>
+          <p style="margin-top:10px;">— Node version: 20<br>
+          — Entrypoint: <code>node src/index.js</code><br>
+          — Port: 3000<br>
+          — Health endpoint: <code>GET /health</code> returns 200<br>
+          — No build step, no TypeScript compilation<br>
+          — <code>npm install --omit=dev</code> for production deps only</p>
+          <p style="margin-top:10px;">Requirements:<br>
+          — Must not run as root<br>
+          — Layer cache must not be invalidated by source file changes<br>
+          — Image must be as small as reasonably possible without distroless<br>
+          — Must include a HEALTHCHECK<br>
+          — Include a .dockerignore alongside it</p>
+          <p style="margin-top:10px;">The image will be pushed to AWS ECR and run on EKS. No shell access is needed in the final image.</p>
+        </div>
+      </div>
+
+      <div class="conv-turn claude">
+        <div class="conv-role">Claude Code</div>
+        <div class="conv-body">
+          <p>Here is a production-grade Dockerfile and accompanying <code>.dockerignore</code> for <code>payment-api</code>.</p>
+
+          <div class="code-wrap" style="margin:14px 0 0;">
+            <div class="code-header">
+              <span class="code-filename">Dockerfile (turn 1 output)</span>
+              <button class="code-copy" onclick="copyCode(this)">copy</button>
+            </div>
+            <pre><code class="block"><span class="kw">FROM</span> <span class="st">node:20-alpine</span> <span class="kw">AS</span> <span class="op">base</span>
+
+<span class="cm"># Install dumb-init for proper signal handling</span>
+<span class="kw">RUN</span> <span class="st">apk add --no-cache dumb-init</span>
+
+<span class="cm"># Create a non-root user</span>
+<span class="kw">RUN</span> <span class="st">addgroup -S appgroup && adduser -S appuser -G appgroup</span>
+
+<span class="kw">WORKDIR</span> <span class="st">/app</span>
+
+<span class="cm"># Copy dependency manifests first — layer cache preserved on source changes</span>
+<span class="kw">COPY</span> <span class="st">package.json package-lock.json ./</span>
+
+<span class="cm"># Install production dependencies only</span>
+<span class="kw">RUN</span> <span class="st">npm ci --omit=dev && npm cache clean --force</span>
+
+<span class="cm"># Copy source after deps — cache hit on reinstall if only src changed</span>
+<span class="kw">COPY</span> <span class="st">src/ ./src/</span>
+
+<span class="cm"># Set ownership before switching user</span>
+<span class="kw">RUN</span> <span class="st">chown -R appuser:appgroup /app</span>
+
+<span class="kw">USER</span> <span class="st">appuser</span>
+
+<span class="kw">EXPOSE</span> <span class="nm">3000</span>
+
+<span class="kw">HEALTHCHECK</span> <span class="nm">--interval=30s --timeout=5s --start-period=10s --retries=3</span> \
+  <span class="kw">CMD</span> <span class="st">wget -qO- http://localhost:3000/health || exit 1</span>
+
+<span class="kw">ENTRYPOINT</span> <span class="st">["dumb-init", "--"]</span>
+<span class="kw">CMD</span> <span class="st">["node", "src/index.js"]</span></code></pre>
+          </div>
+
+          <div class="code-wrap" style="margin:14px 0 0;">
+            <div class="code-header">
+              <span class="code-filename">.dockerignore (turn 1 output)</span>
+              <button class="code-copy" onclick="copyCode(this)">copy</button>
+            </div>
+            <pre><code class="block">node_modules
+.git
+.gitignore
+.env*
+*.log
+coverage
+.nyc_output
+test
+tests
+__tests__
+*.test.js
+*.spec.js
+.eslintrc*
+.prettierrc*
+README.md
+Dockerfile
+.dockerignore</code></pre>
+          </div>
+
+          <p style="margin-top:14px;"><strong>Key decisions made:</strong></p>
+          <p style="margin-top:8px;">— <code>node:20-alpine</code> rather than <code>node:20</code>: Alpine reduces the image from ~1.1 GB to ~180 MB while retaining everything a pure-Node service needs. I avoided distroless per your constraint — Alpine still gives you a shell for debugging if needed.</p>
+          <p style="margin-top:6px;">— <code>dumb-init</code>: Node does not handle SIGTERM gracefully when run as PID 1. Without an init process, Kubernetes sends SIGTERM and the container keeps running until the grace period expires and it receives SIGKILL. <code>dumb-init</code> correctly forwards signals and reaps zombie processes.</p>
+          <p style="margin-top:6px;">— <code>npm ci</code> instead of <code>npm install</code>: <code>npm ci</code> installs exactly what is in <code>package-lock.json</code>, fails on any discrepancy, and is significantly faster in CI environments.</p>
+          <p style="margin-top:6px;">— Layer ordering: <code>package.json</code> and <code>package-lock.json</code> are copied and installed before <code>src/</code> is copied. This means changing any source file does not invalidate the dependency install layer.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Turn 2 -->
+    <div class="turn-label" style="margin-top:28px;">Turn 2 of 3 — Build output and one real issue</div>
+
+    <p class="prose">
+      The engineer builds the image locally. It succeeds but produces a warning, and a quick Trivy scan flags one issue. Both get pasted back verbatim.
+    </p>
+
+    <div class="conversation">
+      <div class="conv-turn engineer">
+        <div class="conv-role">Engineer → Claude Code</div>
+        <div class="conv-body">
+          <p>Build succeeded. Two things to address:</p>
+          <p style="margin-top:10px;"><strong>1. Build warning (verbatim):</strong></p>
+          <div class="code-wrap" style="margin:10px 0;">
+            <div class="code-header"><span class="code-filename">docker build output</span></div>
+            <pre><code class="block">1 warning found (use docker --debug to expand):
+- JSONArgsRecommended: JSON arguments recommended for CMD to prevent
+  unintended behavior related to OS signals (line 20)
+  More info: https://docs.docker.com/go/dockerfile/rule/json-args-recommended/</code></pre>
+          </div>
+          <p style="margin-top:10px;"><strong>2. Trivy scan finding (verbatim):</strong></p>
+          <div class="code-wrap" style="margin:10px 0;">
+            <div class="code-header"><span class="code-filename">trivy image scan</span></div>
+            <pre><code class="block">HIGH: CVE-2024-4067 in micromatch 4.0.5
+Package: micromatch
+Installed Version: 4.0.5
+Fixed Version: 4.0.8
+Severity: HIGH
+Description: Regular Expression Denial of Service (ReDoS)
+Layer: node_modules/micromatch</code></pre>
+          </div>
+          <p style="margin-top:10px;">Please address both. For the CVE — <code>micromatch</code> is a transitive dependency. I don't control its version directly from my <code>package.json</code>.</p>
+        </div>
+      </div>
+
+      <div class="conv-turn claude">
+        <div class="conv-role">Claude Code</div>
+        <div class="conv-body">
+          <p><strong>Warning fix:</strong> The <code>CMD</code> line in turn 1 already uses JSON array form. The warning is likely about the <code>HEALTHCHECK CMD</code>, which used shell form. Here is the corrected healthcheck line:</p>
+          <div class="code-wrap" style="margin:10px 0;">
+            <div class="code-header"><span class="code-filename">Dockerfile — corrected HEALTHCHECK</span></div>
+            <pre><code class="block"><span class="cm"># Shell form (flagged by linter):</span>
+<span class="an">HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD wget -qO- http://localhost:3000/health || exit 1</span>
+
+<span class="cm"># JSON form (correct):</span>
+<span class="kw">HEALTHCHECK</span> <span class="nm">--interval=30s --timeout=5s --start-period=10s --retries=3</span> \
+  <span class="kw">CMD</span> <span class="st">["wget", "-q", "--spider", "http://localhost:3000/health"]</span></code></pre>
+          </div>
+
+          <p style="margin-top:12px;"><strong>CVE fix:</strong> For transitive dependency CVEs you don't control directly, the correct approach in npm is an <code>overrides</code> block in <code>package.json</code>. Add this to your <code>package.json</code>:</p>
+          <div class="code-wrap" style="margin:10px 0;">
+            <div class="code-header"><span class="code-filename">package.json — add overrides block</span></div>
+            <pre><code class="block">{
+  <span class="op">"overrides"</span>: {
+    <span class="op">"micromatch"</span>: <span class="st">"^4.0.8"</span>
+  }
+}</code></pre>
+          </div>
+          <p style="margin-top:8px;">After adding this, run <code>npm install</code> locally to regenerate <code>package-lock.json</code>, commit both files, then rebuild the image. The Trivy finding will clear. This is the correct production pattern for transitive CVEs — do not pin the entire dependency tree, only the affected package via overrides.</p>
+          <p style="margin-top:8px;">Note: if <code>micromatch</code> is only used by dev tooling (e.g. Jest, ESLint), it will not appear in the production image at all since we use <code>--omit=dev</code>. Run <code>npm ls micromatch --omit=dev</code> to confirm whether it's actually in the production dependency graph before adding the override.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Turn 3 -->
+    <div class="turn-label" style="margin-top:28px;">Turn 3 of 3 — Final hardening</div>
+
+    <p class="prose">
+      The engineer confirmed <code>micromatch</code> is dev-only (the Trivy finding disappears after rebuilding with <code>--omit=dev</code>). One more requirement surfaces: the security team mandates a read-only root filesystem for all EKS workloads.
+    </p>
+
+    <div class="conversation">
+      <div class="conv-turn engineer">
+        <div class="conv-role">Engineer → Claude Code</div>
+        <div class="conv-body">
+          <p>micromatch confirmed dev-only — not in the final image, Trivy is clean. Build is good.</p>
+          <p style="margin-top:10px;">One more requirement: our security policy mandates <code>readOnlyRootFilesystem: true</code> in the Kubernetes SecurityContext for all workloads. When I apply that, the container crashes on startup with:</p>
+          <div class="code-wrap" style="margin:10px 0;">
+            <div class="code-header"><span class="code-filename">kubectl logs payment-api-xxx</span></div>
+            <pre><code class="block">Error: EACCES: permission denied, open '/app/logs/app.log'
+    at Object.openSync (node:fs:596:3)
+    at Object.writeFileSync (node:fs:2278:35)
+    at createLogger (/app/src/logger.js:12:5)</code></pre>
+          </div>
+          <p style="margin-top:10px;">The app writes logs to <code>/app/logs/</code>. With a read-only root filesystem, that write fails. I cannot change the app's logging path right now.</p>
+        </div>
+      </div>
+
+      <div class="conv-turn claude">
+        <div class="conv-role">Claude Code</div>
+        <div class="conv-body">
+          <p>The correct solution is to mount a writable <code>emptyDir</code> volume at <code>/app/logs</code> in the Kubernetes deployment manifest — not to relax the <code>readOnlyRootFilesystem</code> constraint. The Dockerfile itself does not change; the write permission comes from Kubernetes.</p>
+          <p style="margin-top:10px;">Add this to your deployment spec:</p>
+          <div class="code-wrap" style="margin:10px 0;">
+            <div class="code-header"><span class="code-filename">deployment.yaml — volumes and mounts</span></div>
+            <pre><code class="block"><span class="op">containers:</span>
+  - <span class="op">name:</span> <span class="st">payment-api</span>
+    <span class="op">securityContext:</span>
+      <span class="op">readOnlyRootFilesystem:</span> <span class="nm">true</span>
+      <span class="op">runAsNonRoot:</span> <span class="nm">true</span>
+      <span class="op">runAsUser:</span> <span class="nm">1000</span>
+      <span class="op">allowPrivilegeEscalation:</span> <span class="nm">false</span>
+    <span class="op">volumeMounts:</span>
+      - <span class="op">name:</span> <span class="st">logs</span>
+        <span class="op">mountPath:</span> <span class="st">/app/logs</span>
+<span class="op">volumes:</span>
+  - <span class="op">name:</span> <span class="st">logs</span>
+    <span class="op">emptyDir:</span> {}
+</code></pre>
+          </div>
+          <p style="margin-top:10px;"><code>emptyDir</code> is ephemeral — it lives for the lifetime of the pod and is wiped on restart. This is intentional: container logs should be shipped to a logging backend (CloudWatch, Loki, Datadog) by a sidecar or node-level agent, not persisted to the container filesystem. The <code>emptyDir</code> mount satisfies the app's write requirement while keeping the root filesystem read-only.</p>
+          <p style="margin-top:8px;">Also note: <code>runAsUser: 1000</code> in the SecurityContext must match the UID of <code>appuser</code> created in the Dockerfile. Verify with <code>docker run --rm payment-api id</code> — it should confirm UID 1000. If the Alpine <code>adduser</code> command assigned a different UID, align the SecurityContext accordingly.</p>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ══ STEP 4: REFINED OUTPUT ══ -->
+  <section class="step-section" id="step-4">
+    <div class="step-header">
+      <div class="step-number">4</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 4 of 5</div>
+        <div class="step-title">The refined output</div>
+      </div>
+    </div>
+
+    <p class="prose">
+      Here is the final Dockerfile after all three turns. Each decision is annotated so the next engineer who touches this file understands the intent — not just the implementation.
+    </p>
+
+    <div class="code-wrap">
+      <div class="code-header">
+        <span class="code-filename">Dockerfile (final)</span>
+        <button class="code-copy" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre><code class="block"><span class="cm"># ── Base image ──────────────────────────────────────────────────────────────
+# node:20-alpine chosen over node:20 (full Debian): ~180 MB vs ~1.1 GB.
+# Alpine provides enough tooling for a pure-Node service.
+# Pin to a specific minor for reproducibility; update intentionally.</span>
+<span class="kw">FROM</span> <span class="st">node:20-alpine</span>
+
+<span class="cm"># ── Init process ────────────────────────────────────────────────────────────
+# Node does not handle SIGTERM correctly as PID 1.
+# dumb-init forwards signals and reaps zombie processes.
+# Required for graceful pod shutdown in Kubernetes.</span>
+<span class="kw">RUN</span> <span class="st">apk add --no-cache dumb-init</span>
+
+<span class="cm"># ── Non-root user ───────────────────────────────────────────────────────────
+# Mandated by CIS Docker Benchmark 4.1.
+# UID/GID must match runAsUser in the Kubernetes SecurityContext.</span>
+<span class="kw">RUN</span> <span class="st">addgroup -S appgroup && adduser -S appuser -G appgroup</span>
+
+<span class="kw">WORKDIR</span> <span class="st">/app</span>
+
+<span class="cm"># ── Dependency layer (cache-optimised) ──────────────────────────────────────
+# Copy manifests before source. This layer is only invalidated when
+# package.json or package-lock.json changes — not on every source edit.
+# npm ci: installs exactly package-lock.json, fails on drift, faster in CI.</span>
+<span class="kw">COPY</span> <span class="st">package.json package-lock.json ./</span>
+<span class="kw">RUN</span> <span class="st">npm ci --omit=dev && npm cache clean --force</span>
+
+<span class="cm"># ── Source ──────────────────────────────────────────────────────────────────
+# Copied after deps so source changes hit cache after the install layer.</span>
+<span class="kw">COPY</span> <span class="st">src/ ./src/</span>
+
+<span class="cm"># ── Ownership ───────────────────────────────────────────────────────────────</span>
+<span class="kw">RUN</span> <span class="st">chown -R appuser:appgroup /app</span>
+<span class="kw">USER</span> <span class="st">appuser</span>
+
+<span class="kw">EXPOSE</span> <span class="nm">3000</span>
+
+<span class="cm"># ── Health check ────────────────────────────────────────────────────────────
+# JSON form required (shell form triggers linter warning CIS 4.6).
+# start-period gives the app time to initialise before checks begin.
+# wget used instead of curl — curl not installed in alpine base.</span>
+<span class="kw">HEALTHCHECK</span> <span class="nm">--interval=30s --timeout=5s --start-period=10s --retries=3</span> \
+  <span class="kw">CMD</span> <span class="st">["wget", "-q", "--spider", "http://localhost:3000/health"]</span>
+
+<span class="cm"># ── Entrypoint ──────────────────────────────────────────────────────────────</span>
+<span class="kw">ENTRYPOINT</span> <span class="st">["dumb-init", "--"]</span>
+<span class="kw">CMD</span> <span class="st">["node", "src/index.js"]</span></code></pre>
+    </div>
+
+    <p class="prose" style="margin-top: 24px;">
+      The final <code>.dockerignore</code>:
+    </p>
+
+    <div class="code-wrap">
+      <div class="code-header">
+        <span class="code-filename">.dockerignore (final)</span>
+        <button class="code-copy" onclick="copyCode(this)">copy</button>
+      </div>
+      <pre><code class="block"><span class="cm"># Dependencies — never copy host node_modules into the image</span>
+node_modules
+
+<span class="cm"># Version control</span>
+.git
+.gitignore
+
+<span class="cm"># Environment files — never ship secrets into an image</span>
+.env
+.env.*
+
+<span class="cm"># Logs and coverage</span>
+*.log
+coverage
+.nyc_output
+
+<span class="cm"># Test files</span>
+test
+tests
+__tests__
+*.test.js
+*.spec.js
+
+<span class="cm"># Dev tooling config</span>
+.eslintrc*
+.prettierrc*
+
+<span class="cm"># Docs and meta</span>
+README.md
+Dockerfile
+.dockerignore</code></pre>
+    </div>
+
+    <p class="prose" style="margin-top:24px;">What changed from the naive Dockerfile — a quick diff:</p>
+
+    <div class="diff-wrap">
+      <div class="diff-header">Naive → final diff (logical)</div>
+      <div class="diff-body">
+        <span class="diff-line rem">FROM node:latest</span>
+        <span class="diff-line add">FROM node:20-alpine</span>
+        <span class="diff-line neu"> </span>
+        <span class="diff-line add">RUN apk add --no-cache dumb-init</span>
+        <span class="diff-line add">RUN addgroup -S appgroup &amp;&amp; adduser -S appuser -G appgroup</span>
+        <span class="diff-line neu"> </span>
+        <span class="diff-line neu">WORKDIR /app</span>
+        <span class="diff-line neu"> </span>
+        <span class="diff-line rem">COPY . .</span>
+        <span class="diff-line rem">RUN npm install</span>
+        <span class="diff-line add">COPY package.json package-lock.json ./</span>
+        <span class="diff-line add">RUN npm ci --omit=dev &amp;&amp; npm cache clean --force</span>
+        <span class="diff-line add">COPY src/ ./src/</span>
+        <span class="diff-line add">RUN chown -R appuser:appgroup /app</span>
+        <span class="diff-line add">USER appuser</span>
+        <span class="diff-line neu"> </span>
+        <span class="diff-line neu">EXPOSE 3000</span>
+        <span class="diff-line neu"> </span>
+        <span class="diff-line add">HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \</span>
+        <span class="diff-line add">  CMD ["wget", "-q", "--spider", "http://localhost:3000/health"]</span>
+        <span class="diff-line neu"> </span>
+        <span class="diff-line add">ENTRYPOINT ["dumb-init", "--"]</span>
+        <span class="diff-line rem">CMD ["node", "src/index.js"]</span>
+        <span class="diff-line add">CMD ["node", "src/index.js"]</span>
+      </div>
+    </div>
+
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ══ STEP 5: WATCH OUT ══ -->
+  <section class="step-section" id="step-5">
+    <div class="step-header">
+      <div class="step-number">5</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 5 of 5</div>
+        <div class="step-title">Watch out</div>
+      </div>
+    </div>
+
+    <p class="prose">
+      Claude Code produced a strong Dockerfile in three turns. Here are the things it got right, and the things you still need to verify yourself — because Claude Code cannot know your specific environment.
+    </p>
+
+    <div class="callout good">
+      <div class="callout-label">What Claude Code handled well</div>
+      Layer ordering for cache efficiency, <code>dumb-init</code> for signal handling, <code>npm ci</code> over <code>npm install</code>, JSON-form <code>HEALTHCHECK</code>, non-root user, <code>.dockerignore</code> scope. These are patterns it applies correctly and consistently — you should not need to prompt for them explicitly on future Dockerfiles.
+    </div>
+
+    <ul class="annotation-list" style="margin-top:24px;">
+      <li>
+        <span class="ann-badge ann-warn">Verify</span>
+        <div><strong>UID alignment between Dockerfile and SecurityContext.</strong> Alpine's <code>adduser</code> assigns UIDs dynamically. The Dockerfile creates <code>appuser</code> but does not pin a specific UID. Verify the actual UID with <code>docker run --rm payment-api id</code> and ensure <code>runAsUser</code> in the Kubernetes SecurityContext matches exactly. A mismatch causes a runtime failure, not a build failure.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Verify</span>
+        <div><strong>Base image availability in your ECR mirror.</strong> If your EKS cluster pulls from a private ECR mirror rather than Docker Hub, <code>node:20-alpine</code> must exist in that mirror. Claude Code cannot know your registry topology. Verify before pushing to production. If the image is absent, the pod will fail with <code>ImagePullBackOff</code>.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Verify</span>
+        <div><strong>Pin the image tag before production.</strong> <code>node:20-alpine</code> is a floating tag — it will resolve to a different digest as Alpine and Node release patches. Pin to a specific digest (<code>node:20-alpine@sha256:...</code>) for fully reproducible production builds. Claude Code generated the correct tag family but did not pin the digest — that requires your CI pipeline to resolve and record it.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Verify</span>
+        <div><strong><code>emptyDir</code> logs are ephemeral.</strong> The Turn 3 solution mounts <code>/app/logs</code> as an <code>emptyDir</code>. Logs written there are lost on pod restart. If log persistence matters — for audit trails or compliance — ensure a node-level log shipper (Fluentd, Fluent Bit) is capturing container stdout/stderr, and redirect the app's file logger to stdout instead of a file. This is an application change outside the Dockerfile scope.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-info">Note</span>
+        <div><strong>No multi-stage build was used here.</strong> This service has no build step — <code>node src/index.js</code> runs directly. If you later add TypeScript compilation or a bundler, the Dockerfile will need a multi-stage build: a builder stage that compiles, and a runtime stage that copies only the compiled output. Claude Code handles multi-stage builds well — prompt for it explicitly when the build step arrives.</div>
+      </li>
+    </ul>
+
+    <div class="callout tip">
+      <div class="callout-label">Prompting tip for future Dockerfiles</div>
+      The Turn 1 prompt worked well because it was <strong>specific about constraints</strong> rather than intent. "Production-grade" alone is too vague. The effective additions were: explicit Node version, entrypoint command, port, health endpoint path, and the four named requirements (no root, cache-optimised, minimal image, healthcheck). Give Claude Code the same specificity for any new service and the first-pass output will be close to production-ready.
+    </div>
+
+  </section>
+
+  <!-- Bottom nav -->
+  <div class="bottom-nav">
+    <a class="nav-btn secondary" href="course-map.html">← Course map</a>
+    <a class="nav-btn" href="example-2-terraform-variables.html">Example 2 — Terraform variables.tf →</a>
+  </div>
+
+</div>
+
+<footer>
+  <span>AIOps &amp; DevOps Learning Path · SourceFuse L&amp;D</span>
+  <span>Example 1 of 4 · Tier 1 · Dockerfile</span>
+</footer>
+
+<script>
+  // ── Step nav active state on scroll ──
+  const sections = document.querySelectorAll('.step-section');
+  const navItems = document.querySelectorAll('.stepnav-item');
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const id = entry.target.id;
+        navItems.forEach(item => {
+          item.classList.toggle('active', item.getAttribute('href') === '#' + id);
+        });
+      }
+    });
+  }, { rootMargin: '-30% 0px -60% 0px', threshold: 0 });
+
+  sections.forEach(s => observer.observe(s));
+
+  // ── Copy button ──
+  function copyCode(btn) {
+    const pre = btn.closest('.code-wrap').querySelector('pre');
+    const text = pre.innerText;
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = 'copied!';
+      setTimeout(() => btn.textContent = 'copy', 2000);
+    });
+  }
+</script>
+</body>
+</html>
