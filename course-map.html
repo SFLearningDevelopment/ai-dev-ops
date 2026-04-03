@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Course Map — Practical Usage of Claude Code for DevOps Automation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Merriweather+Sans:wght@300;400;600;700&family=Source+Code+Pro:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:           #eef2f7;
+    --bg2:          #ffffff;
+    --bg3:          #f0f4f9;
+    --border:       #d0dae8;
+    --text:         #1a2332;
+    --text-dim:     #4a5568;
+    --text-dimmer:  #8fa3bc;
+    --blue:         #1a6eb5;
+    --blue-light:   #e8f1fb;
+    --blue-mid:     #b8d0ed;
+    --blue-dark:    #0f4a7a;
+    --teal:         #0e7a6b;
+    --teal-light:   #e6f4f2;
+    --coral:        #c0392b;
+    --coral-light:  #fdf0ee;
+    --purple:       #5b4fcf;
+    --purple-light: #f0effe;
+    --amber:        #92600a;
+    --amber-light:  #fdf3e3;
+    --muted:        #cbd5e0;
+    --radius:       12px;
+  }
+
+  html, body {
+    min-height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Merriweather Sans', sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  /* ── Top nav ── */
+  .topnav {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 0 40px;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text-dimmer);
+    font-family: 'Source Code Pro', monospace;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .topnav span { color: var(--text-dimmer); }
+  .topnav a { color: var(--blue); text-decoration: none; }
+  .topnav a:hover { text-decoration: underline; }
+  .topnav .sep { margin: 0 4px; }
+
+  /* ── Hero ── */
+  .hero {
+    background: var(--bg2);
+    border-bottom: 2px solid var(--border);
+    padding: 48px 40px 40px;
+    max-width: 1100px;
+    margin: 0 auto;
+  }
+
+  .hero-eyebrow {
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--blue);
+    font-weight: 600;
+    margin-bottom: 12px;
+  }
+
+  .hero h1 {
+    font-size: clamp(22px, 3vw, 32px);
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.2;
+    max-width: 720px;
+  }
+
+  .hero h1 span { color: var(--blue); }
+
+  .hero-desc {
+    margin-top: 14px;
+    font-size: 15px;
+    color: var(--text-dim);
+    max-width: 640px;
+    font-weight: 300;
+    line-height: 1.75;
+  }
+
+  .hero-meta {
+    margin-top: 20px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .meta-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-family: 'Source Code Pro', monospace;
+    background: var(--blue-light);
+    border: 1px solid var(--blue-mid);
+    color: var(--blue-dark);
+    border-radius: 20px;
+    padding: 5px 12px;
+    font-weight: 600;
+  }
+
+  .meta-pill.neutral {
+    background: var(--bg3);
+    border-color: var(--border);
+    color: var(--text-dim);
+    font-weight: 400;
+  }
+
+  /* ── Main content ── */
+  .content {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 40px 40px 80px;
+  }
+
+  /* ── Progress bar ── */
+  .progress-wrap {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px 24px;
+    margin-bottom: 36px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .progress-label {
+    font-size: 11px;
+    font-family: 'Source Code Pro', monospace;
+    color: var(--text-dimmer);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .progress-track {
+    flex: 1;
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    width: 18%;
+    background: var(--blue);
+    border-radius: 3px;
+    transition: width 0.6s ease;
+  }
+
+  .progress-count {
+    font-size: 12px;
+    font-family: 'Source Code Pro', monospace;
+    color: var(--blue);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  /* ── Section headings ── */
+  .section-head {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 20px;
+    margin-top: 44px;
+  }
+
+  .section-head:first-of-type { margin-top: 0; }
+
+  .section-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: 0.01em;
+  }
+
+  .section-badge {
+    font-size: 10px;
+    font-family: 'Source Code Pro', monospace;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-weight: 600;
+  }
+
+  .badge-live {
+    background: var(--blue-light);
+    color: var(--blue);
+    border: 1px solid var(--blue-mid);
+  }
+
+  .badge-soon {
+    background: var(--bg3);
+    color: var(--text-dimmer);
+    border: 1px solid var(--border);
+  }
+
+  .section-desc {
+    font-size: 13px;
+    color: var(--text-dim);
+    margin-bottom: 20px;
+    font-weight: 300;
+    max-width: 680px;
+    line-height: 1.7;
+  }
+
+  /* ── Diagram cards (horizontal pair) ── */
+  .diagram-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 44px;
+  }
+
+  @media (max-width: 700px) { .diagram-grid { grid-template-columns: 1fr; } }
+
+  .diagram-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-top: 3px solid var(--blue);
+    border-radius: var(--radius);
+    padding: 22px 24px;
+    text-decoration: none;
+    color: inherit;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    transition: box-shadow 0.18s, border-top-color 0.18s, transform 0.18s;
+    cursor: pointer;
+  }
+
+  .diagram-card:hover {
+    box-shadow: 0 4px 20px rgba(26,110,181,0.12);
+    border-top-color: var(--blue-dark);
+    transform: translateY(-2px);
+  }
+
+  .diagram-card-label {
+    font-size: 9px;
+    font-family: 'Source Code Pro', monospace;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--blue);
+    font-weight: 600;
+  }
+
+  .diagram-card-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.3;
+  }
+
+  .diagram-card-desc {
+    font-size: 13px;
+    color: var(--text-dim);
+    font-weight: 300;
+    line-height: 1.65;
+    flex: 1;
+  }
+
+  .diagram-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 4px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+
+  .card-tag {
+    font-size: 10px;
+    font-family: 'Source Code Pro', monospace;
+    color: var(--text-dimmer);
+  }
+
+  .card-arrow {
+    font-size: 14px;
+    color: var(--blue);
+  }
+
+  /* ── Example cards (grid) ── */
+  .example-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 16px;
+  }
+
+  .example-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--blue);
+    border-radius: var(--radius);
+    padding: 20px 22px;
+    text-decoration: none;
+    color: inherit;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    transition: box-shadow 0.18s, transform 0.18s;
+    cursor: pointer;
+    position: relative;
+  }
+
+  .example-card:hover {
+    box-shadow: 0 4px 18px rgba(26,110,181,0.12);
+    transform: translateY(-2px);
+  }
+
+  .example-card.locked {
+    border-left-color: var(--muted);
+    cursor: default;
+    opacity: 0.65;
+  }
+
+  .example-card.locked:hover {
+    box-shadow: none;
+    transform: none;
+  }
+
+  .example-num {
+    font-size: 9px;
+    font-family: 'Source Code Pro', monospace;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--blue);
+    font-weight: 600;
+  }
+
+  .example-card.locked .example-num { color: var(--text-dimmer); }
+
+  .example-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.3;
+  }
+
+  .example-card.locked .example-title { color: var(--text-dimmer); }
+
+  .example-desc {
+    font-size: 12.5px;
+    color: var(--text-dim);
+    font-weight: 300;
+    line-height: 1.6;
+    flex: 1;
+  }
+
+  .example-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 6px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+  }
+
+  .example-tag {
+    font-size: 10px;
+    font-family: 'Source Code Pro', monospace;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-weight: 600;
+  }
+
+  .tag-tier1 { background: var(--blue-light); color: var(--blue); border: 1px solid var(--blue-mid); }
+  .tag-tier2 { background: var(--teal-light); color: var(--teal); border: 1px solid #a3d4ce; }
+  .tag-tier3 { background: var(--amber-light); color: var(--amber); border: 1px solid #f0d4a0; }
+  .tag-locked { background: var(--bg3); color: var(--text-dimmer); border: 1px solid var(--border); }
+
+  .lock-icon {
+    font-size: 12px;
+    color: var(--text-dimmer);
+  }
+
+  /* ── Steps legend ── */
+  .steps-wrap {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px 24px;
+    margin-bottom: 36px;
+  }
+
+  .steps-label {
+    font-size: 9px;
+    font-family: 'Source Code Pro', monospace;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--text-dimmer);
+    margin-bottom: 14px;
+  }
+
+  .steps-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0;
+    align-items: center;
+  }
+
+  .step-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .step-dot {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    background: var(--blue-light);
+    border: 2px solid var(--blue);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--blue);
+    flex-shrink: 0;
+    font-family: 'Source Code Pro', monospace;
+  }
+
+  .step-text {
+    font-size: 12.5px;
+    color: var(--text-dim);
+    font-weight: 400;
+  }
+
+  .step-text strong { color: var(--text); font-weight: 600; }
+
+  .step-sep {
+    width: 28px;
+    height: 1px;
+    background: var(--border);
+    margin: 0 4px;
+    flex-shrink: 0;
+  }
+
+  @media (max-width: 800px) {
+    .steps-row { flex-direction: column; align-items: flex-start; gap: 10px; }
+    .step-sep { display: none; }
+  }
+
+  /* ── Tier dividers ── */
+  .tier-block { margin-bottom: 44px; }
+
+  .tier-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 10px;
+  }
+
+  .tier-icon {
+    width: 36px; height: 36px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+
+  .tier-icon.t1 { background: var(--blue-light); color: var(--blue); border: 1px solid var(--blue-mid); }
+  .tier-icon.t2 { background: var(--teal-light); color: var(--teal); border: 1px solid #a3d4ce; }
+  .tier-icon.t3 { background: var(--amber-light); color: var(--amber); border: 1px solid #f0d4a0; }
+
+  .tier-info { flex: 1; }
+
+  .tier-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .tier-sub {
+    font-size: 12px;
+    color: var(--text-dim);
+    font-weight: 300;
+  }
+
+  .tier-status {
+    font-size: 10px;
+    font-family: 'Source Code Pro', monospace;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-weight: 600;
+  }
+
+  .status-active { background: var(--blue-light); color: var(--blue); border: 1px solid var(--blue-mid); }
+  .status-soon   { background: var(--bg3); color: var(--text-dimmer); border: 1px solid var(--border); }
+
+  /* ── Footer ── */
+  footer {
+    background: var(--bg2);
+    border-top: 1px solid var(--border);
+    padding: 14px 40px;
+    font-size: 11px;
+    font-family: 'Source Code Pro', monospace;
+    color: var(--text-dimmer);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+</style>
+</head>
+<body>
+
+  <!-- Top nav -->
+  <nav class="topnav">
+    <a href="#">SourceFuse L&amp;D</a>
+    <span class="sep">/</span>
+    <a href="#">AIOps &amp; DevOps Learning Path</a>
+    <span class="sep">/</span>
+    <span>Practical Usage of Claude Code for DevOps Automation</span>
+  </nav>
+
+  <!-- Hero -->
+  <div style="background:var(--bg2); border-bottom:2px solid var(--border);">
+    <div class="hero">
+      <div class="hero-eyebrow">Course Map · AIOps &amp; DevOps Learning Path</div>
+      <h1>Practical Usage of <span>Claude Code</span> for DevOps Automation</h1>
+      <p class="hero-desc">
+        A structured, example-driven course showing how Claude Code participates in real DevOps workflows — from writing a Dockerfile to cross-layer incident triage. Each example follows a consistent arc: problem, naive approach, Claude Code interaction, refined output, and what to watch out for.
+      </p>
+      <div class="hero-meta">
+        <span class="meta-pill">15 examples across 3 tiers</span>
+        <span class="meta-pill">9–10 DevOps automation</span>
+        <span class="meta-pill">3–4 AIOps-adjacent</span>
+        <span class="meta-pill neutral">Tier 1 active · Tiers 2 &amp; 3 coming soon</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- Progress -->
+    <div class="progress-wrap">
+      <span class="progress-label">Course progress</span>
+      <div class="progress-track">
+        <div class="progress-fill"></div>
+      </div>
+      <span class="progress-count">2 of 11 complete</span>
+    </div>
+
+    <!-- Diagrams section -->
+    <div class="section-head">
+      <span class="section-title">Course foundations — interactive diagrams</span>
+      <span class="section-badge badge-live">Live</span>
+    </div>
+    <p class="section-desc">
+      Before the worked examples, these two diagrams establish the mental model: why Claude Code is architecturally different from a code generator, and how that difference plays out at each stage of a real pipeline. Click any node inside each diagram for practitioner-level depth.
+    </p>
+
+    <div class="diagram-grid">
+      <a class="diagram-card" href="claude-code-devops-diagram-1.html">
+        <div class="diagram-card-label">Diagram 1 of 2</div>
+        <div class="diagram-card-title">Why Claude Code is different from a code generator</div>
+        <div class="diagram-card-desc">
+          The participation model — four context input streams, five operational output types, and the engineer feedback loop that makes iteration the actual product.
+        </div>
+        <div class="diagram-card-footer">
+          <span class="card-tag">9 clickable nodes · participation model</span>
+          <span class="card-arrow">→</span>
+        </div>
+      </a>
+      <a class="diagram-card" href="claude-code-devops-diagram-2.html">
+        <div class="diagram-card-label">Diagram 2 of 2</div>
+        <div class="diagram-card-title">Claude Code at every stage — from Plan to Operate</div>
+        <div class="diagram-card-desc">
+          The pipeline integration model — what Claude Code reads, what it does, and what it produces at each of the five DevOps stages, including the AIOps handoff at Operate.
+        </div>
+        <div class="diagram-card-footer">
+          <span class="card-tag">15 clickable nodes · pipeline model</span>
+          <span class="card-arrow">→</span>
+        </div>
+      </a>
+    </div>
+
+    <!-- Example flow legend -->
+    <div class="steps-wrap">
+      <div class="steps-label">How each example is structured</div>
+      <div class="steps-row">
+        <div class="step-item">
+          <div class="step-dot">1</div>
+          <div class="step-text"><strong>Problem</strong> — the real scenario</div>
+        </div>
+        <div class="step-sep"></div>
+        <div class="step-item">
+          <div class="step-dot">2</div>
+          <div class="step-text"><strong>Naive approach</strong> — without Claude Code</div>
+        </div>
+        <div class="step-sep"></div>
+        <div class="step-item">
+          <div class="step-dot">3</div>
+          <div class="step-text"><strong>CC interaction</strong> — the actual dialogue</div>
+        </div>
+        <div class="step-sep"></div>
+        <div class="step-item">
+          <div class="step-dot">4</div>
+          <div class="step-text"><strong>Refined output</strong> — annotated result</div>
+        </div>
+        <div class="step-sep"></div>
+        <div class="step-item">
+          <div class="step-dot">5</div>
+          <div class="step-text"><strong>Watch out</strong> — honest limitations</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tier 1 -->
+    <div class="tier-block">
+      <div class="tier-header">
+        <div class="tier-icon t1">◎</div>
+        <div class="tier-info">
+          <div class="tier-name">Tier 1 — Single-file tasks</div>
+          <div class="tier-sub">Contained, high-clarity examples. One file, one tool, one feedback loop.</div>
+        </div>
+        <span class="tier-status status-active">Active</span>
+      </div>
+      <p class="section-desc" style="margin-bottom:16px;">
+        Each Tier 1 example is self-contained — a single file or config, a clear success criterion, and a feedback loop short enough to see the full arc in one session. These establish the prompting discipline and iteration habits that make Tier 2 and Tier 3 work.
+      </p>
+      <div class="example-grid">
+
+        <a class="example-card" href="example-1-dockerfile.html">
+          <div class="example-num">Example 1 · Tier 1</div>
+          <div class="example-title">Dockerfile for a Node.js API service</div>
+          <div class="example-desc">
+            From a single-stage, root-running naive Dockerfile to a distroless, nonroot, layer-cache-optimised production image. Shows the full three-turn iteration loop.
+          </div>
+          <div class="example-card-footer">
+            <span class="example-tag tag-tier1">DevOps automation</span>
+            <span class="card-arrow">→</span>
+          </div>
+        </a>
+
+        <a class="example-card" href="example-2-terraform-variables.html">
+          <div class="example-num">Example 2 · Tier 1</div>
+          <div class="example-title">Terraform variables.tf with validation</div>
+          <div class="example-desc">
+            From a flat list of variable names to a fully typed, validated, documented variables.tf that matches the repo's existing module conventions.
+          </div>
+          <div class="example-card-footer">
+            <span class="example-tag tag-tier1">DevOps automation</span>
+            <span class="card-arrow">→</span>
+          </div>
+        </a>
+
+        <a class="example-card" href="example-3-github-actions-job.html">
+          <div class="example-num">Example 3 · Tier 1</div>
+          <div class="example-title">GitHub Actions test pipeline</div>
+          <div class="example-desc">
+            From a hardcoded, cache-free, secret-mishandling naive job to a reusable, OIDC-authenticated, dependency-cached pipeline with matrix strategy.
+          </div>
+          <div class="example-card-footer">
+            <span class="example-tag tag-tier1">DevOps automation</span>
+            <span class="card-arrow">→</span>
+          </div>
+        </a>
+
+        <a class="example-card" href="example-4-shell-script.html">
+          <div class="example-num">Example 4 · Tier 1</div>
+          <div class="example-title">Deployment health-check shell script</div>
+          <div class="example-desc">
+            From a fragile, no-error-handling bash script to an idempotent, pipefail-safe, retry-aware health check that outputs structured PASS/FAIL per service.
+          </div>
+          <div class="example-card-footer">
+            <span class="example-tag tag-tier1">DevOps automation</span>
+            <span class="card-arrow">→</span>
+          </div>
+        </a>
+
+      </div>
+    </div>
+
+    <!-- Tier 2 -->
+    <div class="tier-block">
+      <div class="tier-header">
+        <div class="tier-icon t2">◉</div>
+        <div class="tier-info">
+          <div class="tier-name">Tier 2 — Multi-step workflows</div>
+          <div class="tier-sub">Multiple files, multiple tools, longer feedback loops.</div>
+        </div>
+        <span class="tier-status status-soon">Coming soon</span>
+      </div>
+      <p class="section-desc" style="margin-bottom:16px;">
+        Tier 2 examples span multiple files and pipeline stages. The naive approach is a partially working system with real integration gaps; the Claude Code interaction runs 5–8 turns across different context inputs.
+      </p>
+      <div class="example-grid">
+
+        <div class="example-card locked">
+          <div class="example-num">Example 5 · Tier 2</div>
+          <div class="example-title">Full CI/CD pipeline with security scanning</div>
+          <div class="example-desc">End-to-end GitHub Actions pipeline: build, SAST scan, push to ECR, deploy to EKS, with environment-specific approval gates.</div>
+          <div class="example-card-footer">
+            <span class="example-tag tag-locked">Coming soon</span>
+            <span class="lock-icon">🔒</span>
+          </div>
+        </div>
+
+        <div class="example-card locked">
+          <div class="example-num">Example 6 · Tier 2</div>
+          <div class="example-title">Multi-environment Terraform with remote state</div>
+          <div class="example-desc">Workspace-based dev/staging/prod separation, S3 backend with DynamoDB locking, module structure aligned to team conventions.</div>
+          <div class="example-card-footer">
+            <span class="example-tag tag-locked">Coming soon</span>
+            <span class="lock-icon">🔒</span>
+          </div>
+        </div>
+
+        <div class="example-card locked">
+          <div class="example-num">Example 7 · Tier 2</div>
+          <div class="example-title">Kubernetes deployment with HPA and PDB</div>
+          <div class="example-desc">Full workload spec: Deployment, Service, HPA, PodDisruptionBudget, ConfigMap, and a readiness probe tuned for actual cold-start behaviour.</div>
+          <div class="example-card-footer">
+            <span class="example-tag tag-locked">Coming soon</span>
+            <span class="lock-icon">🔒</span>
+          </div>
+        </div>
+
+        <div class="example-card locked">
+          <div class="example-num">Example 8 · Tier 2</div>
+          <div class="example-title">Argo CD application promotion flow</div>
+          <div class="example-desc">GitOps promotion from staging to prod: ApplicationSet, image tag update via Kustomize, sync policy gates, and automated rollback on health failure.</div>
+          <div class="example-card-footer">
+            <span class="example-tag tag-locked">Coming soon</span>
+            <span class="lock-icon">🔒</span>
+          </div>
+        </div>
+
+        <div class="example-card locked">
+          <div class="example-num">Example 9 · Tier 2</div>
+          <div class="example-title">Python automation script with retry logic</div>
+          <div class="example-desc">A cross-service automation script — API polling, exponential backoff, structured logging, and a test suite generated alongside the implementation.</div>
+          <div class="example-card-footer">
+            <span class="example-tag tag-locked">Coming soon</span>
+            <span class="lock-icon">🔒</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Tier 3 -->
+    <div class="tier-block">
+      <div class="tier-header">
+        <div class="tier-icon t3">●</div>
+        <div class="tier-info">
+          <div class="tier-name">Tier 3 — Context-heavy scenarios</div>
+          <div class="tier-sub">Cross-layer diagnosis, multi-source evidence, AIOps-adjacent workflows.</div>
+        </div>
+        <span class="tier-status status-soon">Coming soon</span>
+      </div>
+      <p class="section-desc" style="margin-bottom:16px;">
+        Tier 3 examples are the hardest and most realistic. The engineer brings logs, config files, cluster state, and pipeline output simultaneously. Claude Code's value is cross-layer correlation — the kind of diagnosis no runbook covers.
+      </p>
+      <div class="example-grid">
+
+        <div class="example-card locked">
+          <div class="example-num">Example 10 · Tier 3</div>
+          <div class="example-title">Broken deployment: cross-layer RCA</div>
+          <div class="example-desc">A service rolls back in prod. Logs, kubectl events, Terraform state, and security group config provided simultaneously. Full diagnosis and remediation arc.</div>
+          <div class="example-card-footer">
+            <span class="example-tag tag-locked">Coming soon</span>
+            <span class="lock-icon">🔒</span>
+          </div>
+        </div>
+
+        <div class="example-card locked">
+          <div class="example-num">Example 11 · Tier 3</div>
+          <div class="example-title">CI pipeline performance triage</div>
+          <div class="example-desc">A pipeline that grew from 4 minutes to 22 minutes over six months. Full job log, workflow YAML, dependency manifest, and cache config provided for analysis.</div>
+          <div class="example-card-footer">
+            <span class="example-tag tag-locked">Coming soon</span>
+            <span class="lock-icon">🔒</span>
+          </div>
+        </div>
+
+        <div class="example-card locked">
+          <div class="example-num">Example 12 · Tier 3</div>
+          <div class="example-title">Incident RCA with AIOps handoff</div>
+          <div class="example-desc">A P1 incident involving three services and a network change. Claude Code triage leads to a structured RCA draft — and a natural handoff to AIOps remediation workflows.</div>
+          <div class="example-card-footer">
+            <span class="example-tag tag-locked">AIOps-adjacent</span>
+            <span class="lock-icon">🔒</span>
+          </div>
+        </div>
+
+        <div class="example-card locked">
+          <div class="example-num">Example 13 · Tier 3</div>
+          <div class="example-title">Alert enrichment and runbook generation</div>
+          <div class="example-desc">Taking raw PagerDuty alert data, correlating with Datadog metrics and Terraform history, and producing a structured runbook — the bridge into AIOps automation.</div>
+          <div class="example-card-footer">
+            <span class="example-tag tag-locked">AIOps-adjacent</span>
+            <span class="lock-icon">🔒</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <footer>
+    <span>AIOps &amp; DevOps Learning Path · SourceFuse L&amp;D</span>
+    <span>Practical Usage of Claude Code for DevOps Automation</span>
+  </footer>
+
+</body>
+</html>
