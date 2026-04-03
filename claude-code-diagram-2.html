@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Claude Code at every stage — from Plan to Operate</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Merriweather+Sans:wght@300;400;600;700&family=Source+Code+Pro:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:#eef2f7; --bg2:#ffffff; --bg3:#f0f4f9; --border:#d0dae8;
+    --text:#1a2332; --text-dim:#4a5568; --text-dimmer:#8fa3bc;
+    --blue:#1a6eb5; --blue-light:#e8f1fb; --blue-mid:#b8d0ed;
+    --teal:#0e7a6b; --teal-light:#e6f4f2;
+    --coral:#c0392b; --coral-light:#fdf0ee; --coral-mid:#f0b8b2;
+    --purple:#5b4fcf; --purple-light:#f0effe;
+    --panel-w:430px; --radius:10px;
+  }
+  html,body { height:100%; background:var(--bg); color:var(--text); font-family:'Merriweather Sans',sans-serif; font-size:15px; line-height:1.6; }
+  .page { min-height:100vh; display:flex; flex-direction:column; }
+  header { padding:28px 40px 22px; border-bottom:2px solid var(--border); background:var(--bg2); }
+  .header-label { font-size:10px; letter-spacing:0.18em; color:var(--blue); text-transform:uppercase; font-weight:600; margin-bottom:8px; }
+  h1 { font-size:clamp(16px,2.2vw,22px); font-weight:700; color:var(--text); line-height:1.25; }
+  h1 span { color:var(--blue); }
+  .header-sub { margin-top:6px; font-size:13px; color:var(--text-dim); font-weight:300; }
+  .hint { margin-top:12px; display:inline-flex; align-items:center; gap:7px; font-size:11px; font-family:'Source Code Pro',monospace; color:var(--text-dim); background:var(--blue-light); border:1px solid var(--blue-mid); border-radius:20px; padding:5px 14px; }
+  .hint-dot { width:7px; height:7px; border-radius:50%; background:var(--teal); animation:pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
+  .main { flex:1; display:flex; overflow:hidden; position:relative; }
+  .diagram-wrap { flex:1; overflow-y:auto; padding:28px 16px; transition:margin-right 0.35s cubic-bezier(0.4,0,0.2,1); }
+  .diagram-wrap.panel-open { margin-right:var(--panel-w); }
+  svg { display:block; max-width:840px; margin:0 auto; overflow:visible; }
+  .node-group { cursor:pointer; }
+  .node-group rect { transition:filter 0.15s,stroke-width 0.15s; }
+  .node-group:hover rect { filter:brightness(0.94); stroke-width:2px; }
+  .node-group.active rect { stroke-width:2.5px; filter:brightness(0.9); }
+  .panel { position:fixed; top:0; right:0; width:var(--panel-w); height:100vh; background:var(--bg2); border-left:3px solid var(--blue); display:flex; flex-direction:column; transform:translateX(100%); transition:transform 0.35s cubic-bezier(0.4,0,0.2,1); z-index:100; overflow:hidden; box-shadow:-4px 0 24px rgba(26,110,181,0.10); }
+  .panel.open { transform:translateX(0); }
+  .panel-header { padding:20px 24px 16px; border-bottom:1px solid var(--border); display:flex; align-items:flex-start; gap:12px; flex-shrink:0; background:var(--blue-light); }
+  .panel-icon { width:38px; height:38px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; margin-top:2px; border:1px solid var(--border); }
+  .panel-title-wrap { flex:1; }
+  .panel-category { font-size:9px; letter-spacing:0.18em; text-transform:uppercase; color:var(--blue); font-weight:600; margin-bottom:4px; }
+  .panel-title { font-size:13.5px; font-weight:700; color:var(--text); line-height:1.35; }
+  .panel-close { background:none; border:1px solid var(--border); border-radius:6px; color:var(--text-dim); cursor:pointer; font-size:16px; width:28px; height:28px; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:background 0.15s; margin-top:2px; }
+  .panel-close:hover { background:var(--border); }
+  .panel-body { flex:1; overflow-y:auto; padding:20px 24px 32px; display:flex; flex-direction:column; gap:18px; }
+  .panel-section { display:flex; flex-direction:column; gap:7px; }
+  .panel-section-label { font-size:9px; letter-spacing:0.15em; text-transform:uppercase; color:var(--blue); font-weight:600; }
+  .panel-section p { font-size:13.5px; color:var(--text-dim); line-height:1.75; }
+  .panel-section p strong { color:var(--text); font-weight:600; }
+  .tip-box { background:var(--blue-light); border:1px solid var(--blue-mid); border-left:3px solid var(--blue); border-radius:var(--radius); padding:13px 15px; font-size:12.5px; font-family:'Source Code Pro',monospace; color:var(--text-dim); line-height:1.65; }
+  .tip-box .tip-label { font-size:9px; letter-spacing:0.15em; text-transform:uppercase; color:var(--blue); font-weight:600; margin-bottom:7px; }
+  .warn-box { background:#fdf5f5; border:1px solid var(--coral-mid); border-left:3px solid var(--coral); border-radius:var(--radius); padding:13px 15px; font-size:12.5px; color:var(--text-dim); line-height:1.65; }
+  .warn-box .warn-label { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:0.15em; text-transform:uppercase; color:var(--coral); font-weight:600; margin-bottom:7px; }
+  .panel-divider { height:1px; background:var(--border); margin:2px 0; }
+  .stage-badge { display:inline-flex; align-items:center; gap:6px; font-family:'Source Code Pro',monospace; font-size:10px; letter-spacing:0.1em; padding:4px 10px; border-radius:20px; border:1px solid var(--border); color:var(--text-dim); background:var(--bg3); margin-bottom:4px; }
+  .stage-badge-dot { width:6px; height:6px; border-radius:50%; }
+  footer { padding:12px 40px; border-top:1px solid var(--border); background:var(--bg2); font-size:11px; font-family:'Source Code Pro',monospace; color:var(--text-dimmer); display:flex; justify-content:space-between; align-items:center; }
+  ::-webkit-scrollbar { width:6px; }
+  ::-webkit-scrollbar-track { background:transparent; }
+  ::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <div class="header-label">AIOps &amp; DevOps Learning Path · Diagram 2 of 2</div>
+    <h1>Claude Code at <span>every stage</span> — from Plan to Operate</h1>
+    <p class="header-sub">Stage-by-stage — what Claude Code reads, what it does, and what it produces at each phase</p>
+    <div class="hint"><span class="hint-dot"></span>Click any node to explore practitioner-level detail</div>
+  </header>
+  <div class="main">
+    <div class="diagram-wrap" id="diagramWrap">
+      <svg viewBox="0 0 820 720" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </marker>
+        </defs>
+
+        <text x="410" y="26" text-anchor="middle" font-family="'Source Code Pro',monospace" font-size="11" font-weight="600" fill="#8fa3bc" letter-spacing="0.12em">PIPELINE INTEGRATION MODEL</text>
+
+        <!-- Column headers -->
+        <text x="120" y="52" text-anchor="middle" font-family="'Source Code Pro',monospace" font-size="9" letter-spacing="0.15em" fill="#8fa3bc">PIPELINE STAGE</text>
+        <text x="410" y="52" text-anchor="middle" font-family="'Source Code Pro',monospace" font-size="9" letter-spacing="0.15em" fill="#1a6eb5">CLAUDE CODE</text>
+        <text x="690" y="52" text-anchor="middle" font-family="'Source Code Pro',monospace" font-size="9" letter-spacing="0.15em" fill="#8fa3bc">OUTPUT / ARTIFACT</text>
+
+        <!-- Claude Code column band -->
+        <rect x="290" y="60" width="240" height="634" rx="12" fill="#e8f1fb" fill-opacity="0.5" stroke="#b8d0ed" stroke-width="1" stroke-dasharray="4 3"/>
+
+        <!-- ROW 1: Plan -->
+        <g class="node-group" id="node-stage-plan" onclick="openPanel('stage-plan')">
+          <rect x="20" y="72" width="200" height="84" rx="8" fill="#e6f4f2" stroke="#0e7a6b" stroke-width="1.5"/>
+          <text x="120" y="98" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="14" font-weight="700" fill="#1a2332">Plan</text>
+          <text x="120" y="118" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="12" fill="#0e7a6b">IaC authoring</text>
+          <text x="120" y="136" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="11.5" fill="#1a9e8a">Terraform / Bicep / CDK</text>
+        </g>
+        <g class="node-group" id="node-cc-plan" onclick="openPanel('cc-plan')">
+          <rect x="300" y="78" width="220" height="72" rx="8" fill="#f0effe" stroke="#5b4fcf" stroke-width="1.5"/>
+          <text x="410" y="102" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="13" font-weight="700" fill="#1a2332">Reads repo + plan diff</text>
+          <text x="410" y="120" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="12" fill="#5b4fcf">Drafts, refines, validates IaC</text>
+          <text x="410" y="138" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="11" fill="#8579d8">policy-aware from turn one</text>
+        </g>
+        <g class="node-group" id="node-out-plan" onclick="openPanel('out-plan')">
+          <rect x="590" y="78" width="210" height="72" rx="8" fill="#fdf0ee" stroke="#c0392b" stroke-width="1.5"/>
+          <text x="695" y="102" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="13" font-weight="700" fill="#1a2332">Reviewed IaC files</text>
+          <text x="695" y="120" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="12" fill="#c0392b">PR-ready, policy-checked</text>
+          <text x="695" y="138" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="11" fill="#d95f4e">no destructive surprises</text>
+        </g>
+        <line x1="220" y1="114" x2="298" y2="114" stroke="#0e7a6b" stroke-width="1.2" marker-end="url(#arr)" opacity="0.7"/>
+        <line x1="520" y1="114" x2="588" y2="114" stroke="#c0392b" stroke-width="1.2" marker-end="url(#arr)" opacity="0.7"/>
+        <line x1="120" y1="156" x2="120" y2="192" stroke="#0e7a6b" stroke-width="1" marker-end="url(#arr)" opacity="0.4"/>
+
+        <!-- ROW 2: Code -->
+        <g class="node-group" id="node-stage-code" onclick="openPanel('stage-code')">
+          <rect x="20" y="200" width="200" height="84" rx="8" fill="#e6f4f2" stroke="#0e7a6b" stroke-width="1.5"/>
+          <text x="120" y="226" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="14" font-weight="700" fill="#1a2332">Code</text>
+          <text x="120" y="246" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="12" fill="#0e7a6b">Scripts &amp; Dockerfiles</text>
+          <text x="120" y="264" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="11.5" fill="#1a9e8a">K8s manifests</text>
+        </g>
+        <g class="node-group" id="node-cc-code" onclick="openPanel('cc-code')">
+          <rect x="300" y="206" width="220" height="72" rx="8" fill="#f0effe" stroke="#5b4fcf" stroke-width="1.5"/>
+          <text x="410" y="230" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="13" font-weight="700" fill="#1a2332">Generates artifacts</text>
+          <text x="410" y="248" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="12" fill="#5b4fcf">Iterates against runtime errors</text>
+          <text x="410" y="266" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="11" fill="#8579d8">tests inline, not post-hoc</text>
+        </g>
+        <g class="node-group" id="node-out-code" onclick="openPanel('out-code')">
+          <rect x="590" y="206" width="210" height="72" rx="8" fill="#fdf0ee" stroke="#c0392b" stroke-width="1.5"/>
+          <text x="695" y="230" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="13" font-weight="700" fill="#1a2332">Working scripts</text>
+          <text x="695" y="248" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="12" fill="#c0392b">Container configs</text>
+          <text x="695" y="266" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="11" fill="#d95f4e">convention-matched to repo</text>
+        </g>
+        <line x1="220" y1="242" x2="298" y2="242" stroke="#0e7a6b" stroke-width="1.2" marker-end="url(#arr)" opacity="0.7"/>
+        <line x1="520" y1="242" x2="588" y2="242" stroke="#c0392b" stroke-width="1.2" marker-end="url(#arr)" opacity="0.7"/>
+        <line x1="120" y1="284" x2="120" y2="320" stroke="#0e7a6b" stroke-width="1" marker-end="url(#arr)" opacity="0.4"/>
+
+        <!-- ROW 3: Build & Test -->
+        <g class="node-group" id="node-stage-build" onclick="openPanel('stage-build')">
+          <rect x="20" y="328" width="200" height="84" rx="8" fill="#e6f4f2" stroke="#0e7a6b" stroke-width="1.5"/>
+          <text x="120" y="354" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="14" font-weight="700" fill="#1a2332">Build &amp; test</text>
+          <text x="120" y="374" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="12" fill="#0e7a6b">CI pipeline authoring</text>
+          <text x="120" y="392" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="11.5" fill="#1a9e8a">Failure triage</text>
+        </g>
+        <g class="node-group" id="node-cc-build" onclick="openPanel('cc-build')">
+          <rect x="300" y="334" width="220" height="72" rx="8" fill="#f0effe" stroke="#5b4fcf" stroke-width="1.5"/>
+          <text x="410" y="358" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="13" font-weight="700" fill="#1a2332">Reads CI output</text>
+          <text x="410" y="376" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="12" fill="#5b4fcf">Authors pipeline YAML</text>
+          <text x="410" y="394" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="11" fill="#8579d8">diagnoses failures cross-step</text>
+        </g>
+        <g class="node-group" id="node-out-build" onclick="openPanel('out-build')">
+          <rect x="590" y="334" width="210" height="72" rx="8" fill="#fdf0ee" stroke="#c0392b" stroke-width="1.5"/>
+          <text x="695" y="358" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="13" font-weight="700" fill="#1a2332">Pipeline YAML</text>
+          <text x="695" y="376" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="12" fill="#c0392b">Debugged, test-aware</text>
+          <text x="695" y="394" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="11" fill="#d95f4e">caching &amp; matrix strategies</text>
+        </g>
+        <line x1="220" y1="370" x2="298" y2="370" stroke="#0e7a6b" stroke-width="1.2" marker-end="url(#arr)" opacity="0.7"/>
+        <line x1="520" y1="370" x2="588" y2="370" stroke="#c0392b" stroke-width="1.2" marker-end="url(#arr)" opacity="0.7"/>
+        <line x1="120" y1="412" x2="120" y2="448" stroke="#0e7a6b" stroke-width="1" marker-end="url(#arr)" opacity="0.4"/>
+
+        <!-- ROW 4: Deploy -->
+        <g class="node-group" id="node-stage-deploy" onclick="openPanel('stage-deploy')">
+          <rect x="20" y="456" width="200" height="84" rx="8" fill="#e6f4f2" stroke="#0e7a6b" stroke-width="1.5"/>
+          <text x="120" y="482" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="14" font-weight="700" fill="#1a2332">Deploy</text>
+          <text x="120" y="502" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="12" fill="#0e7a6b">CD pipeline review</text>
+          <text x="120" y="520" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="11.5" fill="#1a9e8a">Rollout validation</text>
+        </g>
+        <g class="node-group" id="node-cc-deploy" onclick="openPanel('cc-deploy')">
+          <rect x="300" y="462" width="220" height="72" rx="8" fill="#f0effe" stroke="#5b4fcf" stroke-width="1.5"/>
+          <text x="410" y="486" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="13" font-weight="700" fill="#1a2332">Reviews manifests</text>
+          <text x="410" y="504" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="12" fill="#5b4fcf">Validates rollout strategy</text>
+          <text x="410" y="522" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="11" fill="#8579d8">rollback path always explicit</text>
+        </g>
+        <g class="node-group" id="node-out-deploy" onclick="openPanel('out-deploy')">
+          <rect x="590" y="462" width="210" height="72" rx="8" fill="#fdf0ee" stroke="#c0392b" stroke-width="1.5"/>
+          <text x="695" y="486" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="13" font-weight="700" fill="#1a2332">Deploy checklist</text>
+          <text x="695" y="504" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="12" fill="#c0392b">Rollout plan + rollback</text>
+          <text x="695" y="522" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="11" fill="#d95f4e">approval gate inputs</text>
+        </g>
+        <line x1="220" y1="498" x2="298" y2="498" stroke="#0e7a6b" stroke-width="1.2" marker-end="url(#arr)" opacity="0.7"/>
+        <line x1="520" y1="498" x2="588" y2="498" stroke="#c0392b" stroke-width="1.2" marker-end="url(#arr)" opacity="0.7"/>
+        <line x1="120" y1="540" x2="120" y2="576" stroke="#0e7a6b" stroke-width="1" marker-end="url(#arr)" opacity="0.4"/>
+
+        <!-- ROW 5: Operate -->
+        <g class="node-group" id="node-stage-operate" onclick="openPanel('stage-operate')">
+          <rect x="20" y="584" width="200" height="84" rx="8" fill="#e6f4f2" stroke="#0e7a6b" stroke-width="1.5"/>
+          <text x="120" y="610" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="14" font-weight="700" fill="#1a2332">Operate</text>
+          <text x="120" y="630" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="12" fill="#0e7a6b">Incident triage</text>
+          <text x="120" y="648" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="11.5" fill="#1a9e8a">Runbooks &amp; RCA</text>
+        </g>
+        <g class="node-group" id="node-cc-operate" onclick="openPanel('cc-operate')">
+          <rect x="300" y="590" width="220" height="72" rx="8" fill="#f0effe" stroke="#5b4fcf" stroke-width="1.5"/>
+          <text x="410" y="614" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="13" font-weight="700" fill="#1a2332">Triages signals</text>
+          <text x="410" y="632" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="12" fill="#5b4fcf">Correlates cross-layer</text>
+          <text x="410" y="650" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="11" fill="#8579d8">bridge into AIOps workflows</text>
+        </g>
+        <g class="node-group" id="node-out-operate" onclick="openPanel('out-operate')">
+          <rect x="590" y="590" width="210" height="72" rx="8" fill="#fdf0ee" stroke="#c0392b" stroke-width="1.5"/>
+          <text x="695" y="614" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="13" font-weight="700" fill="#1a2332">Incident runbook</text>
+          <text x="695" y="632" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="12" fill="#c0392b">RCA draft</text>
+          <text x="695" y="650" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="11" fill="#d95f4e">remediation suggestions</text>
+        </g>
+        <line x1="220" y1="626" x2="298" y2="626" stroke="#0e7a6b" stroke-width="1.2" marker-end="url(#arr)" opacity="0.7"/>
+        <line x1="520" y1="626" x2="588" y2="626" stroke="#c0392b" stroke-width="1.2" marker-end="url(#arr)" opacity="0.7"/>
+
+        <!-- Claude Code column vertical connectors -->
+        <line x1="410" y1="150" x2="410" y2="204" stroke="#5b4fcf" stroke-width="0.8" opacity="0.35" stroke-dasharray="3 3"/>
+        <line x1="410" y1="278" x2="410" y2="332" stroke="#5b4fcf" stroke-width="0.8" opacity="0.35" stroke-dasharray="3 3"/>
+        <line x1="410" y1="406" x2="410" y2="460" stroke="#5b4fcf" stroke-width="0.8" opacity="0.35" stroke-dasharray="3 3"/>
+        <line x1="410" y1="534" x2="410" y2="588" stroke="#5b4fcf" stroke-width="0.8" opacity="0.35" stroke-dasharray="3 3"/>
+
+        <!-- AIOps bridge annotation -->
+        <line x1="590" y1="690" x2="800" y2="690" stroke="#c0392b" stroke-width="0.5" opacity="0.25" stroke-dasharray="4 3"/>
+        <text x="694" y="708" text-anchor="middle" font-family="'Source Code Pro',monospace" font-size="9" fill="#8fa3bc">↳ hands off to AIOps modules</text>
+      </svg>
+    </div>
+    <aside class="panel" id="panel" role="complementary">
+      <div class="panel-header">
+        <div class="panel-icon" id="panelIcon"></div>
+        <div class="panel-title-wrap">
+          <div class="panel-category" id="panelCategory"></div>
+          <div class="panel-title" id="panelTitle"></div>
+        </div>
+        <button class="panel-close" onclick="closePanel()">✕</button>
+      </div>
+      <div class="panel-body" id="panelBody"></div>
+    </aside>
+  </div>
+  <footer>
+    <span>AIOps &amp; DevOps Learning Path · SourceFuse L&amp;D</span>
+    <span>Diagram 2 / 2 &nbsp;·&nbsp; Claude Code Pipeline Integration</span>
+  </footer>
+</div>
+<script>
+const PANELS = {
+  'stage-plan':{ category:'Pipeline stage', title:'Plan — IaC authoring with Claude Code in the loop', icon:'◈', iconBg:'#e6f4f2', iconColor:'#0e7a6b', badge:'Stage 1 of 5', badgeColor:'#0e7a6b', sections:[{label:'Why Plan is where Claude Code earns the most',text:`The Plan stage is where intent is encoded into infrastructure — and <strong>it's also where the gap between what an engineer means and what the code expresses is widest.</strong> Claude Code's value here is not writing Terraform faster. It's catching the mismatch early: a security group that's broader than intended, a resource that will be destroyed on the next apply because the naming convention drifted, a module that duplicates something already managed elsewhere in the repo.`},{label:'The plan-output feedback loop',text:`The most productive IaC workflow with Claude Code is a tight loop: write → <code>terraform validate</code> → paste output → <code>terraform plan</code> → paste output → review intent → refine. <strong>Each plan output becomes the grounding context for the next prompt.</strong> Skipping the paste step — paraphrasing the error instead of pasting it verbatim — is the single most common reason Claude Code produces off-target fixes.`},{label:'Module authoring prompt that works',type:'tip',text:`"Generate a Terraform module for an ECS Fargate service. Inputs: image URI, desired count, CPU, memory, VPC ID, subnet IDs, SG IDs. Do not create networking or IAM — managed externally. Structure: main.tf, variables.tf, outputs.tf. Apply var.tags to all taggable resources. Follow the naming convention in the existing modules in /infra/modules/."`},{label:'Provider version drift',type:'warn',text:`Claude Code's knowledge of Terraform provider schemas is strong but not always current. Attribute names and required fields change across provider versions, especially for newer resources like EKS managed node groups, Bedrock, and newer Azure services. Always cross-check generated attribute names against the pinned provider version in your <code>versions.tf</code> before applying.`}] },
+  'stage-code':{ category:'Pipeline stage', title:'Code — scripts, Dockerfiles, K8s manifests', icon:'{ }', iconBg:'#e6f4f2', iconColor:'#0e7a6b', badge:'Stage 2 of 5', badgeColor:'#0e7a6b', sections:[{label:'Convention-aware generation',text:`Claude Code does not generate generic Dockerfiles. When given access to the repo, it reads existing patterns — base image conventions, layer ordering, build arg names, multi-stage build structure — and replicates them. <strong>This is where it genuinely reduces review burden</strong>: the output fits the repo's style without the engineer needing to re-teach it each time. The delta from existing patterns is small and reviewable.`},{label:'Kubernetes manifest iteration',text:`Manifest generation is strongest when you paste actual cluster state alongside the task. <code>kubectl get deployment -o yaml</code> for an existing similar workload gives Claude Code a concrete reference for resource requests, probe configurations, label conventions, and annotation patterns. <strong>Without a reference, it generates technically valid but contextually mismatched manifests</strong> — valid YAML that doesn't fit your cluster's operational norms.`},{label:'Shell script iteration pattern',type:'tip',text:`For shell scripts, use a run-and-paste loop: run the script in a sandbox, paste the exact stderr and exit code back. Do not describe the error — paste it verbatim. Claude Code handles POSIX portability issues, pipefail edge cases, and quoting bugs reliably when it sees the exact shell output. Described errors lose the specific tokens it needs.`},{label:'Image tagging and registry assumptions',type:'warn',text:`Generated Dockerfiles and K8s manifests will often assume a registry structure or image tag pattern. Verify that generated <code>FROM</code> base images exist in your private registry if you're air-gapped or mirror-based, and that tag strategies (latest vs sha vs semver) match your CD pipeline's expectations. Claude Code cannot know your registry topology without being told.`}] },
+  'stage-build':{ category:'Pipeline stage', title:'Build & test — CI authoring and failure triage', icon:'⇉', iconBg:'#e6f4f2', iconColor:'#0e7a6b', badge:'Stage 3 of 5', badgeColor:'#0e7a6b', sections:[{label:'Pipeline architecture, not just syntax',text:`Engineers reach for Claude Code to avoid looking up YAML syntax. That's legitimate but undersells it. The higher-value work is <strong>pipeline architecture decisions</strong>: when to parallelize vs serialize jobs, where to add caching to avoid redundant dependency installs, how to structure a matrix strategy for multi-environment deployments, where approval gates belong without creating bottlenecks. These decisions have real cost implications in CI minutes.`},{label:'Cross-step failure diagnosis',text:`CI failures are often misattributed — the failing step is downstream of the actual root cause. Claude Code, given the full job log (not just the failing step), identifies <strong>which upstream step produced the environment state that caused the downstream failure</strong>. This saves the common 20-minute cycle of fixing the visible error only to expose the next one in the chain.`},{label:'Reusable workflow prompt',type:'tip',text:`"Create a reusable GitHub Actions workflow for Docker build and push to ECR. Inputs: image-name, dockerfile-path, aws-region, environment (dev/staging/prod). Auth via OIDC — no long-lived credentials. Tag with git SHA and environment name. The caller workflow should pass secrets via inheritance, not explicit mapping. Include a job summary output with the pushed image URI."`},{label:'Secret handling is a persistent blind spot',type:'warn',text:`Claude Code correctly uses <code>secrets.MY_SECRET</code> syntax but cannot validate that the secret name matches what's configured in your repo or org settings. It also won't flag when a secret is passed as an env var to a step that runs <code>env</code> or similar — a common accidental exposure. Secret audit is always a human-in-the-loop step, not something to delegate to generated YAML.`}] },
+  'stage-deploy':{ category:'Pipeline stage', title:'Deploy — rollout strategy and validation', icon:'▶', iconBg:'#e6f4f2', iconColor:'#0e7a6b', badge:'Stage 4 of 5', badgeColor:'#0e7a6b', sections:[{label:'Rollout strategy reasoning',text:`Claude Code can reason about deployment strategies in context — not just generate a rolling update definition, but advise on <strong>whether blue-green, canary, or rolling is appropriate given the service type, database migration requirements, and traffic characteristics</strong> you describe. This is typically a senior engineer judgment call. Claude Code surfaces the tradeoffs and makes the conversation explicit rather than defaulting to a template.`},{label:'Rollback path must be explicit',text:`The most common gap in generated CD configuration is an underspecified rollback path. Claude Code, when prompted, will always include explicit rollback steps — <code>helm rollback</code>, <code>kubectl rollout undo</code>, or Argo CD sync to a previous revision. <strong>Prompt for rollback explicitly, even if it seems obvious.</strong> Without that instruction, generated CD configs optimise for the happy path only.`},{label:'Pre-deploy checklist prompt',type:'tip',text:`"Generate a pre-deployment checklist for a Kubernetes service being promoted from staging to prod. Include: image digest verification, resource quota headroom check, PDB status, HPA min-replicas sanity check, dependent service health, DB migration status, rollback procedure. Format as a runnable shell script that outputs PASS/FAIL per check."`},{label:'Approval gate inputs are not decisions',type:'warn',text:`Claude Code generates the inputs for approval gates — checklists, validation outputs, environment diffs — but it does not make the go/no-go decision. For prod deployments, the final approval is always a human judgment, factoring in business context (release windows, customer communications, on-call availability) that Claude Code has no visibility into.`}] },
+  'stage-operate':{ category:'Pipeline stage', title:'Operate — incident triage, runbooks, RCA', icon:'⌖', iconBg:'#e6f4f2', iconColor:'#0e7a6b', badge:'Stage 5 of 5', badgeColor:'#0e7a6b', sections:[{label:'The bridge into AIOps',text:`The Operate stage is where DevOps automation ends and AIOps begins. Claude Code can triage a production incident by correlating application logs, Kubernetes events, and infrastructure state — but <strong>the systematic, automated, continuous version of that work (alert enrichment, RCA pipelines, remediation feedback loops) is the domain of the AIOps modules in this learning path.</strong> Use Operate-stage Claude Code for ad-hoc, human-in-the-loop triage; use AIOps patterns for systematic automation.`},{label:'Cross-layer correlation at its peak',text:`Production incidents rarely have single-layer causes. The symptom is in the application log; the proximate cause is in a K8s resource limit; the root cause is in a Terraform misconfiguration from three months ago. <strong>Holding all three contexts simultaneously is where Claude Code has structural advantage over search and runbooks.</strong> Feed it all three layers at once — it will identify the chain faster than sequential investigation.`},{label:'Incident triage prompt',type:'tip',text:`"Production incident, P1. Service: payment-api. Symptom: 30% of POST /charge requests returning 503 since 14:32 UTC. Expected: &lt;1% error rate. Attach: (1) last 200 lines of app log filtered to ERROR, (2) kubectl describe deployment payment-api, (3) kubectl top pods -n payments, (4) recent Terraform change log for security groups. What is the most likely root cause and what is the fastest safe mitigation?"`},{label:'Confidence must be interrogated',type:'warn',text:`Claude Code produces fluent, confident-sounding RCAs even when the evidence is ambiguous. Before acting on a diagnosis, ask: "What specific line in the logs or config supports this conclusion? What alternative explanation did you rule out and why?" If it can't answer both questions from the provided evidence, the diagnosis is a hypothesis — mark it as such in the postmortem.`}] },
+  'cc-plan':{ category:'Claude Code action · Plan stage', title:'Reads repo + plan diff → refines IaC', icon:'⬡', iconBg:'#f0effe', iconColor:'#5b4fcf', sections:[{label:'What "reads repo" actually means',text:`Claude Code walking a repo isn't grep — it builds a working model of module dependencies, variable inheritance, naming conventions, and which resources are managed vs. referenced externally. <strong>This structural understanding is what makes its IaC output slot into the existing codebase</strong> rather than generating a standalone module that needs manual integration. The richer the repo context you provide, the less integration work the engineer does.`},{label:'Policy-aware from turn one',text:`If you front-load your policy constraints — paste a tfsec config, a Checkov baseline, a list of CIS controls — Claude Code encodes them as design constraints, not post-hoc filters. <strong>The output passes policy on the first pass more often than not</strong>, eliminating the write → scan → fix → re-scan cycle that typically adds a full day to IaC review cycles in regulated environments.`},{label:'Effective context loading',type:'tip',text:`Don't paste entire repos. Instead: "Here are the three directly relevant files. Structure: /modules has reusable components, /environments/prod is the only target, variables.tf is the single source of truth for inputs. The VPC and IAM are managed by a separate team and must not be modified." Claude Code navigates precisely with a map even without seeing everything.`},{label:'State file content',type:'warn',text:`Terraform state files often contain sensitive attribute values in plaintext — DB passwords, API keys, certificates. Always scrub before pasting. Replace actual values with typed placeholders like <code>&lt;REDACTED_DB_PASSWORD:string&gt;</code>. Claude Code handles redacted state gracefully and infers the structure without needing real values.`}] },
+  'cc-code':{ category:'Claude Code action · Code stage', title:'Generates artifacts, iterates against errors', icon:'⬡', iconBg:'#f0effe', iconColor:'#5b4fcf', sections:[{label:'Iteration is the mechanism',text:`The word "generates" undersells what's happening. Claude Code in the Code stage is running a tight loop: generate → engineer runs → paste error → Claude Code reads error against what it wrote → targeted fix → repeat. <strong>The quality of turn 3 output depends entirely on how faithfully turn 2 errors were pasted.</strong> The mechanism only works if actual output is fed back — not descriptions of output.`},{label:'Test-first pattern',text:`For shell scripts and Python automation, Claude Code can generate test cases alongside the script when prompted. This is more valuable than it sounds: <strong>the test cases encode the intended behaviour as a spec</strong>, which means when the script fails in CI, you have a precise failure mode, not a vague exit code. Ask for tests in the same prompt as the implementation, not as an afterthought.`},{label:'Dockerfile multi-stage pattern',type:'tip',text:`"Generate a multi-stage Dockerfile for a Go service. Builder stage: golang:1.22-alpine, compile with CGO_DISABLED=1 GOOS=linux. Final stage: distroless/static:nonroot. No shell in final image. Binary must run as nonroot (UID 65532). HEALTHCHECK via /healthz endpoint on port 8080. Match the ARG/ENV naming in the existing services in /services/."`},{label:'Build context assumptions',type:'warn',text:`Generated Dockerfiles assume a build context that may not match your CI environment. COPY paths, .dockerignore coverage, and build arg injection points can silently fail when the build runs in a different directory structure than what Claude Code assumed. Always run a local build before committing generated Dockerfiles.`}] },
+  'cc-build':{ category:'Claude Code action · Build & test stage', title:'Reads CI output, authors pipeline YAML', icon:'⬡', iconBg:'#f0effe', iconColor:'#5b4fcf', sections:[{label:'Full log vs. error snippet',text:`Pasting only the failing step output is the most common way engineers undermine Claude Code's CI diagnosis ability. The full job log contains environment setup, dependency installation output, and upstream step results that explain why the failing step failed. <strong>A 500-line log paste produces a correct root-cause diagnosis. A 10-line error paste produces a hypothesis.</strong> The extra paste time pays back tenfold in debugging cycles saved.`},{label:'Cross-platform pipeline translation',text:`One high-leverage use case that's easy to miss: <strong>migrating pipeline definitions between CI systems.</strong> Claude Code can translate a Jenkins Declarative pipeline to GitHub Actions, or a CircleCI config to GitLab CI, preserving job structure, artifact handling, and environment variable names while adapting the syntax and runner model. The semantic equivalence still needs human review — but the mechanical translation is accurate.`},{label:'Cache strategy prompt',type:'tip',text:`"Optimise this GitHub Actions workflow for cache efficiency. The current run time is 8 minutes, dominated by npm install (4 min) and Docker layer builds (3 min). Propose a caching strategy for both. Show the exact cache key expressions using github.sha, runner.os, and hashFiles. Explain what cache miss conditions each key is designed for."`},{label:'Self-hosted runner assumptions',type:'warn',text:`Generated pipeline YAML assumes GitHub-hosted runners unless told otherwise. If you run self-hosted runners, tool availability, network access, and filesystem paths differ significantly. Specify your runner environment explicitly — OS, pre-installed tools, proxy configuration, and any private registry access patterns — before asking for pipeline generation.`}] },
+  'cc-deploy':{ category:'Claude Code action · Deploy stage', title:'Reviews manifests, validates rollout config', icon:'⬡', iconBg:'#f0effe', iconColor:'#5b4fcf', sections:[{label:'Manifest review as a structured checklist',text:`Claude Code reviewing a Kubernetes manifest is not a lint pass — it reasons about <strong>operational implications</strong>: whether the readiness probe timeout is long enough for a slow cold start, whether the PDB allows the disruption budget you need for node drains, whether the HPA min-replicas survives a zone failure. These are the checks that manual review misses under time pressure.`},{label:'Rollout strategy reasoning',text:`Given service characteristics — stateless vs stateful, DB migration required, traffic profile, SLO — Claude Code recommends a rollout strategy with explicit reasoning. <strong>The output is not a generic "use blue-green" recommendation but a strategy tailored to the tradeoffs you described.</strong> This makes it directly useful as input to a deployment decision, not just a template suggestion.`},{label:'Argo CD / Flux integration prompt',type:'tip',text:`"Review this Argo CD Application manifest for a prod promotion. Check: (1) targetRevision pinned to a specific SHA not a branch, (2) syncPolicy automated is disabled for prod, (3) prune and selfHeal are off, (4) health checks reference the correct resource types, (5) the destination namespace matches the team's allocation. Flag any deviation and explain the operational risk."`},{label:'Environment-specific drift',type:'warn',text:`Claude Code reviews what you give it. If your staging and prod manifests have drifted — different resource limits, different probe configs, different annotation sets — it will only catch inconsistencies within the provided files. It has no visibility into what's already running in the cluster vs. what the manifest declares. Always combine Claude Code review with a <code>kubectl diff</code> against live state.`}] },
+  'cc-operate':{ category:'Claude Code action · Operate stage', title:'Triages signals, correlates cross-layer', icon:'⬡', iconBg:'#f0effe', iconColor:'#5b4fcf', sections:[{label:'Where it structurally outperforms runbooks',text:`Runbooks handle known failure modes well. <strong>Claude Code handles novel cross-layer failure combinations</strong> — where the symptom is in application logs, the proximate cause is in a K8s quota event, and the root cause is a Terraform change that narrowed a security group two weeks ago. No runbook covers that specific chain. Claude Code connects it if you give it all three data sources simultaneously.`},{label:'RCA draft as a collaboration artifact',text:`The RCA draft Claude Code produces is a starting point for the postmortem, not the postmortem itself. Its value is in <strong>structuring the timeline and identifying the contributing factors from raw log and config data</strong> — the mechanical work that takes a senior engineer two hours after an incident. The causal reasoning and organizational context remains human work.`},{label:'Incident evidence framing',type:'tip',text:`"P1 incident, 47-minute outage. Service: checkout-api. Frame a structured RCA from the following evidence: (1) application error log snippet — attach, (2) kubectl events for the namespace during the window — attach, (3) Datadog alert that fired — paste, (4) the Terraform PR that went to prod 2 hours before onset — paste diff. Identify timeline, contributing factors, root cause, and three preventive actions."`},{label:'Confidence must be interrogated',type:'warn',text:`Claude Code produces fluent, confident-sounding RCAs even when the evidence is ambiguous. Before acting on a diagnosis, ask: "What specific line in the logs or config supports this conclusion? What alternative explanation did you rule out and why?" If it can't answer both questions from the provided evidence, the diagnosis is a hypothesis — mark it as such in the postmortem and validate before closing.`}] },
+  'out-plan':{ category:'Output · Plan stage', title:'Reviewed IaC files — PR-ready, policy-checked', icon:'✓', iconBg:'#fdf0ee', iconColor:'#c0392b', sections:[{label:'What "PR-ready" actually means',text:`A Claude Code-assisted IaC PR should arrive in review with: named variables in variables.tf, outputs declared in outputs.tf, all resources tagged with <code>var.tags</code>, no hard-coded values, and a <code>terraform validate</code> pass. <strong>The reviewer's job shifts from finding basic hygiene issues to evaluating architectural intent.</strong> That's a meaningful upgrade in how engineering review time is spent.`},{label:'The policy-checked qualifier',text:`"Policy-checked" means Claude Code was given the policy constraints at generation time — not that a scanner ran afterward. <strong>The distinction matters because generation-time policy awareness produces fundamentally different code</strong> than post-hoc remediation: the design accommodates the constraint rather than patching around a violation.`},{label:'What to review anyway',type:'warn',text:`Never merge IaC without a human reading the plan output. Claude Code produces good first drafts — not final approvals. Specifically check: (1) no unintended resource replacements (look for "-/+" in plan), (2) destroy operations on data resources, (3) security group ingress rules broader than the stated intent, (4) IAM policies with wildcards.`}] },
+  'out-code':{ category:'Output · Code stage', title:'Working scripts — convention-matched to repo', icon:'✓', iconBg:'#fdf0ee', iconColor:'#c0392b', sections:[{label:'Convention-matching as the key quality signal',text:`The most important quality signal for generated scripts is not whether they work in isolation — it's whether they're consistent with how the rest of the repo is written. <strong>A script that uses a different error-handling pattern, a different logging format, or a different argument parsing library creates maintenance debt</strong> even if it's technically correct.`},{label:'The runtime error loop closes the quality gap',text:`First-pass scripts frequently have edge case issues — unhandled empty input, incorrect exit code propagation, missing <code>set -euo pipefail</code> guards. <strong>The runtime error loop — run it, paste stderr back, repeat — is what converts a "mostly works" script into a production-grade one.</strong> Teams that skip the loop and merge on first pass are the ones who later discover the script silently fails on empty directories.`},{label:'What still needs human review',type:'warn',text:`Generated scripts should always be reviewed for: (1) privilege level — does this need root and is that justified, (2) input sanitisation if any argument comes from user input or an external system, (3) cleanup on failure — does a failed mid-run leave the system in a partially modified state, (4) idempotency — can this run twice safely.`}] },
+  'out-build':{ category:'Output · Build & test stage', title:'Pipeline YAML — debugged, caching and matrix strategies', icon:'✓', iconBg:'#fdf0ee', iconColor:'#c0392b', sections:[{label:'Caching strategy is where the cost savings live',text:`A naive pipeline installs dependencies from scratch on every run. A Claude Code-assisted pipeline includes cache keys designed around file hash inputs — <code>hashFiles('**/package-lock.json')</code>, layer cache for Docker builds, test result caching for unchanged code paths. <strong>The difference between a naive and optimised pipeline is often 5–8 minutes per run</strong> — at scale, that's a material CI bill reduction.`},{label:'Matrix strategy for multi-environment coverage',text:`Claude Code generates matrix strategies that cover multiple dimensions simultaneously — OS, runtime version, deployment environment — without manually duplicating jobs. <strong>The correct matrix expression is non-obvious and error-prone to write by hand</strong>, particularly when you need include/exclude rules to skip certain combinations.`},{label:'Before merging generated pipeline YAML',type:'warn',text:`Run the generated pipeline in a draft PR before merging. Specifically verify: (1) cache keys actually hit on the second run (check Actions cache tab), (2) secrets are resolved correctly — a missing secret fails silently at runtime, not at parse time, (3) matrix jobs produce the expected number of runs, (4) artifact upload/download paths match between jobs that depend on each other.`}] },
+  'out-deploy':{ category:'Output · Deploy stage', title:'Deploy checklist — rollout plan + explicit rollback', icon:'✓', iconBg:'#fdf0ee', iconColor:'#c0392b', sections:[{label:'The checklist as an approval gate input',text:`A Claude Code-generated deploy checklist is not a rubber-stamp document — it's structured evidence for an approval decision. Each item should have a concrete pass/fail criterion, not a vague "ensure X is working." <strong>The checklist converts a judgment call into a set of verifiable conditions</strong>, which means the go/no-go call is made on evidence rather than confidence.`},{label:'Explicit rollback as a non-negotiable',text:`Generated deploy artifacts that don't include an explicit rollback procedure are incomplete. Claude Code, when prompted correctly, will include: the exact rollback command, the expected rollback duration, how to verify rollback success, and what to check for in logs during rollback. <strong>This information must be decided before deployment begins</strong> — the 2 AM incident is not the right time to work out how to undo a deployment.`},{label:'What the checklist cannot cover',type:'warn',text:`Generated checklists cover the technical conditions. They do not cover organisational context: whether the change window is approved, whether customer-facing communications are staged, whether the on-call engineer has been briefed, whether a partner team's deployment dependency has cleared. These are coordination items that only the owning team can verify.`}] },
+  'out-operate':{ category:'Output · Operate stage', title:'Incident runbook + RCA draft + remediation suggestions', icon:'✓', iconBg:'#fdf0ee', iconColor:'#c0392b', sections:[{label:'Runbook as living documentation',text:`Claude Code generates runbooks from actual incident evidence — not from a template filled in after the fact. This makes the resulting runbook specific and accurate: it documents <strong>what actually worked to diagnose and mitigate this incident</strong>, not a generic procedure. Filed as documentation, it becomes the reference for the next person who encounters the same pattern.`},{label:'RCA draft quality signals',text:`A quality RCA draft from Claude Code will include: a precise timeline reconstructed from log timestamps, a clear distinction between contributing factors and root cause, a specific causal chain (not just a list of things that went wrong), and preventive actions that address the root cause. <strong>If the draft's preventive actions are generic ("improve monitoring", "add more tests"), the evidence fed to Claude Code was too vague</strong> — go back and load more specific log and config data.`},{label:'Remediation suggestion validation',type:'warn',text:`Remediation suggestions from Claude Code are architecturally sound but operationally unverified. Before implementing: (1) check whether the suggested change conflicts with other in-flight work, (2) verify the suggestion doesn't break an assumption in a downstream system, (3) for infrastructure changes, run a plan before applying. Claude Code cannot know your current change queue, frozen services, or partner team dependencies.`}] }
+};
+function openPanel(id) {
+  const data = PANELS[id]; if (!data) return;
+  document.querySelectorAll('.node-group').forEach(n => n.classList.remove('active'));
+  const an = document.getElementById('node-'+id); if(an) an.classList.add('active');
+  const icon = document.getElementById('panelIcon');
+  icon.textContent = data.icon; icon.style.background = data.iconBg; icon.style.color = data.iconColor;
+  document.getElementById('panelCategory').textContent = data.category;
+  document.getElementById('panelTitle').textContent = data.title;
+  const body = document.getElementById('panelBody'); body.innerHTML = '';
+  if (data.badge) {
+    const b = document.createElement('div');
+    b.innerHTML = `<span class="stage-badge"><span class="stage-badge-dot" style="background:${data.badgeColor}"></span>${data.badge}</span>`;
+    body.appendChild(b);
+  }
+  data.sections.forEach((s,i) => {
+    if(i>0){const d=document.createElement('div');d.className='panel-divider';body.appendChild(d);}
+    const sec=document.createElement('div'); sec.className='panel-section';
+    if(s.type==='tip') sec.innerHTML=`<div class="tip-box"><div class="tip-label">↳ Prompt pattern</div>${s.text}</div>`;
+    else if(s.type==='warn') sec.innerHTML=`<div class="warn-box"><div class="warn-label">⚠ Watch out</div>${s.text}</div>`;
+    else sec.innerHTML=`<div class="panel-section-label">${s.label}</div><p>${s.text}</p>`;
+    body.appendChild(sec);
+  });
+  document.getElementById('panel').classList.add('open');
+  document.getElementById('diagramWrap').classList.add('panel-open');
+}
+function closePanel() {
+  document.getElementById('panel').classList.remove('open');
+  document.getElementById('diagramWrap').classList.remove('panel-open');
+  document.querySelectorAll('.node-group').forEach(n=>n.classList.remove('active'));
+}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closePanel();});
+</script>
+</body>
+</html>
