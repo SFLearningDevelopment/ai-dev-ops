@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Example 4 — Deployment Health-Check Shell Script</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Merriweather+Sans:wght@300;400;600;700&family=Source+Code+Pro:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:           #eef2f7;
+    --bg2:          #ffffff;
+    --bg3:          #f0f4f9;
+    --border:       #d0dae8;
+    --text:         #1a2332;
+    --text-dim:     #4a5568;
+    --text-dimmer:  #8fa3bc;
+    --blue:         #1a6eb5;
+    --blue-light:   #e8f1fb;
+    --blue-mid:     #b8d0ed;
+    --blue-dark:    #0f4a7a;
+    --teal:         #0e7a6b;
+    --teal-light:   #e6f4f2;
+    --coral:        #c0392b;
+    --coral-light:  #fdf0ee;
+    --coral-mid:    #f0b8b2;
+    --green:        #1a6b3a;
+    --green-light:  #e8f5ed;
+    --amber:        #92600a;
+    --amber-light:  #fdf3e3;
+    --code-bg:      #1e2433;
+    --code-text:    #cdd6f4;
+    --radius:       12px;
+  }
+
+  html, body { min-height:100%; background:var(--bg); color:var(--text); font-family:'Merriweather Sans',sans-serif; font-size:15px; line-height:1.6; }
+
+  .topnav { background:var(--bg2); border-bottom:1px solid var(--border); padding:0 40px; height:52px; display:flex; align-items:center; gap:8px; font-size:12px; color:var(--text-dimmer); font-family:'Source Code Pro',monospace; position:sticky; top:0; z-index:100; }
+  .topnav a { color:var(--blue); text-decoration:none; }
+  .topnav a:hover { text-decoration:underline; }
+  .topnav .sep { margin:0 4px; color:var(--text-dimmer); }
+
+  .stepnav { background:var(--bg2); border-bottom:1px solid var(--border); padding:0 40px; display:flex; align-items:stretch; position:sticky; top:52px; z-index:99; overflow-x:auto; }
+  .stepnav-item { display:flex; align-items:center; gap:8px; padding:14px 20px; font-size:12px; font-family:'Source Code Pro',monospace; color:var(--text-dimmer); cursor:pointer; border-bottom:3px solid transparent; white-space:nowrap; transition:color 0.15s,border-color 0.15s; text-decoration:none; }
+  .stepnav-item:hover { color:var(--text-dim); }
+  .stepnav-item.active { color:var(--blue); border-bottom-color:var(--blue); font-weight:600; }
+  .stepnav-num { width:20px; height:20px; border-radius:50%; background:var(--bg3); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; flex-shrink:0; transition:background 0.15s,border-color 0.15s,color 0.15s; }
+  .stepnav-item.active .stepnav-num { background:var(--blue); border-color:var(--blue); color:white; }
+
+  .hero { background:var(--bg2); border-bottom:2px solid var(--border); padding:40px 40px 32px; }
+  .hero-inner { max-width:860px; margin:0 auto; }
+  .hero-eyebrow { font-size:10px; letter-spacing:0.2em; text-transform:uppercase; color:var(--blue); font-weight:600; margin-bottom:10px; font-family:'Source Code Pro',monospace; }
+  .hero h1 { font-size:clamp(18px,2.5vw,26px); font-weight:700; color:var(--text); line-height:1.25; }
+  .hero h1 span { color:var(--blue); }
+  .hero-meta { margin-top:14px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  .meta-pill { font-size:10.5px; font-family:'Source Code Pro',monospace; padding:3px 10px; border-radius:20px; font-weight:600; }
+  .pill-tier  { background:var(--blue-light); color:var(--blue); border:1px solid var(--blue-mid); }
+  .pill-topic { background:var(--teal-light); color:var(--teal); border:1px solid #a3d4ce; }
+  .pill-turns { background:var(--bg3); color:var(--text-dim); border:1px solid var(--border); font-weight:400; }
+
+  .main { max-width:860px; margin:0 auto; padding:40px 40px 80px; }
+
+  .step-section { margin-bottom:56px; scroll-margin-top:120px; }
+  .step-header { display:flex; align-items:center; gap:14px; margin-bottom:20px; padding-bottom:16px; border-bottom:2px solid var(--border); }
+  .step-number { width:40px; height:40px; border-radius:50%; background:var(--blue); color:white; display:flex; align-items:center; justify-content:center; font-size:16px; font-weight:700; font-family:'Source Code Pro',monospace; flex-shrink:0; }
+  .step-label { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:0.18em; text-transform:uppercase; color:var(--blue); font-weight:600; margin-bottom:3px; }
+  .step-title { font-size:18px; font-weight:700; color:var(--text); line-height:1.25; }
+
+  .prose { font-size:14.5px; color:var(--text-dim); line-height:1.8; margin-bottom:20px; }
+  .prose strong { color:var(--text); font-weight:600; }
+  .prose code { font-family:'Source Code Pro',monospace; font-size:13px; background:var(--bg3); border:1px solid var(--border); padding:1px 5px; border-radius:4px; color:var(--blue-dark); }
+  .prose em { color:var(--text-dim); font-style:italic; }
+
+  .callout { border-radius:var(--radius); padding:16px 18px; margin:20px 0; font-size:13.5px; line-height:1.7; }
+  .callout-label { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:0.15em; text-transform:uppercase; font-weight:700; margin-bottom:6px; }
+  .callout.info { background:var(--blue-light); border:1px solid var(--blue-mid); border-left:3px solid var(--blue); color:var(--text-dim); }
+  .callout.info .callout-label { color:var(--blue); }
+  .callout.warn { background:#fdf5f5; border:1px solid var(--coral-mid); border-left:3px solid var(--coral); color:var(--text-dim); }
+  .callout.warn .callout-label { color:var(--coral); }
+  .callout.good { background:var(--green-light); border:1px solid #a3d4b8; border-left:3px solid var(--green); color:var(--text-dim); }
+  .callout.good .callout-label { color:var(--green); }
+  .callout.tip { background:var(--amber-light); border:1px solid #f0d4a0; border-left:3px solid var(--amber); color:var(--text-dim); }
+  .callout.tip .callout-label { color:var(--amber); }
+  .callout strong { color:var(--text); font-weight:600; }
+  .callout code { font-family:'Source Code Pro',monospace; font-size:12.5px; background:rgba(0,0,0,0.06); padding:1px 5px; border-radius:4px; }
+
+  .code-wrap { margin:20px 0; border-radius:0; overflow:hidden; border:1px solid #2a3144; background:#1e2433; }
+  .code-header { background:#252b3b; padding:10px 16px; display:flex; align-items:center; justify-content:space-between; }
+  .code-filename { font-size:11px; font-family:'Source Code Pro',monospace; color:#ffffff; letter-spacing:0.05em; }
+  .code-lang { font-size:10px; font-family:'Source Code Pro',monospace; color:#4a5568; letter-spacing:0.1em; text-transform:uppercase; }
+  .code-copy { font-size:10px; font-family:'Source Code Pro',monospace; color:#7a8ab0; background:none; border:1px solid #3a4155; border-radius:4px; padding:2px 8px; cursor:pointer; transition:color 0.15s,border-color 0.15s; }
+  .code-copy:hover { color:#cdd6f4; border-color:#6a7ab0; }
+  pre { background:#1e2433 !important; padding:20px; overflow-x:auto; margin:0; }
+  code.block { font-family:'Source Code Pro',monospace; font-size:13px; line-height:1.7; color:var(--code-text); background:none; border:none; padding:0; display:block; }
+
+  .kw  { color:#cba6f7; }
+  .cm  { color:#6c7086; font-style:italic; }
+  .st  { color:#a6e3a1; }
+  .nm  { color:#fab387; }
+  .op  { color:#89dceb; }
+  .an  { color:#f38ba8; }
+  .fn  { color:#89b4fa; }
+  .va  { color:#cdd6f4; }
+
+  .diff-wrap { margin:20px 0; border-radius:0; overflow:hidden; border:1px solid #2a3144; background:#1e2433; }
+  .diff-header { background:#252b3b; padding:10px 16px; font-size:11px; font-family:'Source Code Pro',monospace; color:#ffffff; }
+  .diff-body { background:#1e2433 !important; padding:16px 0; overflow-x:auto; }
+  .diff-line { padding:1px 20px; font-family:'Source Code Pro',monospace; font-size:13px; line-height:1.65; color:var(--code-text); display:block; }
+  .diff-line.add { background:rgba(166,227,161,0.12); color:#a6e3a1; }
+  .diff-line.add::before { content:'+  '; color:#a6e3a1; }
+  .diff-line.rem { background:rgba(243,139,168,0.12); color:#f38ba8; }
+  .diff-line.rem::before { content:'-  '; color:#f38ba8; }
+  .diff-line.neu::before { content:'   '; }
+
+  .annotation-list { list-style:none; display:flex; flex-direction:column; gap:12px; margin:20px 0; }
+  .annotation-list li { display:flex; gap:12px; align-items:flex-start; font-size:13.5px; color:var(--text-dim); line-height:1.7; }
+  .ann-badge { flex-shrink:0; font-size:10px; font-family:'Source Code Pro',monospace; font-weight:700; padding:2px 8px; border-radius:4px; margin-top:2px; }
+  .ann-good { background:var(--green-light); color:var(--green); border:1px solid #a3d4b8; }
+  .ann-warn { background:var(--coral-light); color:var(--coral); border:1px solid var(--coral-mid); }
+  .ann-info { background:var(--blue-light); color:var(--blue); border:1px solid var(--blue-mid); }
+  .annotation-list li strong { color:var(--text); font-weight:600; }
+  .annotation-list li code { font-family:'Source Code Pro',monospace; font-size:12.5px; background:var(--bg3); border:1px solid var(--border); padding:1px 5px; border-radius:4px; color:var(--blue-dark); }
+
+  .conversation { display:flex; flex-direction:column; gap:0; margin:24px 0; border:1px solid #2a3144; border-radius:var(--radius); overflow:hidden; }
+  .conv-turn { padding:18px 22px; }
+  .conv-turn + .conv-turn { border-top:1px solid #2a3144; }
+  .conv-turn.engineer { background:var(--bg3); }
+  .conv-turn.claude   { background:#1e2433; }
+  .conv-role { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:0.18em; text-transform:uppercase; font-weight:700; margin-bottom:8px; }
+  .conv-turn.engineer .conv-role { color:var(--teal); }
+  .conv-turn.claude   .conv-role { color:#7a8ab0; }
+  .conv-body { font-size:13.5px; line-height:1.75; }
+  .conv-turn.engineer .conv-body { color:var(--text-dim); }
+  .conv-turn.claude .conv-body { color:#cdd6f4; }
+  .conv-turn.engineer .conv-body strong { color:var(--text); font-weight:600; }
+  .conv-turn.claude .conv-body strong { color:#ffffff; font-weight:600; }
+  .conv-turn.engineer .conv-body code { font-family:'Source Code Pro',monospace; font-size:12.5px; background:var(--bg3); border:1px solid var(--border); padding:1px 5px; border-radius:4px; color:var(--blue-dark); }
+  .conv-turn.claude .conv-body code { font-family:'Source Code Pro',monospace; font-size:12.5px; background:#252b3b; border:1px solid #3a4155; padding:1px 5px; border-radius:4px; color:#89dceb; }
+  .conv-turn.claude .conv-body em { font-style:italic; color:#6c7086; }
+  .conv-turn.claude .code-wrap { margin:12px 0; }
+
+  .turn-label { display:inline-flex; align-items:center; gap:6px; font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:0.12em; text-transform:uppercase; color:var(--text-dimmer); background:var(--bg3); border:1px solid var(--border); border-radius:20px; padding:3px 10px; margin-bottom:14px; font-weight:600; }
+
+  .section-divider { height:1px; background:var(--border); margin:40px 0; }
+
+  .bottom-nav { display:flex; justify-content:space-between; align-items:center; padding:20px 0 0; border-top:1px solid var(--border); margin-top:40px; }
+  .nav-btn { display:inline-flex; align-items:center; gap:8px; font-size:13px; font-family:'Source Code Pro',monospace; color:var(--blue); text-decoration:none; padding:10px 18px; border:1px solid var(--blue-mid); border-radius:8px; background:var(--blue-light); transition:background 0.15s,border-color 0.15s; font-weight:600; }
+  .nav-btn:hover { background:var(--blue-mid); border-color:var(--blue); }
+  .nav-btn.secondary { background:var(--bg2); color:var(--text-dim); border-color:var(--border); }
+  .nav-btn.secondary:hover { background:var(--bg3); }
+
+  .tier-complete { background:var(--bg2); border:1px solid var(--border); border-top:3px solid var(--green); border-radius:var(--radius); padding:24px 28px; margin-top:48px; }
+  .tier-complete-label { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:0.18em; text-transform:uppercase; color:var(--green); font-weight:600; margin-bottom:8px; }
+  .tier-complete-title { font-size:17px; font-weight:700; color:var(--text); margin-bottom:8px; }
+  .tier-complete-desc { font-size:13.5px; color:var(--text-dim); line-height:1.7; }
+  .tier-complete-desc a { color:var(--blue); text-decoration:none; }
+  .tier-complete-desc a:hover { text-decoration:underline; }
+
+  footer { background:var(--bg2); border-top:1px solid var(--border); padding:14px 40px; font-size:11px; font-family:'Source Code Pro',monospace; color:var(--text-dimmer); display:flex; justify-content:space-between; align-items:center; }
+
+  @media (max-width:640px) { .topnav,.main,footer { padding-left:20px; padding-right:20px; } .hero { padding:28px 20px; } .stepnav { padding:0 20px; } }
+</style>
+</head>
+<body>
+
+<nav class="topnav">
+  <a href="course-map.html">Course map</a>
+  <span class="sep">/</span>
+  <a href="course-map.html">Tier 1 examples</a>
+  <span class="sep">/</span>
+  <span>Example 4 — Deployment health-check script</span>
+</nav>
+
+<nav class="stepnav" id="stepnav">
+  <a class="stepnav-item active" href="#step-1"><span class="stepnav-num">1</span>Problem</a>
+  <a class="stepnav-item" href="#step-2"><span class="stepnav-num">2</span>Naive approach</a>
+  <a class="stepnav-item" href="#step-3"><span class="stepnav-num">3</span>Claude Code interaction</a>
+  <a class="stepnav-item" href="#step-4"><span class="stepnav-num">4</span>Refined output</a>
+  <a class="stepnav-item" href="#step-5"><span class="stepnav-num">5</span>Watch out</a>
+</nav>
+
+<div class="hero">
+  <div class="hero-inner">
+    <div class="hero-eyebrow">Example 4 of 4 · Tier 1 · Single-file task</div>
+    <h1>Deployment <span>health-check</span> shell script</h1>
+    <div class="hero-meta">
+      <span class="meta-pill pill-tier">Tier 1 — Single-file task</span>
+      <span class="meta-pill pill-topic">Shell automation</span>
+      <span class="meta-pill pill-turns">3-turn interaction</span>
+      <span class="meta-pill pill-turns">DevOps automation</span>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- ══ STEP 1: PROBLEM ══ -->
+  <section class="step-section" id="step-1">
+    <div class="step-header">
+      <div class="step-number">1</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 1 of 5</div>
+        <div class="step-title">The problem</div>
+      </div>
+    </div>
+
+    <p class="prose">
+      The <code>payment-api</code> service is now containerised and has a CI/CD pipeline. The final missing piece is a pre-deployment health check script — a bash script that runs before the new version is cut over in the CD pipeline, verifies the new pods are healthy, and blocks the cutover if they are not. If it blocks, it should not leave the cluster in a partially modified state.
+    </p>
+
+    <div class="callout info">
+      <div class="callout-label">Requirements</div>
+      — Check that a given Kubernetes deployment reaches <code>Available</code> status within a configurable timeout<br>
+      — Poll the <code>/health</code> endpoint of each new pod directly to confirm application-level readiness<br>
+      — Accept deployment name, namespace, and timeout as arguments with sensible defaults<br>
+      — Output structured <code>PASS</code> / <code>FAIL</code> per check with a timestamp<br>
+      — Exit with code <code>0</code> only if all checks pass — exit <code>1</code> on any failure<br>
+      — Be idempotent — safe to run multiple times without side effects<br>
+      — Run on both macOS and Linux (the script is used locally by engineers and in CI)
+    </div>
+
+    <p class="prose">
+      The idempotency and cross-platform requirements are what separate this from a quick one-off script. A script that works once in CI but breaks on a re-run or behaves differently on a developer's MacBook is worse than no script at all — it breeds distrust in the tooling.
+    </p>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ══ STEP 2: NAIVE APPROACH ══ -->
+  <section class="step-section" id="step-2">
+    <div class="step-header">
+      <div class="step-number">2</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 2 of 5</div>
+        <div class="step-title">The naive approach</div>
+      </div>
+    </div>
+
+    <p class="prose">
+      Here is the script most engineers write from memory when they need a deployment check quickly. It works on a happy path, fails unpredictably everywhere else.
+    </p>
+
+    <div class="code-wrap">
+      <div class="code-header">
+        <span class="code-filename">check-deployment.sh (naive)</span>
+        <span class="code-lang">bash</span>
+      </div>
+      <pre><code class="block"><span class="cm">#!/bin/bash</span>
+
+<span class="va">DEPLOYMENT</span>=<span class="st">$1</span>
+<span class="va">NAMESPACE</span>=<span class="st">$2</span>
+<span class="va">TIMEOUT</span>=<span class="nm">60</span>
+
+<span class="cm"># Wait for rollout</span>
+<span class="fn">kubectl</span> rollout status deployment/<span class="va">$DEPLOYMENT</span> \
+  -n <span class="va">$NAMESPACE</span> \
+  --timeout=<span class="st">${TIMEOUT}s</span>
+
+<span class="cm"># Get pod IPs and check /health on each</span>
+<span class="va">PODS</span>=$(<span class="fn">kubectl</span> get pods -n <span class="va">$NAMESPACE</span> \
+  -l app=<span class="va">$DEPLOYMENT</span> \
+  -o jsonpath=<span class="st">'{.items[*].status.podIP}'</span>)
+
+<span class="kw">for</span> <span class="va">pod</span> <span class="kw">in</span> <span class="va">$PODS</span>; <span class="kw">do</span>
+  <span class="fn">curl</span> http://<span class="va">$pod</span>:3000/health
+<span class="kw">done</span>
+
+<span class="fn">echo</span> <span class="st">"Deployment check complete"</span></code></pre>
+    </div>
+
+    <p class="prose">This script will silently succeed in situations where it should fail. Here are its six critical problems:</p>
+
+    <ul class="annotation-list">
+      <li>
+        <span class="ann-badge ann-warn">Safety</span>
+        <div><strong>No <code>set -euo pipefail</code>.</strong> Without these flags: <code>-e</code> means the script continues executing after any command fails; <code>-u</code> means unset variables expand to empty string silently (so <code>kubectl ... -n ""</code> queries the wrong namespace without error); <code>-o pipefail</code> means a failed command in a pipeline is hidden by a succeeding one. A script without these three flags can exit 0 while having done nothing useful.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Correctness</span>
+        <div><strong>No argument validation.</strong> If called without arguments, <code>DEPLOYMENT</code> and <code>NAMESPACE</code> are empty strings. <code>kubectl rollout status deployment/</code> returns a confusing API error. The script should validate required arguments before doing any work and print a usage message on failure.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Correctness</span>
+        <div><strong>Pod IP loop is fragile.</strong> <code>kubectl get pods ... -o jsonpath='{.items[*].status.podIP}'</code> returns IPs space-separated on a single line. The <code>for pod in $PODS</code> loop works — but only because of unquoted variable expansion. If any pod IP contains spaces (it won't, but the pattern is fragile), or if the list is empty, the loop silently skips. More importantly: pod IPs are not directly accessible from outside the cluster. This will always fail in CI.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Correctness</span>
+        <div><strong><code>curl</code> exit code is ignored.</strong> Even if <code>curl</code> returns a non-200 response or times out, the script continues and exits 0. The health check result is printed to stdout but never acted on. The script reports "complete" regardless of whether any pod is actually healthy.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Portability</span>
+        <div><strong>Not cross-platform.</strong> GNU <code>date</code>, GNU <code>timeout</code>, and several <code>kubectl</code> jsonpath expressions behave differently on macOS (BSD tools). The script will work in Linux CI but fail on a developer's MacBook without a clear error message.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Observability</span>
+        <div><strong>No structured output.</strong> "Deployment check complete" is printed regardless of outcome. There is no per-check PASS/FAIL, no timestamp, no exit code reflecting actual health. A CD pipeline using this script has no way to distinguish a healthy deployment from a failed one.</div>
+      </li>
+    </ul>
+
+    <div class="callout warn">
+      <div class="callout-label">The core problem</div>
+      The naive script gives the <em>appearance</em> of verification without actually verifying anything. It will exit 0 on an unhealthy deployment, a missing deployment, an empty pod list, and a timed-out rollout — as long as <code>kubectl rollout status</code> doesn't fail. That is the worst kind of script: it provides false confidence.
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ══ STEP 3: CLAUDE CODE INTERACTION ══ -->
+  <section class="step-section" id="step-3">
+    <div class="step-header">
+      <div class="step-number">3</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 3 of 5</div>
+        <div class="step-title">The Claude Code interaction</div>
+      </div>
+    </div>
+
+    <p class="prose">
+      Three turns. Turn 1 generates the initial script with proper error handling. Turn 2 pastes a real failure from a macOS developer machine. Turn 3 adds explicit idempotency guarantees after a requirement surfaces mid-sprint.
+    </p>
+
+    <!-- Turn 1 -->
+    <div class="turn-label">Turn 1 of 3 — Initial generation</div>
+
+    <div class="conversation">
+      <div class="conv-turn engineer">
+        <div class="conv-role">Engineer → Claude Code</div>
+        <div class="conv-body">
+          <p>Write a bash script called <code>check-deployment.sh</code> that verifies a Kubernetes deployment is healthy before a CD pipeline proceeds with cutover. Requirements:</p>
+          <p style="margin-top:10px;">
+          — Arguments: DEPLOYMENT_NAME (required), NAMESPACE (required), TIMEOUT_SECONDS (optional, default 120)<br>
+          — Check 1: <code>kubectl rollout status</code> succeeds within timeout<br>
+          — Check 2: all pods matching <code>app=DEPLOYMENT_NAME</code> label show <code>Running</code> and <code>Ready</code> status via kubectl, not direct curl (pods are not directly reachable from CI)<br>
+          — Check 3: desired replica count matches ready replica count from deployment status<br>
+          — Output: timestamped PASS/FAIL per check, final summary<br>
+          — Exit 0 only if all checks pass, exit 1 on any failure<br>
+          — Must work on both macOS and Linux<br>
+          — set -euo pipefail, full argument validation, usage message on bad input
+          </p>
+        </div>
+      </div>
+
+      <div class="conv-turn claude">
+        <div class="conv-role">Claude Code</div>
+        <div class="conv-body">
+          <div class="code-wrap">
+            <div class="code-header">
+              <span class="code-filename">check-deployment.sh (turn 1 output)</span>
+              <button class="code-copy" onclick="copyCode(this)">copy</button>
+            </div>
+            <pre><code class="block"><span class="cm">#!/usr/bin/env bash</span>
+<span class="cm"># check-deployment.sh — Pre-cutover deployment health verification</span>
+<span class="cm"># Usage: ./check-deployment.sh DEPLOYMENT_NAME NAMESPACE [TIMEOUT_SECONDS]</span>
+<span class="kw">set</span> -euo pipefail
+
+<span class="cm"># ── Constants ────────────────────────────────────────────────────────────────</span>
+<span class="kw">readonly</span> <span class="va">SCRIPT_NAME</span>=<span class="st">"$(basename "$0")"</span>
+<span class="kw">readonly</span> <span class="va">DEFAULT_TIMEOUT</span>=<span class="nm">120</span>
+<span class="va">PASS_COUNT</span>=<span class="nm">0</span>
+<span class="va">FAIL_COUNT</span>=<span class="nm">0</span>
+
+<span class="cm"># ── Helpers ──────────────────────────────────────────────────────────────────</span>
+<span class="fn">usage</span>() {
+  <span class="fn">echo</span> <span class="st">"Usage: $SCRIPT_NAME DEPLOYMENT_NAME NAMESPACE [TIMEOUT_SECONDS]"</span>
+  <span class="fn">echo</span> <span class="st">""</span>
+  <span class="fn">echo</span> <span class="st">"  DEPLOYMENT_NAME   Name of the Kubernetes deployment to verify"</span>
+  <span class="fn">echo</span> <span class="st">"  NAMESPACE         Kubernetes namespace containing the deployment"</span>
+  <span class="fn">echo</span> <span class="st">"  TIMEOUT_SECONDS   Rollout wait timeout (default: $DEFAULT_TIMEOUT)"</span>
+  <span class="fn">echo</span> <span class="st">""</span>
+  <span class="fn">echo</span> <span class="st">"Exit codes: 0 = all checks passed, 1 = one or more checks failed"</span>
+  <span class="fn">exit</span> <span class="nm">1</span>
+}
+
+<span class="fn">timestamp</span>() {
+  <span class="cm"># ISO 8601 compatible on both GNU date (Linux) and BSD date (macOS)</span>
+  <span class="fn">date</span> -u <span class="st">'+%Y-%m-%dT%H:%M:%SZ'</span>
+}
+
+<span class="fn">log_pass</span>() {
+  <span class="va">PASS_COUNT</span>=$(( PASS_COUNT + 1 ))
+  <span class="fn">echo</span> <span class="st">"[$(timestamp)] PASS  $1"</span>
+}
+
+<span class="fn">log_fail</span>() {
+  <span class="va">FAIL_COUNT</span>=$(( FAIL_COUNT + 1 ))
+  <span class="fn">echo</span> <span class="st">"[$(timestamp)] FAIL  $1"</span> >&2
+}
+
+<span class="fn">log_info</span>() {
+  <span class="fn">echo</span> <span class="st">"[$(timestamp)] INFO  $1"</span>
+}
+
+<span class="cm"># ── Argument validation ───────────────────────────────────────────────────────</span>
+<span class="kw">if</span> [[ $# -lt 2 ]]; <span class="kw">then</span>
+  <span class="fn">echo</span> <span class="st">"Error: DEPLOYMENT_NAME and NAMESPACE are required." >&2</span>
+  <span class="fn">usage</span>
+<span class="kw">fi</span>
+
+<span class="kw">readonly</span> <span class="va">DEPLOYMENT</span>=<span class="st">"$1"</span>
+<span class="kw">readonly</span> <span class="va">NAMESPACE</span>=<span class="st">"$2"</span>
+<span class="kw">readonly</span> <span class="va">TIMEOUT</span>=<span class="st">"${3:-$DEFAULT_TIMEOUT}"</span>
+
+<span class="cm"># Validate timeout is a positive integer</span>
+<span class="kw">if</span> ! [[ <span class="st">"$TIMEOUT"</span> =~ ^[0-9]+$ ]] || [[ <span class="st">"$TIMEOUT"</span> -eq 0 ]]; <span class="kw">then</span>
+  <span class="fn">echo</span> <span class="st">"Error: TIMEOUT_SECONDS must be a positive integer, got: '$TIMEOUT'" >&2</span>
+  <span class="fn">usage</span>
+<span class="kw">fi</span>
+
+<span class="cm"># Verify kubectl is available</span>
+<span class="kw">if</span> ! <span class="fn">command</span> -v kubectl &>/dev/null; <span class="kw">then</span>
+  <span class="fn">echo</span> <span class="st">"Error: kubectl not found in PATH" >&2</span>
+  <span class="fn">exit</span> <span class="nm">1</span>
+<span class="kw">fi</span>
+
+<span class="fn">log_info</span> <span class="st">"Checking deployment '$DEPLOYMENT' in namespace '$NAMESPACE' (timeout: ${TIMEOUT}s)"</span>
+
+<span class="cm"># ── Check 1: Rollout status ───────────────────────────────────────────────────</span>
+<span class="fn">log_info</span> <span class="st">"Check 1: kubectl rollout status"</span>
+<span class="kw">if</span> <span class="fn">kubectl</span> rollout status deployment/<span class="st">"$DEPLOYMENT"</span> \
+    -n <span class="st">"$NAMESPACE"</span> \
+    --timeout=<span class="st">"${TIMEOUT}s"</span> &>/dev/null; <span class="kw">then</span>
+  <span class="fn">log_pass</span> <span class="st">"Rollout completed within ${TIMEOUT}s"</span>
+<span class="kw">else</span>
+  <span class="fn">log_fail</span> <span class="st">"Rollout did not complete within ${TIMEOUT}s"</span>
+<span class="kw">fi</span>
+
+<span class="cm"># ── Check 2: All pods Running and Ready ───────────────────────────────────────</span>
+<span class="fn">log_info</span> <span class="st">"Check 2: Pod readiness"</span>
+<span class="va">NOT_READY</span>=$(<span class="fn">kubectl</span> get pods \
+  -n <span class="st">"$NAMESPACE"</span> \
+  -l <span class="st">"app=$DEPLOYMENT"</span> \
+  --field-selector=<span class="st">'status.phase!=Running'</span> \
+  -o name 2>/dev/null | <span class="fn">wc</span> -l | <span class="fn">tr</span> -d <span class="st">' '</span>)
+
+<span class="kw">if</span> [[ <span class="st">"$NOT_READY"</span> -eq 0 ]]; <span class="kw">then</span>
+  <span class="fn">log_pass</span> <span class="st">"All pods are in Running phase"</span>
+<span class="kw">else</span>
+  <span class="fn">log_fail</span> <span class="st">"$NOT_READY pod(s) not in Running phase"</span>
+<span class="kw">fi</span>
+
+<span class="cm"># Check Ready condition specifically (separate from phase)</span>
+<span class="va">NOT_READY_CONDITION</span>=$(<span class="fn">kubectl</span> get pods \
+  -n <span class="st">"$NAMESPACE"</span> \
+  -l <span class="st">"app=$DEPLOYMENT"</span> \
+  -o jsonpath=<span class="st">'{range .items[*]}{.metadata.name}{"\t"}{range .status.conditions[?(@.type=="Ready")]}{.status}{"\n"}{end}{end}'</span> \
+  2>/dev/null | <span class="fn">grep</span> -c <span class="st">'False'</span> || <span class="nm">true</span>)
+
+<span class="kw">if</span> [[ <span class="st">"$NOT_READY_CONDITION"</span> -eq 0 ]]; <span class="kw">then</span>
+  <span class="fn">log_pass</span> <span class="st">"All pods have Ready=True condition"</span>
+<span class="kw">else</span>
+  <span class="fn">log_fail</span> <span class="st">"$NOT_READY_CONDITION pod(s) have Ready=False condition"</span>
+<span class="kw">fi</span>
+
+<span class="cm"># ── Check 3: Desired vs ready replicas ────────────────────────────────────────</span>
+<span class="fn">log_info</span> <span class="st">"Check 3: Replica count"</span>
+<span class="va">DESIRED</span>=$(<span class="fn">kubectl</span> get deployment <span class="st">"$DEPLOYMENT"</span> \
+  -n <span class="st">"$NAMESPACE"</span> \
+  -o jsonpath=<span class="st">'{.spec.replicas}'</span> 2>/dev/null)
+
+<span class="va">READY</span>=$(<span class="fn">kubectl</span> get deployment <span class="st">"$DEPLOYMENT"</span> \
+  -n <span class="st">"$NAMESPACE"</span> \
+  -o jsonpath=<span class="st">'{.status.readyReplicas}'</span> 2>/dev/null)
+
+<span class="cm"># readyReplicas may be absent (null) if zero pods are ready</span>
+<span class="va">READY</span>=<span class="st">"${READY:-0}"</span>
+
+<span class="kw">if</span> [[ <span class="st">"$DESIRED"</span> -gt 0 ]] && [[ <span class="st">"$READY"</span> -eq <span class="st">"$DESIRED"</span> ]]; <span class="kw">then</span>
+  <span class="fn">log_pass</span> <span class="st">"Ready replicas ($READY) matches desired ($DESIRED)"</span>
+<span class="kw">else</span>
+  <span class="fn">log_fail</span> <span class="st">"Ready replicas ($READY) does not match desired ($DESIRED)"</span>
+<span class="kw">fi</span>
+
+<span class="cm"># ── Summary ───────────────────────────────────────────────────────────────────</span>
+<span class="fn">echo</span> <span class="st">""</span>
+<span class="fn">echo</span> <span class="st">"─────────────────────────────────────────────────"</span>
+<span class="fn">echo</span> <span class="st">"  PASSED: $PASS_COUNT"</span>
+<span class="fn">echo</span> <span class="st">"  FAILED: $FAIL_COUNT"</span>
+<span class="fn">echo</span> <span class="st">"─────────────────────────────────────────────────"</span>
+
+<span class="kw">if</span> [[ <span class="st">"$FAIL_COUNT"</span> -gt 0 ]]; <span class="kw">then</span>
+  <span class="fn">log_info</span> <span class="st">"Result: UNHEALTHY — deployment '$DEPLOYMENT' failed $FAIL_COUNT check(s)"</span>
+  <span class="fn">exit</span> <span class="nm">1</span>
+<span class="kw">fi</span>
+
+<span class="fn">log_info</span> <span class="st">"Result: HEALTHY — all checks passed for deployment '$DEPLOYMENT'"</span>
+<span class="fn">exit</span> <span class="nm">0</span></code></pre>
+          </div>
+          <p style="margin-top:12px;"><strong>Key decisions:</strong></p>
+          <p style="margin-top:8px;">— <code>#!/usr/bin/env bash</code> instead of <code>#!/bin/bash</code>: on macOS, <code>/bin/bash</code> is Bash 3.2 (2007). <code>/usr/bin/env bash</code> picks up the Homebrew-installed Bash 5.x if present, which supports <code>[[ ]]</code> reliably and handles associative arrays. For a script this simple it doesn't matter — but the pattern is correct and consistent.</p>
+          <p style="margin-top:8px;">— The <code>grep -c ... || true</code> pattern on the Ready condition check: <code>grep -c</code> exits 1 if it finds zero matches, which would trigger <code>set -e</code> and abort the script. The <code>|| true</code> suppresses that exit — we want zero matches to be a valid result (all pods are ready), not an error.</p>
+          <p style="margin-top:8px;">— <code>READY="${READY:-0}"</code>: <code>kubectl</code> omits <code>readyReplicas</code> from the JSON when the value is 0. Without this default, the comparison <code>[[ "$READY" -eq "$DESIRED" ]]</code> would error on an empty string.</p>
+          <p style="margin-top:8px;">— Failure output goes to stderr (<code>>&2</code>) and success to stdout. This means a CI system capturing stdout will get clean structured output, while stderr carries the failure detail that shows up in the job log.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Turn 2 -->
+    <div class="turn-label" style="margin-top:28px;">Turn 2 of 3 — macOS failure pasted back verbatim</div>
+
+    <p class="prose">
+      An engineer runs the script on their MacBook before pushing. It fails at the argument validation step with an unexpected error. They paste the exact stderr output.
+    </p>
+
+    <div class="conversation">
+      <div class="conv-turn engineer">
+        <div class="conv-role">Engineer → Claude Code</div>
+        <div class="conv-body">
+          <p>Script fails on macOS at the timeout validation step. Exact error (verbatim):</p>
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">stderr on macOS (Apple Silicon, zsh terminal)</span></div>
+            <pre><code class="block">./check-deployment.sh: line 54: [[: 120: syntax error: invalid arithmetic operator (error token is "120")</code></pre>
+          </div>
+          <p style="margin-top:10px;">Line 54 is: <code>if [[ "$TIMEOUT" -eq 0 ]]; then</code></p>
+          <p style="margin-top:10px;">Running macOS 14 Sonoma. The <code>bash --version</code> in the terminal is 3.2.57 despite having bash 5 installed via Homebrew — the script is being invoked with the system bash, not the Homebrew one.</p>
+        </div>
+      </div>
+
+      <div class="conv-turn claude">
+        <div class="conv-role">Claude Code</div>
+        <div class="conv-body">
+          <p>The issue is that <strong>Bash 3.2 does not support arithmetic comparison with <code>-eq</code> inside <code>[[ ]]</code> when the variable is a string that matches a number.</strong> The <code>[[ ]]</code> construct in Bash 3.2 treats the right-hand side of <code>-eq</code> as a string token and errors on values it can't parse in its specific context.</p>
+          <p style="margin-top:10px;">The immediate cause is that the script uses <code>#!/usr/bin/env bash</code>, which resolves to <code>/bin/bash</code> (3.2) on macOS when run directly as <code>./check-deployment.sh</code> — the PATH lookup finds the system bash before Homebrew's. The fix has two parts:</p>
+          <p style="margin-top:10px;"><strong>Fix 1:</strong> Replace the mixed <code>[[ ]]</code> arithmetic comparison with pure arithmetic context:</p>
+          <div class="code-wrap">
+            <div class="code-header">
+              <span class="code-filename">Fix — timeout validation (Bash 3.2 compatible)</span>
+              <button class="code-copy" onclick="copyCode(this)">copy</button>
+            </div>
+            <pre><code class="block"><span class="cm"># Before (Bash 5 only):</span>
+<span class="an">if ! [[ "$TIMEOUT" =~ ^[0-9]+$ ]] || [[ "$TIMEOUT" -eq 0 ]]; then</span>
+
+<span class="cm"># After (Bash 3.2 compatible):</span>
+<span class="kw">if</span> ! [[ <span class="st">"$TIMEOUT"</span> =~ ^[0-9]+$ ]]; <span class="kw">then</span>
+  <span class="fn">echo</span> <span class="st">"Error: TIMEOUT_SECONDS must be a positive integer, got: '$TIMEOUT'" >&2</span>
+  <span class="fn">usage</span>
+<span class="kw">fi</span>
+<span class="kw">if</span> (( TIMEOUT == 0 )); <span class="kw">then</span>
+  <span class="fn">echo</span> <span class="st">"Error: TIMEOUT_SECONDS must be greater than 0" >&2</span>
+  <span class="fn">usage</span>
+<span class="kw">fi</span></code></pre>
+          </div>
+          <p style="margin-top:10px;"><strong>Fix 2:</strong> Add a Bash version check at the top of the script so the error is explicit rather than cryptic when invoked with the system bash:</p>
+          <div class="code-wrap">
+            <div class="code-header">
+              <span class="code-filename">Add after shebang — Bash version guard</span>
+              <button class="code-copy" onclick="copyCode(this)">copy</button>
+            </div>
+            <pre><code class="block"><span class="cm"># Require Bash >= 3.2 — split checks to avoid the very bug we're guarding against</span>
+<span class="va">BASH_MAJOR</span>=<span class="st">"${BASH_VERSINFO[0]}"</span>
+<span class="va">BASH_MINOR</span>=<span class="st">"${BASH_VERSINFO[1]}"</span>
+<span class="kw">if</span> (( BASH_MAJOR < 3 )) || { (( BASH_MAJOR == 3 )) && (( BASH_MINOR < 2 )); }; <span class="kw">then</span>
+  <span class="fn">echo</span> <span class="st">"Error: Bash >= 3.2 required (found ${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]})" >&2</span>
+  <span class="fn">exit</span> <span class="nm">1</span>
+<span class="kw">fi</span></code></pre>
+          </div>
+          <p style="margin-top:10px;">The <code>(( ))</code> arithmetic context works correctly in Bash 3.2 for integer comparisons, unlike <code>[[ -eq ]]</code> which has subtle parsing differences between versions. Apply both fixes and the script will behave identically on macOS system bash and Linux.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Turn 3 -->
+    <div class="turn-label" style="margin-top:28px;">Turn 3 of 3 — Idempotency requirement added</div>
+
+    <p class="prose">
+      The script works correctly on both platforms. A new requirement surfaces: the CD pipeline may re-run the health check up to three times with a backoff if the first check times out. The script must be explicitly idempotent — running it multiple times against the same deployment must produce the same result without side effects, and must support a <code>--retry</code> mode that loops internally.
+    </p>
+
+    <div class="conversation">
+      <div class="conv-turn engineer">
+        <div class="conv-role">Engineer → Claude Code</div>
+        <div class="conv-body">
+          <p>Add two things to the script:</p>
+          <p style="margin-top:10px;">1. An optional <code>--retry N</code> flag (default 1, max 5) that retries all checks up to N times with a 15-second backoff between attempts. Print attempt number. Exit 0 only if the final attempt passes all checks.</p>
+          <p style="margin-top:10px;">2. An explicit idempotency guard — a comment block at the top that documents what the script does and does NOT modify, so operators know it is safe to re-run. The script should also verify it has only read access to the cluster (no kubectl apply/delete calls anywhere) and emit a warning if run with a kubeconfig that has write permissions to the namespace.</p>
+        </div>
+      </div>
+
+      <div class="conv-turn claude">
+        <div class="conv-role">Claude Code</div>
+        <div class="conv-body">
+          <p>On the permissions warning: <strong>checking write permissions before a read-only script is good practice but has a practical caveat</strong>. <code>kubectl auth can-i</code> will return true for cluster-admins even when the script itself never writes anything — so this is an advisory warning, not a hard block. The script will still run; it just informs operators of elevated permissions so they can decide whether to use a restricted kubeconfig for CI.</p>
+          <p style="margin-top:10px;">Here are the targeted additions — insert after argument validation, before Check 1:</p>
+          <div class="code-wrap">
+            <div class="code-header">
+              <span class="code-filename">Additions — retry logic and idempotency guard</span>
+              <button class="code-copy" onclick="copyCode(this)">copy</button>
+            </div>
+            <pre><code class="block"><span class="cm"># ── Idempotency contract ─────────────────────────────────────────────────────
+# This script is READ-ONLY. It:
+#   - Reads deployment status and pod conditions via kubectl get/rollout
+#   - Does NOT modify any Kubernetes resources
+#   - Does NOT create, update, or delete any objects
+#   - Does NOT write to any files outside /tmp
+#   - Is safe to re-run any number of times against the same deployment
+# Running this script multiple times will produce the same result as running
+# it once, assuming the cluster state does not change between runs.</span>
+
+<span class="cm"># ── Permissions advisory ──────────────────────────────────────────────────────</span>
+<span class="kw">if</span> <span class="fn">kubectl</span> auth can-i create pods -n <span class="st">"$NAMESPACE"</span> &>/dev/null; <span class="kw">then</span>
+  <span class="fn">echo</span> <span class="st">"[$(timestamp)] WARN  Current kubeconfig has write access to namespace '$NAMESPACE'."</span> >&2
+  <span class="fn">echo</span> <span class="st">"[$(timestamp)] WARN  Consider using a read-only kubeconfig for CI health checks."</span> >&2
+<span class="kw">fi</span>
+
+<span class="cm"># ── Retry configuration ───────────────────────────────────────────────────────</span>
+<span class="va">MAX_RETRIES</span>=<span class="nm">1</span>
+
+<span class="cm"># Parse --retry flag (supports --retry N or --retry=N)</span>
+<span class="kw">while</span> [[ $# -gt 0 ]]; <span class="kw">do</span>
+  <span class="kw">case</span> <span class="st">"$1"</span> <span class="kw">in</span>
+    --retry=*)
+      <span class="va">MAX_RETRIES</span>=<span class="st">"${1#--retry=}"</span>
+      <span class="kw">shift</span>
+      ;;
+    --retry)
+      <span class="va">MAX_RETRIES</span>=<span class="st">"$2"</span>
+      <span class="kw">shift</span> 2
+      ;;
+    *) <span class="kw">shift</span> ;;
+  <span class="kw">esac</span>
+<span class="kw">done</span>
+
+<span class="kw">if</span> ! [[ <span class="st">"$MAX_RETRIES"</span> =~ ^[0-9]+$ ]] || (( MAX_RETRIES < 1 )) || (( MAX_RETRIES > 5 )); <span class="kw">then</span>
+  <span class="fn">echo</span> <span class="st">"Error: --retry must be an integer between 1 and 5, got: '$MAX_RETRIES'" >&2</span>
+  <span class="fn">exit</span> <span class="nm">1</span>
+<span class="kw">fi</span>
+
+<span class="kw">readonly</span> <span class="va">RETRY_BACKOFF_SECONDS</span>=<span class="nm">15</span>
+
+<span class="cm"># ── Run checks with retry ─────────────────────────────────────────────────────</span>
+<span class="fn">run_checks</span>() {
+  <span class="va">PASS_COUNT</span>=<span class="nm">0</span>
+  <span class="va">FAIL_COUNT</span>=<span class="nm">0</span>
+  <span class="cm"># ... all three checks from Turn 1 go here, unchanged ...</span>
+}
+
+<span class="va">attempt</span>=<span class="nm">1</span>
+<span class="kw">while</span> (( attempt <= MAX_RETRIES )); <span class="kw">do</span>
+  <span class="fn">log_info</span> <span class="st">"Attempt $attempt of $MAX_RETRIES"</span>
+  <span class="fn">run_checks</span>
+  <span class="kw">if</span> [[ <span class="st">"$FAIL_COUNT"</span> -eq 0 ]]; <span class="kw">then</span>
+    <span class="fn">log_info</span> <span class="st">"Result: HEALTHY on attempt $attempt"</span>
+    <span class="fn">exit</span> <span class="nm">0</span>
+  <span class="kw">fi</span>
+  <span class="kw">if</span> (( attempt < MAX_RETRIES )); <span class="kw">then</span>
+    <span class="fn">log_info</span> <span class="st">"Attempt $attempt failed. Retrying in ${RETRY_BACKOFF_SECONDS}s..."</span>
+    <span class="fn">sleep</span> <span class="st">"$RETRY_BACKOFF_SECONDS"</span>
+  <span class="kw">fi</span>
+  (( attempt++ )) || <span class="nm">true</span>   <span class="cm"># (( expr )) exits 1 when result is 0; || true prevents set -e trigger</span>
+<span class="kw">done</span>
+
+<span class="fn">log_info</span> <span class="st">"Result: UNHEALTHY after $MAX_RETRIES attempt(s). Failed $FAIL_COUNT check(s) on final attempt."</span>
+<span class="fn">exit</span> <span class="nm">1</span></code></pre>
+          </div>
+          <p style="margin-top:10px;">Note the <code>(( attempt++ )) || true</code> comment — this is a subtle <code>set -e</code> trap. Arithmetic expressions in <code>(( ))</code> exit with status 1 when the result is 0 (falsy). When <code>attempt</code> increments from 0 to 1, the expression result is 1 (truthy) — fine. But if attempt ever evaluates to 0 after increment (it won't here, but the pattern is defensive), <code>set -e</code> would abort the script. The <code>|| true</code> is the standard idiom to use arithmetic increment safely under <code>set -e</code>.</p>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ══ STEP 4: REFINED OUTPUT ══ -->
+  <section class="step-section" id="step-4">
+    <div class="step-header">
+      <div class="step-number">4</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 4 of 5</div>
+        <div class="step-title">The refined output</div>
+      </div>
+    </div>
+
+    <p class="prose">
+      Here is a side-by-side diff of the key structural differences between the naive script and the production-grade version. Every added line is a decision with a reason.
+    </p>
+
+    <div class="diff-wrap">
+      <div class="diff-header">Naive → final: key structural differences</div>
+      <div class="diff-body">
+        <span class="diff-line rem">#!/bin/bash                     # system bash on macOS = 3.2</span>
+        <span class="diff-line add">#!/usr/bin/env bash             # picks up newer bash if installed</span>
+        <span class="diff-line add">set -euo pipefail              # abort on error, unset vars, pipe failures</span>
+        <span class="diff-line neu"> </span>
+        <span class="diff-line rem">DEPLOYMENT=$1                  # unquoted, no validation</span>
+        <span class="diff-line rem">NAMESPACE=$2</span>
+        <span class="diff-line add">if [[ $# -lt 2 ]]; then usage; fi</span>
+        <span class="diff-line add">readonly DEPLOYMENT="$1"       # quoted, validated, readonly</span>
+        <span class="diff-line add">readonly NAMESPACE="$2"</span>
+        <span class="diff-line add">readonly TIMEOUT="${3:-120}"</span>
+        <span class="diff-line neu"> </span>
+        <span class="diff-line rem">kubectl rollout status ...      # exit ignored, output mixed</span>
+        <span class="diff-line add">if kubectl rollout status ...; then</span>
+        <span class="diff-line add">  log_pass "Rollout completed"</span>
+        <span class="diff-line add">else</span>
+        <span class="diff-line add">  log_fail "Rollout timed out"  # FAIL_COUNT incremented, not abort</span>
+        <span class="diff-line add">fi</span>
+        <span class="diff-line neu"> </span>
+        <span class="diff-line rem">for pod in $PODS; do           # direct curl — fails in CI</span>
+        <span class="diff-line rem">  curl http://$pod:3000/health</span>
+        <span class="diff-line rem">done</span>
+        <span class="diff-line add">NOT_READY=$(kubectl get pods ... --field-selector ...)  # kubectl only</span>
+        <span class="diff-line add">if [[ "$NOT_READY" -eq 0 ]]; then log_pass; else log_fail; fi</span>
+        <span class="diff-line neu"> </span>
+        <span class="diff-line rem">echo "Deployment check complete" # always, regardless of outcome</span>
+        <span class="diff-line add">if [[ "$FAIL_COUNT" -gt 0 ]]; then exit 1; fi</span>
+        <span class="diff-line add">exit 0                         # only if all checks passed</span>
+      </div>
+    </div>
+
+    <ul class="annotation-list" style="margin-top:24px;">
+      <li>
+        <span class="ann-badge ann-good">Safety</span>
+        <div><strong><code>set -euo pipefail</code> at the top.</strong> The three flags work together: <code>-e</code> aborts on any unhandled non-zero exit; <code>-u</code> treats unset variables as errors (catches typos in variable names immediately); <code>-o pipefail</code> makes the exit code of a pipeline reflect the rightmost failing command, not the last one. Together they eliminate the silent-success failure mode that plagues naive scripts.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-good">Correctness</span>
+        <div><strong>Checks are independent — a failure accumulates, not aborts.</strong> FAIL_COUNT is incremented on each failed check but the script continues to run all checks. This means the output always covers all three checks even when the first one fails, giving the operator a complete picture of the deployment's health rather than stopping at the first problem.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-good">Portability</span>
+        <div><strong>Arithmetic via <code>(( ))</code>, not <code>[[ -eq ]]</code>.</strong> After the Turn 2 fix, all integer comparisons use the arithmetic context, which behaves consistently across Bash 3.2 and 5.x. The timestamp function uses <code>date -u '+%Y-%m-%dT%H:%M:%SZ'</code> which works on both GNU date and BSD date without flags that differ between platforms.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-good">Idempotency</span>
+        <div><strong>Explicit idempotency contract documented at the top.</strong> The comment block documents what the script reads and what it never writes. This is not just documentation — it is a commitment that future maintainers are expected to preserve. Any <code>kubectl apply</code>, <code>kubectl delete</code>, or file-write added later breaks the stated contract and should be challenged in code review.</div>
+      </li>
+    </ul>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ══ STEP 5: WATCH OUT ══ -->
+  <section class="step-section" id="step-5">
+    <div class="step-header">
+      <div class="step-number">5</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 5 of 5</div>
+        <div class="step-title">Watch out</div>
+      </div>
+    </div>
+
+    <p class="prose">
+      Claude Code produced a solid, portable, idempotent script across three turns. Here is what it handled correctly and what it genuinely cannot know without your cluster context.
+    </p>
+
+    <div class="callout good">
+      <div class="callout-label">What Claude Code handled well</div>
+      <code>set -euo pipefail</code> discipline throughout, argument validation with usage message, structured PASS/FAIL output with timestamps to stdout/stderr separation, <code>grep -c || true</code> idiom for zero-match safety, <code>READY="${READY:-0}"</code> for missing JSON fields, <code>(( attempt++ )) || true</code> under <code>set -e</code>, the Bash 3.2 arithmetic bug from Turn 2 diagnosed precisely, and the permissions advisory correctly framed as a warning not a hard block.
+    </div>
+
+    <ul class="annotation-list" style="margin-top:24px;">
+      <li>
+        <span class="ann-badge ann-warn">Verify</span>
+        <div><strong>The pod label selector assumes <code>app=DEPLOYMENT_NAME</code>.</strong> Claude Code used <code>-l "app=$DEPLOYMENT"</code> because it's the most common Kubernetes label convention. Your deployments may use <code>app.kubernetes.io/name</code>, <code>component</code>, or a custom label instead. If the selector doesn't match your pods, Check 2 will return zero pods and pass incorrectly — which is exactly the silent success failure mode the script was designed to prevent. Verify the label before deploying.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Verify</span>
+        <div><strong>Check 3 replica count can be misleading during a rolling update.</strong> If the deployment is mid-rollout when the script runs, <code>readyReplicas</code> may be less than <code>spec.replicas</code> even if the rollout is progressing correctly. Check 1 (rollout status with timeout) is the authoritative gate — Check 3 is a secondary confirmation. If Check 1 passes but Check 3 fails, investigate before assuming the deployment is broken.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Verify</span>
+        <div><strong>The retry backoff is fixed at 15 seconds.</strong> Claude Code hardcoded 15 seconds as a reasonable default. For a deployment with a slow startup (JVM warmup, large model loading), 15 seconds may not be enough between attempts. Make <code>RETRY_BACKOFF_SECONDS</code> a configurable argument if your services have variable startup times.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Verify</span>
+        <div><strong>The permissions advisory requires <code>kubectl auth can-i</code> to work.</strong> In some cluster configurations or RBAC setups, <code>kubectl auth can-i</code> itself requires permissions that the CI kubeconfig may not have. If the advisory check fails with a permissions error, it will trigger <code>set -e</code> and abort the script before any health checks run. Wrap it in a subshell if this is a concern: <code>if kubectl auth can-i ... 2>/dev/null; then</code>.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-info">Note</span>
+        <div><strong>The script tests Kubernetes-level readiness, not application-level correctness.</strong> A pod can be <code>Running</code>, <code>Ready=True</code>, and fully replicated while the application inside it is returning 500s on business logic endpoints. Kubernetes readiness probes verify that the container is ready to receive traffic — not that it is processing it correctly. For application-level verification, add a smoke test job after the health check in your CD pipeline.</div>
+      </li>
+    </ul>
+
+    <div class="callout tip">
+      <div class="callout-label">Prompting tip for future shell scripts</div>
+      The most productive pattern across all three turns was <strong>pasting exact stderr output, not descriptions of it</strong>. The Turn 2 Bash 3.2 bug was diagnosed in one turn because the exact error message, the exact line number, and the exact bash version were provided. Paraphrasing "it fails on Mac" would have produced a list of possible causes. The exact output produced a precise diagnosis. For shell scripts especially, error messages contain the signal — always paste them verbatim.
+    </div>
+  </section>
+
+  <!-- Tier 1 complete callout -->
+  <div class="tier-complete">
+    <div class="tier-complete-label">Tier 1 complete</div>
+    <div class="tier-complete-title">All four single-file examples finished</div>
+    <div class="tier-complete-desc">
+      You have worked through a Dockerfile, a Terraform variables.tf, a GitHub Actions pipeline, and a shell script — covering the four most common single-file DevOps tasks. Each example followed the same arc: problem statement, naive approach with specific failure modes, a three-turn Claude Code dialogue with real feedback pasted back, an annotated refined output, and a practitioner-level watch-out section.<br><br>
+      Tier 2 examples (multi-step workflows) and Tier 3 examples (context-heavy cross-layer scenarios) are coming next. Return to the <a href="course-map.html">course map</a> to see the full learning path.
+    </div>
+  </div>
+
+  <div class="bottom-nav">
+    <a class="nav-btn secondary" href="example-3-github-actions-job.html">← Example 3 — GitHub Actions job</a>
+    <a class="nav-btn" href="course-map.html">Back to course map →</a>
+  </div>
+
+</div>
+
+<footer>
+  <span>AIOps &amp; DevOps Learning Path · SourceFuse L&amp;D</span>
+  <span>Example 4 of 4 · Tier 1 · Shell script</span>
+</footer>
+
+<script>
+  const sections = document.querySelectorAll('.step-section');
+  const navItems = document.querySelectorAll('.stepnav-item');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const id = entry.target.id;
+        navItems.forEach(item => {
+          item.classList.toggle('active', item.getAttribute('href') === '#' + id);
+        });
+      }
+    });
+  }, { rootMargin: '-30% 0px -60% 0px', threshold: 0 });
+  sections.forEach(s => observer.observe(s));
+
+  function copyCode(btn) {
+    const pre = btn.closest('.code-wrap').querySelector('pre');
+    navigator.clipboard.writeText(pre.innerText).then(() => {
+      btn.textContent = 'copied!';
+      setTimeout(() => btn.textContent = 'copy', 2000);
+    });
+  }
+</script>
+</body>
+</html>
