@@ -304,9 +304,10 @@
   /* ── Code blocks ── */
   .code-wrap {
     margin: 20px 0;
-    border-radius: var(--radius);
+    border-radius: 0;
     overflow: hidden;
     border: 1px solid #2a3144;
+    background: #1e2433;
   }
 
   .code-header {
@@ -320,7 +321,7 @@
   .code-filename {
     font-size: 11px;
     font-family: 'Source Code Pro', monospace;
-    color: #7a8ab0;
+    color: #ffffff;
     letter-spacing: 0.05em;
   }
 
@@ -347,10 +348,15 @@
   .code-copy:hover { color: #cdd6f4; border-color: #6a7ab0; }
 
   pre {
-    background: var(--code-bg);
+    background: #1e2433 !important;
     padding: 20px;
     overflow-x: auto;
     margin: 0;
+  }
+
+  .conv-body .code-wrap pre,
+  .conv-turn .code-wrap pre {
+    background: #1e2433 !important;
   }
 
   code.block {
@@ -375,9 +381,10 @@
   /* ── Diff blocks ── */
   .diff-wrap {
     margin: 20px 0;
-    border-radius: var(--radius);
+    border-radius: 0;
     overflow: hidden;
     border: 1px solid #2a3144;
+    background: #1e2433;
   }
 
   .diff-header {
@@ -389,7 +396,7 @@
   }
 
   .diff-body {
-    background: var(--code-bg);
+    background: #1e2433 !important;
     padding: 16px 0;
     overflow-x: auto;
   }
@@ -472,7 +479,7 @@
   }
 
   .conv-turn.engineer { background: var(--bg3); }
-  .conv-turn.claude   { background: var(--bg2); }
+  .conv-turn.claude   { background: #1e2433; border-top: 1px solid #2a3144; }
 
   .conv-role {
     font-size: 9px;
@@ -484,7 +491,7 @@
   }
 
   .conv-turn.engineer .conv-role { color: var(--teal); }
-  .conv-turn.claude   .conv-role { color: var(--blue); }
+  .conv-turn.claude   .conv-role { color: #7a8ab0; }
 
   .conv-body {
     font-size: 13.5px;
@@ -492,18 +499,26 @@
     line-height: 1.75;
   }
 
-  .conv-body strong { color: var(--text); font-weight: 600; }
-  .conv-body code {
-    font-family: 'Source Code Pro', monospace;
-    font-size: 12.5px;
-    background: var(--bg3);
-    border: 1px solid var(--border);
-    padding: 1px 5px;
-    border-radius: 4px;
-    color: var(--blue-dark);
+  .conv-turn.claude .conv-body {
+    color: #cdd6f4;
   }
 
-  .conv-body em { font-style: italic; color: var(--text-dimmer); }
+  .conv-turn.claude .conv-body strong { color: #ffffff; font-weight: 600; }
+  .conv-turn.claude .conv-body p { color: #cdd6f4; }
+
+  .conv-turn.claude .conv-body code {
+    font-family: 'Source Code Pro', monospace;
+    font-size: 12.5px;
+    background: #252b3b;
+    border: 1px solid #3a4155;
+    padding: 1px 5px;
+    border-radius: 4px;
+    color: #89dceb;
+  }
+
+  .conv-turn.claude .code-wrap {
+    margin: 12px 0;
+  }
 
   .turn-label {
     display: inline-flex;
