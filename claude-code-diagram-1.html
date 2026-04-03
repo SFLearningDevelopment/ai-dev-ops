@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Why Claude Code is different from a code generator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Merriweather+Sans:wght@300;400;600;700&family=Source+Code+Pro:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:#eef2f7; --bg2:#ffffff; --bg3:#f0f4f9; --border:#d0dae8;
+    --text:#1a2332; --text-dim:#4a5568; --text-dimmer:#8fa3bc;
+    --blue:#1a6eb5; --blue-light:#e8f1fb; --blue-mid:#b8d0ed;
+    --teal:#0e7a6b; --teal-light:#e6f4f2;
+    --coral:#c0392b; --coral-light:#fdf0ee; --coral-mid:#f0b8b2;
+    --purple:#5b4fcf; --purple-light:#f0effe;
+    --panel-w:430px; --radius:10px;
+  }
+  html,body { height:100%; background:var(--bg); color:var(--text); font-family:'Merriweather Sans',sans-serif; font-size:15px; line-height:1.6; }
+  .page { min-height:100vh; display:flex; flex-direction:column; }
+  header { padding:28px 40px 22px; border-bottom:2px solid var(--border); background:var(--bg2); }
+  .header-label { font-size:10px; letter-spacing:0.18em; color:var(--blue); text-transform:uppercase; font-weight:600; margin-bottom:8px; }
+  h1 { font-size:clamp(16px,2.2vw,22px); font-weight:700; color:var(--text); line-height:1.25; }
+  h1 span { color:var(--blue); }
+  .header-sub { margin-top:6px; font-size:13px; color:var(--text-dim); font-weight:300; }
+  .hint { margin-top:12px; display:inline-flex; align-items:center; gap:7px; font-size:11px; font-family:'Source Code Pro',monospace; color:var(--text-dim); background:var(--blue-light); border:1px solid var(--blue-mid); border-radius:20px; padding:5px 14px; }
+  .hint-dot { width:7px; height:7px; border-radius:50%; background:var(--blue); animation:pulse 2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
+  .main { flex:1; display:flex; overflow:hidden; position:relative; }
+  .diagram-wrap { flex:1; overflow-y:auto; padding:32px 24px; transition:margin-right 0.35s cubic-bezier(0.4,0,0.2,1); }
+  .diagram-wrap.panel-open { margin-right:var(--panel-w); }
+  svg { display:block; max-width:780px; margin:0 auto; overflow:visible; }
+  .node-group { cursor:pointer; }
+  .node-group rect { transition:filter 0.15s,stroke-width 0.15s; }
+  .node-group:hover rect { filter:brightness(0.94); stroke-width:2px; }
+  .node-group.active rect { stroke-width:2.5px; filter:brightness(0.9); }
+  .panel { position:fixed; top:0; right:0; width:var(--panel-w); height:100vh; background:var(--bg2); border-left:3px solid var(--blue); display:flex; flex-direction:column; transform:translateX(100%); transition:transform 0.35s cubic-bezier(0.4,0,0.2,1); z-index:100; overflow:hidden; box-shadow:-4px 0 24px rgba(26,110,181,0.10); }
+  .panel.open { transform:translateX(0); }
+  .panel-header { padding:20px 24px 16px; border-bottom:1px solid var(--border); display:flex; align-items:flex-start; gap:12px; flex-shrink:0; background:var(--blue-light); }
+  .panel-icon { width:38px; height:38px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:18px; flex-shrink:0; margin-top:2px; border:1px solid var(--border); }
+  .panel-title-wrap { flex:1; }
+  .panel-category { font-size:9px; letter-spacing:0.18em; text-transform:uppercase; color:var(--blue); font-weight:600; margin-bottom:4px; }
+  .panel-title { font-size:13.5px; font-weight:700; color:var(--text); line-height:1.35; }
+  .panel-close { background:none; border:1px solid var(--border); border-radius:6px; color:var(--text-dim); cursor:pointer; font-size:16px; width:28px; height:28px; display:flex; align-items:center; justify-content:center; flex-shrink:0; transition:background 0.15s; margin-top:2px; }
+  .panel-close:hover { background:var(--border); }
+  .panel-body { flex:1; overflow-y:auto; padding:20px 24px 32px; display:flex; flex-direction:column; gap:18px; }
+  .panel-section { display:flex; flex-direction:column; gap:7px; }
+  .panel-section-label { font-size:9px; letter-spacing:0.15em; text-transform:uppercase; color:var(--blue); font-weight:600; }
+  .panel-section p { font-size:13.5px; color:var(--text-dim); line-height:1.75; }
+  .panel-section p strong { color:var(--text); font-weight:600; }
+  .tip-box { background:var(--blue-light); border:1px solid var(--blue-mid); border-left:3px solid var(--blue); border-radius:var(--radius); padding:13px 15px; font-size:12.5px; font-family:'Source Code Pro',monospace; color:var(--text-dim); line-height:1.65; }
+  .tip-box .tip-label { font-size:9px; letter-spacing:0.15em; text-transform:uppercase; color:var(--blue); font-weight:600; margin-bottom:7px; }
+  .warn-box { background:#fdf5f5; border:1px solid var(--coral-mid); border-left:3px solid var(--coral); border-radius:var(--radius); padding:13px 15px; font-size:12.5px; color:var(--text-dim); line-height:1.65; }
+  .warn-box .warn-label { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:0.15em; text-transform:uppercase; color:var(--coral); font-weight:600; margin-bottom:7px; }
+  .panel-divider { height:1px; background:var(--border); margin:2px 0; }
+  footer { padding:12px 40px; border-top:1px solid var(--border); background:var(--bg2); font-size:11px; font-family:'Source Code Pro',monospace; color:var(--text-dimmer); display:flex; justify-content:space-between; align-items:center; }
+  ::-webkit-scrollbar { width:6px; }
+  ::-webkit-scrollbar-track { background:transparent; }
+  ::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <div class="header-label">AIOps &amp; DevOps Learning Path · Diagram 1 of 2</div>
+    <h1>Why Claude Code is <span>different</span> from a code generator</h1>
+    <p class="header-sub">Claude Code as a contextual participant — reading environment state, iterating on infrastructure, closing the feedback loop</p>
+    <div class="hint"><span class="hint-dot"></span>Click any node to explore practitioner-level detail</div>
+  </header>
+  <div class="main">
+    <div class="diagram-wrap" id="diagramWrap">
+      <svg viewBox="0 0 760 620" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </marker>
+        </defs>
+        <text x="380" y="28" text-anchor="middle" font-family="'Source Code Pro',monospace" font-size="11" font-weight="600" fill="#8fa3bc" letter-spacing="0.12em">PARTICIPATION MODEL</text>
+        <rect x="16" y="44" width="728" height="556" rx="14" fill="#f8fafd" stroke="#d0dae8" stroke-width="1" stroke-dasharray="6 4"/>
+        <text x="30" y="66" font-family="'Source Code Pro',monospace" font-size="9.5" fill="#8fa3bc" letter-spacing="0.12em">DEVOPS ENVIRONMENT</text>
+
+        <!-- Central node -->
+        <g class="node-group" id="node-central" onclick="openPanel('central')">
+          <rect x="280" y="264" width="200" height="68" rx="10" fill="#f0effe" stroke="#5b4fcf" stroke-width="1.5"/>
+          <text x="380" y="290" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="14" font-weight="700" fill="#1a2332">Claude Code</text>
+          <text x="380" y="310" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="12" fill="#5b4fcf">Contextual participant</text>
+          <text x="380" y="328" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="11.5" fill="#8579d8">not a one-shot generator</text>
+        </g>
+
+        <!-- Input nodes -->
+        <g class="node-group" id="node-repo" onclick="openPanel('repo')">
+          <rect x="44" y="96" width="190" height="64" rx="8" fill="#e6f4f2" stroke="#0e7a6b" stroke-width="1.5"/>
+          <text x="139" y="119" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="14" font-weight="700" fill="#1a2332">Repo context</text>
+          <text x="139" y="138" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="12" fill="#0e7a6b">Files, history, structure</text>
+          <text x="139" y="155" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="11.5" fill="#1a9e8a">Branching, open PRs</text>
+        </g>
+        <g class="node-group" id="node-runtime" onclick="openPanel('runtime')">
+          <rect x="44" y="210" width="190" height="64" rx="8" fill="#e6f4f2" stroke="#0e7a6b" stroke-width="1.5"/>
+          <text x="139" y="233" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="14" font-weight="700" fill="#1a2332">Runtime signals</text>
+          <text x="139" y="252" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="12" fill="#0e7a6b">Logs, errors, CI output</text>
+          <text x="139" y="269" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="11.5" fill="#1a9e8a">Stack traces, exit codes</text>
+        </g>
+        <g class="node-group" id="node-infra" onclick="openPanel('infra')">
+          <rect x="44" y="324" width="190" height="64" rx="8" fill="#e6f4f2" stroke="#0e7a6b" stroke-width="1.5"/>
+          <text x="139" y="347" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="14" font-weight="700" fill="#1a2332">Infra state</text>
+          <text x="139" y="366" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="12" fill="#0e7a6b">Terraform plan output</text>
+          <text x="139" y="383" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="11.5" fill="#1a9e8a">kubectl describe, cloud APIs</text>
+        </g>
+        <g class="node-group" id="node-policy" onclick="openPanel('policy')">
+          <rect x="44" y="438" width="190" height="64" rx="8" fill="#e6f4f2" stroke="#0e7a6b" stroke-width="1.5"/>
+          <text x="139" y="461" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="14" font-weight="700" fill="#1a2332">Policy context</text>
+          <text x="139" y="480" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="12" fill="#0e7a6b">Security rules, OPA</text>
+          <text x="139" y="497" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="11.5" fill="#1a9e8a">Compliance constraints</text>
+        </g>
+        <text x="139" y="84" text-anchor="middle" font-family="'Source Code Pro',monospace" font-size="9" letter-spacing="0.15em" fill="#8fa3bc">CONTEXT INPUTS</text>
+
+        <!-- Output nodes -->
+        <g class="node-group" id="node-iac" onclick="openPanel('iac')">
+          <rect x="526" y="96" width="200" height="64" rx="8" fill="#fdf0ee" stroke="#c0392b" stroke-width="1.5"/>
+          <text x="626" y="119" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="14" font-weight="700" fill="#1a2332">IaC authoring</text>
+          <text x="626" y="138" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="12" fill="#c0392b">Iterate, refactor, validate</text>
+          <text x="626" y="155" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="11.5" fill="#d95f4e">Terraform · Bicep · CDK</text>
+        </g>
+        <g class="node-group" id="node-pipeline" onclick="openPanel('pipeline')">
+          <rect x="526" y="210" width="200" height="64" rx="8" fill="#fdf0ee" stroke="#c0392b" stroke-width="1.5"/>
+          <text x="626" y="233" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="14" font-weight="700" fill="#1a2332">Pipeline generation</text>
+          <text x="626" y="252" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="12" fill="#c0392b">GitHub Actions, GitLab CI</text>
+          <text x="626" y="269" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="11.5" fill="#d95f4e">Jenkins, Tekton pipelines</text>
+        </g>
+        <g class="node-group" id="node-troubleshoot" onclick="openPanel('troubleshoot')">
+          <rect x="526" y="324" width="200" height="64" rx="8" fill="#fdf0ee" stroke="#c0392b" stroke-width="1.5"/>
+          <text x="626" y="347" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="14" font-weight="700" fill="#1a2332">Troubleshooting</text>
+          <text x="626" y="366" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="12" fill="#c0392b">Diagnose, suggest fixes</text>
+          <text x="626" y="383" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="11.5" fill="#d95f4e">Cross-layer root cause</text>
+        </g>
+        <g class="node-group" id="node-compliance" onclick="openPanel('compliance')">
+          <rect x="526" y="438" width="200" height="64" rx="8" fill="#fdf0ee" stroke="#c0392b" stroke-width="1.5"/>
+          <text x="626" y="461" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="14" font-weight="700" fill="#1a2332">Compliance audit</text>
+          <text x="626" y="480" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="12" fill="#c0392b">Review, flag, remediate</text>
+          <text x="626" y="497" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="11.5" fill="#d95f4e">SAST · OPA · CIS checks</text>
+        </g>
+        <text x="626" y="84" text-anchor="middle" font-family="'Source Code Pro',monospace" font-size="9" letter-spacing="0.15em" fill="#8fa3bc">OPERATIONAL OUTPUTS</text>
+
+        <!-- Feedback loop -->
+        <g class="node-group" id="node-loop" onclick="openPanel('loop')">
+          <rect x="220" y="530" width="320" height="56" rx="10" fill="#f0effe" stroke="#5b4fcf" stroke-width="1" stroke-dasharray="5 3"/>
+          <text x="380" y="551" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="14" font-weight="700" fill="#1a2332">Engineer feedback loop</text>
+          <text x="380" y="571" text-anchor="middle" font-family="'Merriweather Sans',sans-serif" font-size="12" fill="#5b4fcf">Refine intent → re-run → validate → commit</text>
+        </g>
+
+        <!-- Arrows -->
+        <line x1="234" y1="128" x2="278" y2="280" stroke="#0e7a6b" stroke-width="1.4" marker-end="url(#arr)" opacity="0.7"/>
+        <line x1="234" y1="242" x2="278" y2="288" stroke="#0e7a6b" stroke-width="1.4" marker-end="url(#arr)" opacity="0.7"/>
+        <line x1="234" y1="356" x2="278" y2="296" stroke="#0e7a6b" stroke-width="1.4" marker-end="url(#arr)" opacity="0.7"/>
+        <line x1="234" y1="470" x2="278" y2="304" stroke="#0e7a6b" stroke-width="1.4" marker-end="url(#arr)" opacity="0.7"/>
+        <line x1="480" y1="280" x2="524" y2="128" stroke="#c0392b" stroke-width="1.4" marker-end="url(#arr)" opacity="0.7"/>
+        <line x1="480" y1="288" x2="524" y2="242" stroke="#c0392b" stroke-width="1.4" marker-end="url(#arr)" opacity="0.7"/>
+        <line x1="480" y1="296" x2="524" y2="356" stroke="#c0392b" stroke-width="1.4" marker-end="url(#arr)" opacity="0.7"/>
+        <line x1="480" y1="304" x2="524" y2="470" stroke="#c0392b" stroke-width="1.4" marker-end="url(#arr)" opacity="0.7"/>
+        <line x1="380" y1="332" x2="380" y2="528" stroke="#5b4fcf" stroke-width="1.4" marker-end="url(#arr)" opacity="0.6"/>
+        <path d="M 540 530 Q 620 420 490 298" fill="none" stroke="#5b4fcf" stroke-width="1.2" stroke-dasharray="6 3" marker-end="url(#arr)" opacity="0.4"/>
+        <text x="592" y="430" font-family="'Source Code Pro',monospace" font-size="9" fill="#8fa3bc" text-anchor="middle">re-prompts</text>
+        <text x="592" y="443" font-family="'Source Code Pro',monospace" font-size="9" fill="#8fa3bc" text-anchor="middle">with result</text>
+      </svg>
+    </div>
+    <aside class="panel" id="panel" role="complementary">
+      <div class="panel-header">
+        <div class="panel-icon" id="panelIcon"></div>
+        <div class="panel-title-wrap">
+          <div class="panel-category" id="panelCategory"></div>
+          <div class="panel-title" id="panelTitle"></div>
+        </div>
+        <button class="panel-close" onclick="closePanel()">✕</button>
+      </div>
+      <div class="panel-body" id="panelBody"></div>
+    </aside>
+  </div>
+  <footer>
+    <span>AIOps &amp; DevOps Learning Path · SourceFuse L&amp;D</span>
+    <span>Diagram 1 / 2 &nbsp;·&nbsp; Claude Code Participation Model</span>
+  </footer>
+</div>
+<script>
+const PANELS = {
+  central: { category:'Core concept', title:'Claude Code as a contextual participant', icon:'⬡', iconBg:'#f0effe', iconColor:'#5b4fcf', sections:[{label:'What this actually means',text:`A code generator takes a prompt and returns output. That's the end of its involvement. <strong>Claude Code maintains a working model of your project across turns</strong> — it knows which files it already touched, what the plan output said two prompts ago, and how the current task relates to the directory structure it walked earlier. That accumulated context is what separates it from a sophisticated autocomplete.`},{label:'The practical implication',text:`When you feed it a failing <code>terraform plan</code> output, it doesn't start from scratch. It correlates the error with the resource block it wrote three turns earlier, identifies the constraint collision, and proposes a targeted fix rather than regenerating the whole module. <strong>This turn-to-turn memory is load-bearing</strong> — the quality of output in turn 5 depends heavily on what was established in turns 1–4.`},{label:'Prompt strategy',type:'tip',text:`Start each session by grounding Claude Code in scope: "We are working only in the /infra/networking module. The existing VPC is managed externally — do not modify it." Without this, it will happily rewrite things it shouldn't touch.`},{label:'The honest limitation',type:'warn',text:`Context windows are finite. In large monorepos, Claude Code will lose earlier context as the conversation grows. If output quality degrades mid-session, it's usually a context window issue, not a model failure. Start a new session with a compressed summary of decisions made so far.`}] },
+  repo: { category:'Context input', title:'Repo context — files, history, structure', icon:'⎇', iconBg:'#e6f4f2', iconColor:'#0e7a6b', sections:[{label:'What Claude Code actually reads',text:`Beyond file contents, Claude Code reasons about <strong>structural patterns</strong> — how your team names modules, how variables are factored across files, whether you use Terragrunt wrappers, how environments are separated. It picks up on conventions without being told, and uses them when generating new code. If your existing modules use a specific tagging strategy, it will replicate it.`},{label:'Branch and PR awareness',text:`When given access to git log or open PR diffs, Claude Code can reason about <strong>change intent</strong> — not just "this file has this content" but "this file was recently changed in this direction." That matters when you're asking it to extend or refactor something that's mid-flight. Without this context, it may generate changes that conflict with work already in review.`},{label:'How to load context efficiently',type:'tip',text:`Don't dump entire repos into context. Instead: "Here are the three files directly involved. The broader structure is: /modules has reusable components, /environments/prod is the only target, variables.tf is the single source of truth for inputs." Claude Code navigates well with a map, even when it can't see everything.`},{label:'Where it goes wrong',type:'warn',text:`Stale context is dangerous. If you load files at the start of a session and then make edits outside Claude Code, it will continue reasoning about the old version. Always reload affected files explicitly, or note "I've since changed X to Y" before asking follow-up questions.`}] },
+  runtime: { category:'Context input', title:'Runtime signals — logs, errors, CI output', icon:'▶', iconBg:'#e6f4f2', iconColor:'#0e7a6b', sections:[{label:'Why runtime signals change the quality of output',text:`Most AI tools work on static code. Claude Code, when given live runtime output, can do something qualitatively different: <strong>it can correlate code with behaviour</strong>. A stack trace isn't just text — it's a call chain, and Claude Code understands which frame is the actual fault vs which frames are propagation. It will correctly target the root frame rather than the outermost exception.`},{label:'CI output is underused',text:`Engineers routinely paste error messages but rarely paste the <em>full</em> CI job log. The full log often contains timing data, environment variable dumps, and upstream step failures that explain downstream errors. <strong>Pasting the full YAML job definition alongside the log output</strong> is the highest-leverage input you can give Claude Code for CI debugging — it can map the failing step back to the exact job definition line.`},{label:'Effective signal framing',type:'tip',text:`Frame runtime signals with outcome, not just content: "This is the log from a Kubernetes deployment that rolled back. The expected behaviour was zero-downtime. Here is the log:" — that framing tells Claude Code what success looked like, which shapes its diagnosis toward the right failure mode.`},{label:'Noise in production logs',type:'warn',text:`High-volume production logs will saturate context fast. Pre-filter before pasting: grep for the relevant time window, service name, and severity level. If you paste 10,000 lines of mixed-severity logs, Claude Code will still find the signal — but you'll waste context budget on noise, and the analysis quality drops as the window fills.`}] },
+  infra: { category:'Context input', title:'Infra state — Terraform, kubectl, cloud APIs', icon:'◈', iconBg:'#e6f4f2', iconColor:'#0e7a6b', sections:[{label:'State as a reasoning surface',text:`<strong>Terraform plan output is one of the highest-signal inputs you can give Claude Code.</strong> It contains exactly what will change, what's being destroyed, and what's being created — the diff of intent vs current state. When Claude Code sees a plan output alongside the HCL that produced it, it can reason about whether the plan matches what you actually intended, catch destructive operations you didn't anticipate, and propose targeted fixes rather than regenerating from scratch.`},{label:'kubectl describe is underrated',text:`For Kubernetes debugging, <code>kubectl describe pod</code> output contains the event stream, resource requests vs limits, and probe failure history. This is often more useful than container logs alone. Claude Code can read a describe output and immediately identify common misconfigurations — wrong image pull policy, resource limits too tight, liveness probe timing too aggressive — without needing you to guess at the cause.`},{label:'Cross-layer state correlation',type:'tip',text:`The most powerful pattern: give Claude Code state from multiple layers simultaneously. "Here is the Terraform state for the security group, here is the kubectl describe for the pod that can't reach the DB, here is the VPC flow log showing rejected packets." Cross-layer correlation is where it genuinely outperforms manual debugging.`},{label:'Never paste real secrets',type:'warn',text:`Terraform state files often contain sensitive values in plaintext. Always scrub before pasting — replace actual values with placeholders like &lt;REDACTED_DB_PASSWORD&gt;. Claude Code handles redacted state gracefully and will work around the gaps without needing the actual values.`}] },
+  policy: { category:'Context input', title:'Policy context — security rules, compliance', icon:'⛉', iconBg:'#e6f4f2', iconColor:'#0e7a6b', sections:[{label:'Policy-aware generation vs post-hoc scanning',text:`The conventional workflow is: write IaC, then run a scanner (Checkov, tfsec, OPA) and fix violations. <strong>The better workflow: give Claude Code your policy rules upfront</strong>, so it generates compliant code on the first pass. Paste your Checkov config or OPA policy file alongside your infrastructure task — it will produce output that avoids the known failure modes before you ever run a scan.`},{label:'OPA as a specification language',text:`OPA Rego policies are dense and hard to read quickly. Claude Code can translate them: "given this Rego policy, what does it forbid, and what must my Terraform resource include to pass?" This makes it practical to enforce policies written by a security team even when the authoring engineer hasn't internalized the Rego syntax.`},{label:'Compliance framing that works',type:'tip',text:`Instead of: "make this secure." Use: "This must pass CIS AWS Foundations Benchmark v1.4. Specifically, controls 2.1 (S3 block public access), 2.2 (S3 versioning), and 4.1 (no unrestricted SSH). Generate the Terraform accordingly." Named, numbered controls produce far more reliable output than vague security intent.`},{label:'Compliance is not security',type:'warn',text:`Claude Code will generate code that passes your stated policy checks. It will not proactively identify security risks that fall outside those checks. Passing Checkov is not the same as being secure. Use Claude Code to enforce known policies efficiently — not as a replacement for threat modelling or security architecture review.`}] },
+  iac: { category:'Operational output', title:'IaC authoring — iterate, refactor, validate', icon:'⬡', iconBg:'#fdf0ee', iconColor:'#c0392b', sections:[{label:'Where Claude Code is genuinely strong',text:`<strong>Refactoring existing Terraform is where Claude Code earns its place most clearly.</strong> Humans are reluctant to refactor working IaC because the risk of introducing drift is high. Claude Code can restructure a flat module into a reusable one with inputs/outputs, convert hard-coded values to variables, and reorganize resource blocks for readability — faster and with lower anxiety than a manual refactor.`},{label:'The multi-turn authoring pattern',text:`The most effective IaC workflow is not "generate everything in one prompt." It's: (1) generate the skeleton, (2) run <code>terraform validate</code>, (3) paste the error back, (4) run <code>terraform plan</code>, (5) paste the plan, (6) confirm or correct intent, (7) commit. <strong>Each plan output becomes the next prompt's grounding context.</strong> The iteration is the value — not the first-pass generation.`},{label:'Module generation prompt',type:'tip',text:`"Generate a Terraform module for an ECS Fargate service. Inputs: image URI, desired count, CPU, memory, VPC ID, subnet IDs, security group IDs. Do not create networking or IAM — those are managed externally. Follow the standard module structure: main.tf, variables.tf, outputs.tf. Tag all resources with var.tags."`},{label:'Do not trust resource attribute defaults',type:'warn',text:`Claude Code knows Terraform resource schemas well, but provider versions drift. Always cross-check generated attribute names against the current provider documentation, especially for newer resources (EKS managed node groups, Bedrock, newer Azure services). Attribute name changes between provider versions are a common source of silent failures.`}] },
+  pipeline: { category:'Operational output', title:'Pipeline generation — GitHub Actions, GitLab CI', icon:'⇉', iconBg:'#fdf0ee', iconColor:'#c0392b', sections:[{label:'The real value: pipeline architecture, not syntax',text:`Engineers often use Claude Code to avoid looking up YAML syntax. That's fine, but the deeper value is <strong>pipeline architecture reasoning</strong> — when to parallelize vs serialize jobs, where to add caching to avoid redundant work, how to structure a matrix strategy for multi-environment deployments, where approval gates belong. That reasoning is where experienced engineers still spend real time.`},{label:'Cross-platform translation',text:`One high-leverage use case: <strong>translating pipelines between CI systems.</strong> If you're migrating from Jenkins to GitHub Actions, or from CircleCI to GitLab CI, paste the source pipeline and ask Claude Code to translate it — preserving the job structure, environment variable names, and artifact handling patterns. It handles the syntactic mapping reliably; you review the semantic equivalence.`},{label:'Reusable workflow prompt',type:'tip',text:`"Create a reusable GitHub Actions workflow for Docker build and push to ECR. Inputs: image-name, dockerfile-path, aws-region, environment (dev/staging/prod). Use OIDC for auth — no long-lived credentials. Tag with git SHA and environment. Call this from three separate caller workflows." — Specify reusability requirements explicitly or it will generate a monolithic workflow.`},{label:'Secret handling is a persistent blind spot',type:'warn',text:`Claude Code will correctly use <code>secrets.MY_SECRET</code> syntax but will not validate that the secret name matches what's actually configured in your repo or organisation settings. It also won't flag when a secret is passed as an environment variable to a step that logs its environment — a common accidental exposure pattern. Secret hygiene review is always a human responsibility.`}] },
+  troubleshoot: { category:'Operational output', title:'Troubleshooting — cross-layer root cause', icon:'⌖', iconBg:'#fdf0ee', iconColor:'#c0392b', sections:[{label:'Where Claude Code outperforms search',text:`Stack Overflow and runbooks are good for known failure patterns. Claude Code is better for <strong>multi-layer failure correlation</strong> — where the symptom is in application logs, the cause is in a Kubernetes resource limit, and the root cause is in a Terraform misconfiguration from three months ago. Connecting those layers requires holding all three contexts simultaneously, which is exactly where a conversational tool has structural advantage.`},{label:'The diagnosis arc',text:`The most productive troubleshooting sessions follow a structured arc: start with the symptom (what's broken and what the expected behaviour was), then add context layers one at a time — logs, then resource state, then config — rather than dumping everything at once. <strong>Claude Code's diagnosis quality improves when you add evidence incrementally</strong>, because each layer narrows the hypothesis space visibly.`},{label:'Effective failure framing',type:'tip',text:`"Our Argo CD sync is failing. Expected: application deployed to prod. Actual: sync stuck in Progressing for 20 minutes, then times out. Here is the ArgoCD app status, here is the Kubernetes event log for the namespace, here is the deployment manifest. What is the most likely cause and what's the fastest way to confirm it?"`},{label:'Confidence calibration',type:'warn',text:`Claude Code will produce confident-sounding diagnoses even when it's pattern-matching on incomplete evidence. Always ask it to state its confidence level and the specific evidence that supports its hypothesis. If it can't point to a concrete piece of the logs or config that supports the diagnosis, treat it as a hypothesis to test, not a conclusion.`}] },
+  compliance: { category:'Operational output', title:'Compliance audit — SAST, OPA, CIS checks', icon:'⊛', iconBg:'#fdf0ee', iconColor:'#c0392b', sections:[{label:'Audit as a first-class workflow',text:`Most teams run compliance scans as a gate — something that blocks a PR. <strong>Claude Code makes compliance a design-time activity.</strong> By feeding it a Checkov output alongside the offending IaC, you can get targeted remediation for each violation with explanation — not just "fix the violation" but "here is why this control exists and here are the three ways you can satisfy it depending on your architecture."`},{label:'Explaining dense findings to stakeholders',text:`Security scan outputs are often unreadable to non-specialists. Claude Code can translate: "Here is a tfsec finding for CKV_AWS_18. Explain what this control is, what risk it mitigates, what the remediation is, and what the business impact of accepting the risk would be." This makes compliance findings actionable across the full team, not just the security engineer.`},{label:'Audit scope prompt',type:'tip',text:`"Review the following Terraform module for compliance with: (1) no public S3 buckets, (2) all EBS volumes encrypted, (3) no security groups with 0.0.0.0/0 on port 22 or 3389, (4) CloudTrail enabled in all regions. For each finding, cite the specific resource block and line, explain the risk, and provide the remediation code."`},{label:'Exceptions and suppressions',type:'warn',text:`Claude Code will sometimes suggest adding scanner suppression comments (e.g. <code>#checkov:skip=CKV_AWS_18:reason</code>) as a valid remediation. This is technically correct but requires careful judgment — suppressing a finding is not fixing it. Any suppression Claude Code suggests should trigger a conscious decision, not a rubber-stamp.`}] },
+  loop: { category:'Core mechanism', title:'The engineer feedback loop', icon:'↻', iconBg:'#f0effe', iconColor:'#5b4fcf', sections:[{label:'Why the loop is the product',text:`The feedback loop is not a limitation of Claude Code — it's the design. <strong>The output of turn N is the input context for turn N+1.</strong> An experienced engineer working with Claude Code is orchestrating a dialogue, not issuing commands. They know which outputs need validation before becoming inputs, which results need human judgment before re-prompting, and when the session has drifted far enough from ground truth to warrant a reset.`},{label:'What the loop looks like in practice',text:`A typical high-value session: (1) scope the task and load context, (2) generate a first draft, (3) <em>actually run it</em> — plan, validate, apply to a sandbox — (4) paste the result back verbatim with no paraphrasing, (5) ask for targeted changes, not full regeneration. <strong>The "paste the actual output" step is where most engineers underdeliver.</strong> Paraphrased errors lose the signal Claude Code needs.`},{label:'Loop discipline for senior engineers',type:'tip',text:`Treat Claude Code like a strong junior engineer: give it a task, review the output critically, give specific corrective feedback rather than vague dissatisfaction. "The security group ingress rule is too permissive — narrow it to the CIDR range from variables.tf" produces better results than "the security isn't right, fix it."`},{label:'When to break the loop and start over',type:'warn',text:`If you find yourself spending more than two correction turns on the same conceptual problem, the session context has likely accumulated enough incorrect assumptions that further prompting compounds the error. Reset — start a new session, summarize the decisions made so far, and restate the task with the new constraints explicitly included. Continuing a degraded session is a sunk cost trap.`}] }
+};
+function openPanel(id) {
+  const data = PANELS[id]; if (!data) return;
+  document.querySelectorAll('.node-group').forEach(n => n.classList.remove('active'));
+  const an = document.getElementById('node-'+id); if(an) an.classList.add('active');
+  const icon = document.getElementById('panelIcon');
+  icon.textContent = data.icon; icon.style.background = data.iconBg; icon.style.color = data.iconColor;
+  document.getElementById('panelCategory').textContent = data.category;
+  document.getElementById('panelTitle').textContent = data.title;
+  const body = document.getElementById('panelBody'); body.innerHTML = '';
+  data.sections.forEach((s,i) => {
+    if(i>0){const d=document.createElement('div');d.className='panel-divider';body.appendChild(d);}
+    const sec=document.createElement('div'); sec.className='panel-section';
+    if(s.type==='tip') sec.innerHTML=`<div class="tip-box"><div class="tip-label">↳ Prompt pattern</div>${s.text}</div>`;
+    else if(s.type==='warn') sec.innerHTML=`<div class="warn-box"><div class="warn-label">⚠ Limitation</div>${s.text}</div>`;
+    else sec.innerHTML=`<div class="panel-section-label">${s.label}</div><p>${s.text}</p>`;
+    body.appendChild(sec);
+  });
+  document.getElementById('panel').classList.add('open');
+  document.getElementById('diagramWrap').classList.add('panel-open');
+}
+function closePanel() {
+  document.getElementById('panel').classList.remove('open');
+  document.getElementById('diagramWrap').classList.remove('panel-open');
+  document.querySelectorAll('.node-group').forEach(n=>n.classList.remove('active'));
+}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closePanel();});
+</script>
+</body>
+</html>
