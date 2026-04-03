@@ -2,7 +2,7 @@
 
 **Course:** Practical Usage of Claude Code for DevOps Automation  
 **Learning Path:** AIOps & DevOps  
-**Audience for this document:** Course reviewers
+**Audience for this document:** Course reviewers, instructional designers, L&D stakeholders  
 **Status:** Tier 1 complete · Tiers 2 & 3 in design  
 **Maintainer:** SourceFuse Learning & Development  
 
@@ -20,7 +20,7 @@ It is intentionally internal. The course itself does not reference or link to th
 
 ### 2.1 Why this course exists in the learning path
 
-The AIOps & DevOps learning path covers two domains that are increasingly inseparable: **operational automation and AI-assisted tooling**. Most existing training on AI coding tools treats them as code generators — tools you prompt once and review the output. This course is built around a different and more accurate model: **Claude Code as a contextual participant** in DevOps workflows, not a one-shot generator.
+The AIOps & DevOps learning path covers two domains that are increasingly inseparable: operational automation and AI-assisted tooling. Most existing training on AI coding tools treats them as code generators — tools you prompt once and review the output. This course is built around a different and more accurate model: **Claude Code as a contextual participant** in DevOps workflows, not a one-shot generator.
 
 This distinction is not cosmetic. An engineer who treats Claude Code as a generator will use it for first-pass boilerplate and then disengage. An engineer who understands it as a participant — one that maintains context across turns, correlates runtime signals with code it wrote, and produces output that improves with each feedback cycle — will extract ten times the value from the same tool.
 
@@ -144,6 +144,22 @@ The Bash 3.2 vs 5.x arithmetic comparison behaviour inside `[[ ]]` is real, obsc
 
 **Turn 3: two genuinely tricky shell patterns handled correctly.**
 The first is `(( attempt++ )) || true` under `set -e`. Arithmetic expressions in `(( ))` exit with status 1 when the result is 0 (falsy in arithmetic terms). When `attempt` increments from 0 to 1, the result is 1 — truthy, no problem. But the pattern is fragile for any increment that produces a zero result, and `set -e` would silently abort the loop. The `|| true` idiom is the standard defensive pattern; Claude Code applies it and explains why in the response, making the idiom transferable rather than just present in the code. The second is the `kubectl auth can-i` permissions advisory — framed correctly as a warning to stderr, not a hard block. Claude Code explains unprompted why it is advisory: `kubectl auth can-i` returns true for cluster-admins even when the script makes no writes, so a hard exit would prevent the script from running in environments with broad permissions even when those permissions are appropriate. The advisory pattern — warn and continue — is the correct engineering decision, and seeing it reasoned through correctly is what makes it pedagogically valuable.
+
+---
+
+#### Example 5 — Full CI/CD pipeline with security scanning
+
+**Naive approach failure mode: structural shape without integration logic.**
+The naive pipeline has four named stages — build, scan, push, deploy — and therefore looks like a CI/CD system. But none of the jobs have `needs` dependencies, so they run in parallel. The scan job may run before the image exists. The deploy job may reference an image that has not been pushed yet. The Trivy scan uses `exit-code: 0`, meaning it never blocks anything regardless of what it finds. The pipeline succeeds at doing the wrong things in the wrong order. This is the Tier 2 version of the Tier 1 shell script failure mode — not a broken artifact, but a false-confidence system. The Step 2 `warn` callout frames it precisely: "It does not fail; it succeeds at doing the wrong things in the wrong order."
+
+**Turn 1: three non-obvious decisions produced without prompting.**
+First, `if: always()` on the Trivy report artifact upload — the scan report is uploaded even when the scan fails and blocks the pipeline. This is the correct behaviour: the report is the evidence for why the pipeline was blocked, and losing it on failure defeats the audit purpose. Claude Code applied this without being asked. Second, `provenance: false` on the ECR push — Docker Build Push Action v5 enables provenance attestations by default, which creates multi-platform manifests that cause ECR to return unreliable digest values. Disabling provenance produces a clean single-manifest image and a reliable digest. This is an ECR-specific incompatibility that is not obvious from the action documentation. Third, `needs: [scan, approve]` on the push job — both the scan passing AND a human approving are required independently. If the scan fails, the approve job never triggers, so the pipeline is blocked at two independent gates. Claude Code structured this correctly without the engineer specifying the failure mode they were guarding against.
+
+**Turn 4: the OOMKilled diagnosis is the strongest in the example.**
+The rollout failure log contains `Exit Code: 137` and `CrashLoopBackOff`. Exit code 137 is SIGKILL from the kernel OOM killer — the container exceeded its memory limit and was terminated. Claude Code identified this from the raw kubectl output without any additional context, named the root cause correctly (memory limit too low, not an application bug), distinguished it from the CrashLoopBackOff (which is a consequence, not the cause), and produced a rollback script that addresses the immediate service disruption while explicitly noting that the root cause requires a separate fix. This three-part response — identify, separate consequence from cause, address immediate vs. underlying — is what an experienced SRE does in a P1 incident. Seeing it modelled in a learning context is the pedagogical value.
+
+**Turn 5: targeted convention fixes at the multi-file level.**
+The engineer identifies two convention mismatches across the four files — a label value in the Kubernetes manifest and a log prefix pattern in the rollback script — and asks for only the changed lines, not full file regeneration. Claude Code produces exactly that: the two changed lines with context, and introduces a `log()` helper function in the rollback script that centralises the timestamp format so future additions automatically use the correct prefix. This is the targeted-fix pattern operating at the multi-file level, and the `log()` helper demonstrates that a targeted fix can include a design improvement (centralised formatting) without expanding scope beyond what was asked.
 
 ---
 
