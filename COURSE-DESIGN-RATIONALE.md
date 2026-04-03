@@ -2,7 +2,7 @@
 
 **Course:** Practical Usage of Claude Code for DevOps Automation  
 **Learning Path:** AIOps & DevOps  
-**Audience for this document:** Course reviewers 
+**Audience for this document:** Course reviewers
 **Status:** Tier 1 complete · Tiers 2 & 3 in design  
 **Maintainer:** SourceFuse Learning & Development  
 
@@ -85,10 +85,65 @@ The sequence is ordered by immediacy of risk and by cognitive complexity.
 
 ### 3.3 What each example contributes that the others do not
 
-- **Dockerfile:** Introduces the concept of layer cache optimisation as a design concern, not just a performance optimisation. Introduces `dumb-init` and signal handling — topics that appear nowhere else in the course.
-- **variables.tf:** Introduces cross-variable validation (a Terraform-specific pattern), the convention inference capability (Turn 3), and the idea that Claude Code's output quality depends on the quality of the reference material you give it.
-- **GitHub Actions:** Introduces the dual-mode secret resolution pattern, `fromJSON` for matrix inputs, and — most importantly — the permissions inheritance behaviour in GitHub Actions that is one of the most common OIDC setup failures in the field.
-- **Shell script:** Introduces `set -euo pipefail` discipline, the `grep -c || true` idiom, the `(( )) || true` arithmetic increment pattern under `set -e`, and the idempotency contract as a formal design commitment.
+This section documents the specific moments in each example that are pedagogically important and why — the observations that justify each example's inclusion beyond the high-level failure mode category.
+
+---
+
+#### Example 1 — Dockerfile
+
+**Naive approach failure mode: silent accumulation, not immediate breakage.**
+The naive Dockerfile is seven lines and exits cleanly. It builds, the container runs, the CI pipeline goes green. The six failure modes — running as root, `node:latest`, `COPY . .` before `npm install`, no `.dockerignore`, no `HEALTHCHECK`, dev dependencies included — none of them produce an immediate error. This is the pedagogical point of Step 2: the most dangerous Dockerfiles are the ones that work. Learners who only see examples where the naive approach crashes are not prepared for the real pattern, which is slow-accumulating debt.
+
+**Turn 1: the `dumb-init` decision is the non-obvious move.**
+Claude Code added `dumb-init` without being explicitly asked. The prompt specified "no root, cache-optimised, minimal image, healthcheck" — signal handling was not in the requirements. This demonstrates Claude Code reasoning about production implications that the engineer did not think to name. A Node process running as PID 1 without an init system does not handle `SIGTERM` gracefully, which means Kubernetes pod shutdowns cause ungraceful termination. The course uses this moment to show that Claude Code's value in the Plan stage includes surfacing implicit operational requirements, not just satisfying stated ones.
+
+**Turn 2: the Trivy CVE is a real-world pattern handled with precision.**
+The Turn 2 feedback includes both a Docker linter warning (JSON args form for `HEALTHCHECK CMD`) and a `micromatch` CVE. Claude Code's response to the CVE is the pedagogically significant moment: rather than generating an `overrides` block immediately, it first advises the engineer to run `npm ls micromatch --omit=dev` to determine whether the package is actually present in the production dependency graph. This is the distinction between a code generator (which would patch the CVE) and a contextual participant (which reasons about whether the fix is necessary at all). The `--omit=dev` check is the kind of advice an experienced colleague gives; a tool gives the fix.
+
+**Turn 3: the `emptyDir` solution is not a Dockerfile change.**
+When the `readOnlyRootFilesystem` constraint surfaces, the correct answer is not to modify the Dockerfile — it is to add a Kubernetes `emptyDir` volume mount. Claude Code produces the Kubernetes YAML, not a Dockerfile change, and explains why. This teaches the important lesson that a Dockerfile is one layer in a system, and that operational constraints at the cluster layer must be satisfied at the cluster layer. The boundary is the learning.
+
+---
+
+#### Example 2 — Terraform variables.tf
+
+**Naive approach failure mode: cognitive load transferred to every caller.**
+The naive `variables.tf` is not wrong — it is incomplete. Every variable is declared. None has a type, description, or validation. The failure mode is not that the module breaks; it is that every engineer who uses the module must read `main.tf` to understand the interface. That cost is invisible in the module itself and accumulates with every caller. The Step 2 framing — "a list of names, not a module interface" — is the pedagogical core. Reviewers should verify that this framing appears in the `warn` callout exactly, because it is the principle that makes the example generalisable beyond Terraform.
+
+**Turn 1: the `sensitive = true` / state file distinction is deliberately drawn.**
+Claude Code marks `password` as `sensitive = true` and then immediately notes that this does not encrypt the value in the state file. This two-part statement is the most important moment in Example 2's Turn 1 response. Marking a variable sensitive suppresses it from plan output — which is valuable — but engineers frequently believe it also secures the state backend, which it does not. The course states the distinction in Claude Code's own response so that the learner encounters the correct mental model at the same moment they see the pattern applied, not as a separate caveat in Step 5.
+
+**Turn 2: cross-variable validation requires Terraform ≥ 1.3 — and Claude Code knows this.**
+The `max_allocated_storage` variable's validation block references `var.allocated_storage` — a cross-variable reference that requires Terraform ≥ 1.3. Claude Code flags the version requirement unprompted and provides the alternative (`precondition` block on the resource) for teams pinned to an older version. This demonstrates Claude Code reasoning about the operational constraints of the toolchain version, not just the semantics of the code being written. The `null` short-circuit pattern in the validation condition — `var.max_allocated_storage == null || var.max_allocated_storage > var.allocated_storage` — is also worth noting: it handles the optional/nullable case correctly without requiring the engineer to understand the evaluation order.
+
+**Turn 3: convention inference from a single reference file.**
+The engineer shares one existing module file. Claude Code infers four distinct conventions: required variables before optional, descriptions end with a period, attribute ordering (type → description → sensitive → default → validation), and section comment headers. The engineer did not enumerate these conventions — they were inferred from the example. This is the most explicit demonstration in the course of the convention-reference pattern, and it is introduced here rather than in a Tier 2 example so that learners have a clear, contained reference point when the pattern appears implicitly in more complex contexts later.
+
+---
+
+#### Example 3 — GitHub Actions pipeline
+
+**Naive approach failure mode: false correctness on the happy path.**
+The naive pipeline goes green. Tests pass, image pushes. But it has six distinct failure modes: long-lived credentials, no `needs` dependency (so `build-push` runs in parallel with `test`), image pushed on every branch not just `main`, no caching, single Node version, not reusable. None of these produce a failure on a clean run to `main`. They surface in specific conditions: a security audit, a broken PR that still pushes an image, a Node version regression, a team trying to reuse the workflow. The Step 2 framing distinguishes between a pipeline that optimises for the first run being green and one that optimises for correctness across all future runs — a distinction experienced engineers recognise immediately.
+
+**Turn 2: the OIDC permissions bug is the most practitioner-valuable single exchange in the course.**
+The error message — "Resource not accessible by integration" — is one of the most misleading error messages in the GitHub Actions ecosystem. It points at credentials, but the cause is permissions. Specifically: when a `permissions` block is declared at the workflow level, GitHub Actions does not propagate it to jobs that declare their own `permissions` block — they must redeclare `id-token: write` explicitly. This behaviour was tightened in 2023 and is not prominently documented. Claude Code diagnosed it from one error message and one piece of context (the permissions block is at the workflow level, not the job level). The diagnosis is correct, the explanation of why it happens is accurate, and the fix is minimal and targeted. Reviewers evaluating the course's claim that Claude Code is a contextual participant rather than a code generator should examine Turn 2 of Example 3 as the strongest single piece of evidence.
+
+**Turn 3: dual-mode secret resolution and `fromJSON` for matrix inputs.**
+The `workflow_call` refactor introduces two non-obvious patterns. First, `secrets.aws-role-arn || secrets.AWS_ROLE_ARN` — the OR expression that resolves the correct secret name whether the workflow is called externally (kebab-case name from `workflow_call` secrets) or run standalone (UPPER_CASE name from repository secrets). Second, `fromJSON(inputs.node-versions || '["18.x","20.x"]')` — converting a JSON-encoded string input into an array the matrix strategy can iterate, with a fallback for standalone runs where `inputs.node-versions` is undefined. Both patterns are produced without the engineer requesting them — they emerge from Claude Code reasoning about the dual-invocation requirement stated in the Turn 3 prompt.
+
+---
+
+#### Example 4 — Shell script
+
+**Naive approach failure mode: the most insidious of all four examples.**
+The naive script exits 0 on an unhealthy deployment. Not a wrong answer, not a crash — false confidence. The three mechanisms that cause this are each distinct and worth naming for reviewers: first, the absence of `set -e` means `kubectl rollout status` can time out and the script continues; second, `curl` exit codes are not checked, so a failed health response is printed but not acted on; third, `echo "Deployment check complete"` fires regardless of outcome, providing a success-sounding final line to any log reader. The Step 2 `warn` callout synthesises this as "the worst kind of script: it provides false confidence." This framing is the most important sentence in Example 4 and should survive any future content revisions.
+
+**Turn 2: the most technically precise diagnosis in any of the four examples.**
+The Bash 3.2 vs 5.x arithmetic comparison behaviour inside `[[ ]]` is real, obscure, and frequently encountered on macOS by engineers who have Homebrew-installed Bash 5 but whose scripts resolve to `/bin/bash` (3.2) when invoked directly. Claude Code diagnosed this from one line of stderr (`[[: 120: syntax error: invalid arithmetic operator`) and a bash version number. The fix — splitting the mixed `[[ ]] || [[ -eq ]]` into a regex check followed by a `(( ))` arithmetic context comparison — correctly targets the specific incompatibility rather than defensively rewriting the entire argument validation section. The additional Bash version guard added in Turn 2 converts a cryptic arithmetic error into a clear "Bash >= 3.2 required" message, which is the correct engineering response: when you discover a platform incompatibility, make the error visible rather than just fixing it silently.
+
+**Turn 3: two genuinely tricky shell patterns handled correctly.**
+The first is `(( attempt++ )) || true` under `set -e`. Arithmetic expressions in `(( ))` exit with status 1 when the result is 0 (falsy in arithmetic terms). When `attempt` increments from 0 to 1, the result is 1 — truthy, no problem. But the pattern is fragile for any increment that produces a zero result, and `set -e` would silently abort the loop. The `|| true` idiom is the standard defensive pattern; Claude Code applies it and explains why in the response, making the idiom transferable rather than just present in the code. The second is the `kubectl auth can-i` permissions advisory — framed correctly as a warning to stderr, not a hard block. Claude Code explains unprompted why it is advisory: `kubectl auth can-i` returns true for cluster-admins even when the script makes no writes, so a hard exit would prevent the script from running in environments with broad permissions even when those permissions are appropriate. The advisory pattern — warn and continue — is the correct engineering decision, and seeing it reasoned through correctly is what makes it pedagogically valuable.
 
 ---
 
