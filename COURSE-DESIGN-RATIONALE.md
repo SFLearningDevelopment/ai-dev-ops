@@ -3,7 +3,7 @@
 **Course:** Practical Usage of Claude Code for DevOps Automation  
 **Learning Path:** AIOps & DevOps  
 **Audience for this document:** Course reviewers  
-**Status:** Tier 1 complete · Tiers 2 & 3 in design  
+**Status:** Tiers 1 & 2 complete · Tier 3 in design  
 **Maintainer:** SourceFuse Learning & Development  
 
 ---
@@ -217,6 +217,25 @@ The overlay audit is clean across all three structural checks. The only finding 
 
 ---
 
+#### Example 9 — Python automation script with retry logic
+
+**Naive approach failure mode: a fixed sleep masquerading as retry logic.**
+The naive script's `time.sleep(30)` is not retry logic — it is a fixed wait that is simultaneously too short (service not ready after 30 seconds) and too long (service ready after 5 seconds). The failure mode it produces is the same as Example 4's shell script: the script can exit 0 on an unhealthy state, and exit 1 on a healthy state that just needed more time. The Step 2 `warn` callout connects it explicitly to Example 4: "It produces false confidence in the same way as the naive shell script from Example 4." This cross-reference is deliberate — it reinforces the pattern that single-shot automation with no retry produces false confidence, regardless of the language.
+
+**Turn 1: the module separation is the most architecturally significant decision.**
+Claude Code produced `retry.py` as a standalone module rather than embedding retry logic in `smoke_test.py`. This was not explicitly requested — the prompt asked for "a reusable retry module" but did not specify whether it should be a separate file. Claude Code chose module separation because it is what makes the retry logic independently testable. A retry function embedded in the smoke test script can only be tested by running the full smoke test — which requires a running service. A separate module can be tested with unit tests against mocked responses, as demonstrated in Turn 3. The module separation is what makes the test-alongside-implementation pattern possible.
+
+**Turn 2: the `main(argv=None)` pattern is the most important software engineering decision in Tier 2.**
+The smoke test's `main` function accepts an optional argument list rather than reading from `sys.argv` directly. This single design decision makes the entire CLI testable without mocking `sys.argv` — the test can call `main(["--url", url, "--max-attempts", "5"])` directly. Claude Code introduced this pattern in Turn 2 and explained why it matters. It is one of the most commonly missed Python testing patterns, and its absence forces tests to use `unittest.mock.patch("sys.argv", [...])` — a fragile approach that couples tests to the implementation's internal use of `sys.argv`. The course presents the correct pattern first, without showing the incorrect alternative, because the example is not about testing anti-patterns.
+
+**Turn 4: the root cause is a test design issue, not an implementation bug.**
+The two test failures both trace to the `_SequenceHandler.call_count` class variable being shared across both endpoint checks within a single test invocation. Claude Code correctly identified this as a test design issue — the implementation being tested was working correctly. The diagnosis distinguishes between "the test is wrong" and "the code is wrong," which is a non-trivial distinction when the test output is a failing assertion. The fix is pragmatic (extend the response sequence) rather than architectural (refactor the mock server), which is correct for this scope — the architectural refactor is noted as a future consideration in the Watch Out section.
+
+**Turn 5: contract tightening converts a silent ambiguity into a loud failure.**
+The `is_retryable` function originally returned `False` for a 200 response — which is technically correct (a 200 is not retryable) but semantically wrong (the function should never be called with a 200). The Turn 5 change raises a `ValueError` instead, converting a silent API misuse into an immediate programming error. The `rng` optional dependency injection is a parallel fix — it converts a non-deterministic test into a deterministic one without affecting production behaviour. Both changes follow the same principle: make incorrect usage fail loudly rather than produce a wrong result silently.
+
+---
+
 ## 4. Callout taxonomy
 
 The course uses four callout types. Each has a specific pedagogical purpose. They are not used interchangeably.
@@ -395,9 +414,14 @@ All course files are hosted at `sflearningdevelopment.github.io` and stored in t
 | `example-2-terraform-variables.html` | Tier 1, Example 2 — Terraform variables.tf |
 | `example-3-github-actions-job.html` | Tier 1, Example 3 — GitHub Actions pipeline |
 | `example-4-shell-script.html` | Tier 1, Example 4 — Shell script |
+| `example-5-cicd-pipeline.html` | Tier 2, Example 5 — CI/CD pipeline with security scanning |
+| `example-6-terraform-multienv.html` | Tier 2, Example 6 — Multi-environment Terraform |
+| `example-7-kubernetes-hpa-pdb.html` | Tier 2, Example 7 — Kubernetes HPA and PDB |
+| `example-8-argocd-promotion.html` | Tier 2, Example 8 — Argo CD promotion flow |
+| `example-9-python-automation.html` | Tier 2, Example 9 — Python automation with retry logic |
 | `COURSE-DESIGN-RATIONALE.md` | This document — internal reviewer access only |
 
 ---
 
-*Document version: Tier 1 complete. Updated as subsequent tiers are added.*  
+*Document version: Tiers 1 & 2 complete. Updated as subsequent tiers are added.*  
 *Not linked from the course map. Reviewer access via repository.*
