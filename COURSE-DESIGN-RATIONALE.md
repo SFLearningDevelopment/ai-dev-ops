@@ -258,6 +258,28 @@ The engineer asks whether a Terraform lifecycle rule can prevent changes to `max
 
 ---
 
+#### Example 11 — CI pipeline performance triage
+
+**The failure mode is gradual degradation, not a discrete incident.**
+Example 11 is structurally different from Example 10 in one key way: there is no incident timestamp, no PagerDuty alert, and no error. The pipeline still passes. It has simply become 3x slower over six months. This is the hardest class of degradation to diagnose because there is no event to anchor the investigation to — only a trend. The example is built around this specific difficulty, and the Step 2 naive approach describes a methodological failure (looking at a single run's job log) rather than a technical one.
+
+**The evidence dump structure differs from Example 10.**
+Example 10's evidence dump was cross-layer (app logs, K8s events, Terraform diff, CloudWatch). Example 11's evidence dump is cross-time (job timing history across 90 days, current YAML, dependency count over time, cache hit rate over time). The distinction is important for reviewers: Tier 3 evidence dumps are not always about layers — they can be about time series. The prompting principle is the same (provide all evidence simultaneously rather than sequentially), but the evidence structure varies by scenario type.
+
+**Turn 1: the cache hit rate collapse is traced to the exact week and the exact cause.**
+The cache hit rate dropped from 82% to 31% in the week of November 1st — the same week the `cache-dependency-path` changed from `package-lock.json` to `**/package-lock.json`. Claude Code identified this correlation from the simultaneous evidence and named the mechanism: the glob pattern matches files inside `node_modules/` that are modified during install, causing the cache key to change on every run and producing a permanent miss cycle. This is the kind of two-step reasoning (correlation → mechanism) that distinguishes a diagnosis from an observation.
+
+**The dependency growth is correctly framed as contributing context, not a primary cause.**
+This is a deliberate design choice worth noting for reviewers. Dependency count grew 2.7x. A naive analyst might conclude "we have too many dependencies — clean them up." Claude Code's response correctly separates the dependency growth from the primary cause: with a working cache, 2.7x more packages adds ~30 seconds to warm installs. The dependency growth became a pipeline problem only when the cache stopped working. This framing teaches the important lesson that symptoms and causes in a degraded system are not always the same thing — even when they correlate.
+
+**Turn 2: ranked optimisations with arithmetic is the most practically useful output in Tier 3.**
+The Turn 2 response produces a ranked list with time estimates derived from the evidence: 8–10 minutes (cache fix), 11 minutes (parallelisation), 3.5 minutes (Trivy). These estimates are derived from the timing data in Turn 1, not from general experience. The recommendation to implement in rank order and measure between each fix is the correct engineering discipline — it makes each fix's contribution independently attributable. This is the AIOps adjacent behaviour: not just diagnosing the problem but producing a structured remediation plan with measurable checkpoints.
+
+**Turn 5: the Trivy scan tradeoff is stated honestly.**
+The filesystem scan optimisation reduces PR scan time from 5.2 to 1.5 minutes — but explicitly trades base OS vulnerability coverage for speed. Claude Code states this tradeoff directly: "If your security policy or compliance requirements mandate full image scanning on every commit — particularly for a payment service — this tradeoff is not available to you." This is the course's pattern of honest limitation disclosure, applied to an optimisation rather than a limitation of Claude Code itself.
+
+---
+
 ## 4. Callout taxonomy
 
 The course uses four callout types. Each has a specific pedagogical purpose. They are not used interchangeably.
@@ -442,6 +464,7 @@ All course files are hosted at `sflearningdevelopment.github.io` and stored in t
 | `example-8-argocd-promotion.html` | Tier 2, Example 8 — Argo CD promotion flow |
 | `example-9-python-automation.html` | Tier 2, Example 9 — Python automation with retry logic |
 | `example-10-cross-layer-rca.html` | Tier 3, Example 10 — Cross-layer RCA |
+| `example-11-pipeline-triage.html` | Tier 3, Example 11 — CI pipeline performance triage |
 | `COURSE-DESIGN-RATIONALE.md` | This document — internal reviewer access only |
 
 ---
