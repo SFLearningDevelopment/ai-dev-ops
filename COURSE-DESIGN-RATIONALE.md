@@ -3,7 +3,7 @@
 **Course:** Practical Usage of Claude Code for DevOps Automation  
 **Learning Path:** AIOps & DevOps  
 **Audience for this document:** Course reviewers  
-**Status:** Tiers 1 & 2 complete · Tier 3 in design  
+**Status:** Module 1 complete (Tiers 1, 2 & 3) · Modules 2–4 in design  
 **Maintainer:** SourceFuse Learning & Development  
 
 ---
@@ -299,6 +299,25 @@ The rotation job script in Turn 5 ends with a `kubectl create event` command tha
 
 ---
 
+#### Example 13 — Alert enrichment and runbook generation
+
+**The only proactive example in Tier 3.**
+Examples 10, 11, and 12 respond to incidents that have already occurred. Example 13 is proactive — it produces enrichment and runbooks for alerts before the next incident. This distinction is pedagogically important: it positions alert enrichment as engineering work, not incident response. The example demonstrates that Claude Code's contextual reasoning is useful not only during incidents but in the preparatory work that makes future incidents faster to resolve.
+
+**Turn 1 observation: three root cause categories requiring runbook branching.**
+Before producing any output, Claude Code's Turn 1 response identifies that HighErrorRate has three distinct root cause categories from its incident history — external dependency failure, deployment regression, and infrastructure change. This observation is what drives the branching runbook structure in Turn 3. Claude Code did not produce a single linear triage sequence; it identified that a linear sequence would be incorrect for an alert with three categorically different causes and proposed branching before being asked to. This is the analytical pattern that distinguishes a contextual participant from a document generator.
+
+**The `do_not` field in the enrichment payload is the most operationally significant addition.**
+The machine-readable enrichment payload includes `"do_not": ["restart_pods_if_external_api_degraded"]` on HighErrorRate. This field encodes the most common wrong action in a payment API incident — restarting pods when the root cause is an external API failure adds noise without fixing anything. By including it in the machine-readable payload, the AIOps pipeline can suppress automated restart actions when the current diagnosis points to Branch B. This is the first example of a negative constraint in a machine-readable remediation payload — previous examples encoded what to do; this encodes what not to do.
+
+**Alert correlation is bidirectional and the runbook respects the ordering.**
+HighErrorRate lists DatabaseConnectionPoolExhausted as a co-fire that should be resolved first. DatabaseConnectionPoolExhausted lists HighErrorRate as a downstream symptom. The runbook's first check — "Is DatabaseConnectionPoolExhausted co-firing?" — enforces this ordering for the human engineer. The machine-readable payload enforces it for the AIOps pipeline. Both directions of the relationship are explicitly encoded, which means the AIOps pipeline can navigate to the correct resolution sequence regardless of which alert fires first and which alert the on-call engineer opens first.
+
+**The Tier 3 complete card closes the module arc.**
+The completion card at the bottom of Example 13 explicitly names that the payment-api service described across all thirteen examples is now fully built, deployed, monitored, and documented. This narrative closure — one system, thirteen examples, three tiers — is the design intent stated in Section 2.1. Reviewers should verify that the system described in Example 13's alert enrichment (connection pool size 50/pod, HPA 3–10 replicas, payment processor external dependency) is consistent with the system parameters established in Examples 5–9.
+
+---
+
 ## 4. Callout taxonomy
 
 The course uses four callout types. Each has a specific pedagogical purpose. They are not used interchangeably.
@@ -454,12 +473,14 @@ The prompting tip at the end of Step 5 works inductively: the learner has seen t
 
 | Area | Current status | Planned |
 |------|---------------|---------|
-| Tier 2 examples (5) | ✅ Complete | — |
-| Tier 3 examples (4) | Example 10 complete · Examples 11–13 in progress | In progress |
-| Course map progress tracking | Static counter (2 of 11) | Dynamic via localStorage when examples added |
+| Module 1 — Tiers 1, 2, 3 (13 examples) | ✅ Complete | — |
+| Module 2 — AIOps use cases | Not started | Next |
+| Module 3 — Integration patterns | Not started | After Module 2 |
+| Module 4 — Hands-on labs | Not started | After Module 3 |
+| Course map progress tracking | Static counter | Dynamic via localStorage |
 | Reviewer dashboard integration | Standalone `.md` | Link from sf-knowledge-hub reviewer dashboard |
-| Light/dark mode for diagrams | Light mode only (matches course) | No change planned |
-| Accessibility audit | Not yet conducted | Required before Tier 3 release |
+| Certification test | Not started | After all modules complete |
+| Accessibility audit | Not yet conducted | Required before Module 2 release |
 | Mobile layout | Functional but not optimised | Optimise before full course release |
 
 ---
@@ -485,9 +506,10 @@ All course files are hosted at `sflearningdevelopment.github.io` and stored in t
 | `example-10-cross-layer-rca.html` | Tier 3, Example 10 — Cross-layer RCA |
 | `example-11-pipeline-triage.html` | Tier 3, Example 11 — CI pipeline performance triage |
 | `example-12-incident-rca-aiops.html` | Tier 3, Example 12 — Incident RCA with AIOps handoff |
+| `example-13-alert-enrichment.html` | Tier 3, Example 13 — Alert enrichment and runbook generation |
 | `COURSE-DESIGN-RATIONALE.md` | This document — internal reviewer access only |
 
 ---
 
-*Document version: Tiers 1 & 2 complete · Tier 3 in progress. Updated as subsequent examples are added.*  
+*Document version: Module 1 complete (all 13 examples, Tiers 1–3). Updated as subsequent modules are added.*  
 *Not linked from the course map. Reviewer access via repository.*
