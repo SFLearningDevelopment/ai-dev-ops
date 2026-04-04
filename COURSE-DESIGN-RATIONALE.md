@@ -236,6 +236,28 @@ The `is_retryable` function originally returned `False` for a 200 response — w
 
 ---
 
+#### Example 10 — Broken deployment: cross-layer RCA
+
+**Tier 3 structural shift: diagnosis replaces generation as the primary output.**
+Example 10 is the first Tier 3 example and the first place in the course where Claude Code is asked to diagnose a system rather than generate an artifact. The five-step format is preserved, but its character changes: Step 2 (Naive approach) describes a flawed investigation methodology rather than a flawed artifact, and Step 4 (Refined output) presents a causal chain and prevention rules rather than annotated code. This shift is signalled explicitly with a `warn` callout at the top of Step 1 — "Tier 3 — what changes" — because learners who have worked through Tiers 1 and 2 will expect a generation-focused interaction and need to understand they are entering a different mode.
+
+**The evidence map replaces the file map.**
+In Tier 1 and 2, Step 1 contained a file map listing the files involved. In Tier 3, this is replaced by an evidence map listing the signal sources — application logs, Kubernetes events, Terraform state diff, CloudWatch metrics. The distinction is intentional: Tier 3 examples do not produce files, they consume evidence. The evidence map gives the learner a navigational reference for what they are about to see in the interaction, in the same way the file map did for generation examples.
+
+**Turn 1: simultaneous evidence provision is the defining Tier 3 prompting pattern.**
+All four evidence layers are provided in a single prompt. This is explicitly contrasted with the naive sequential investigation approach described in Step 2. The pedagogical point — reinforced by a callout in Step 3 — is that sequential evidence provision mirrors sequential investigation and produces the same suboptimal results. Claude Code's diagnosis is complete in a single turn because the causal connection between the Terraform state diff (root cause) and the application logs, Kubernetes events, and CloudWatch metrics (consequences) is only visible when all four are read simultaneously.
+
+**The OOMKilled diagnosis is a Tier 3 echo of the Example 5 diagnosis.**
+In Example 5, Claude Code identified exit code 137 as OOMKilled from a kubectl output. In Example 10, Claude Code identifies OOMKilled as a second-order consequence of connection exhaustion — not a root cause. This is the same signal (OOMKilled, same container, same deployment) being correctly interpreted in two different contexts: once as the primary incident signal (Example 5) and once as a misleading symptom that would send an investigator in the wrong direction (Example 10). Reviewers should verify that the course presents both interpretations in their correct contexts.
+
+**The smoke test detection gap is the most important insight in the example.**
+The application log line `14:23:01 INFO health: /ready returning 503` appears while the smoke test was still running. The smoke test passed at 14:05 — 18 minutes before this log line — when `/ready` was still returning 200. The gap between smoke test passing and service degradation is 3 minutes (14:05 to 14:08). This gap motivates the connection pool health check addition to the smoke test — and it is identified from evidence that was provided in Turn 1, not added later. The insight that the smoke test produced a false-green signal is what makes this incident a design failure, not just an operational one.
+
+**Turn 5: `prevent_destroy` correctly rejected for a field-level change prevention problem.**
+The engineer asks whether a Terraform lifecycle rule can prevent changes to `max_connections` without approval. Claude Code correctly rejects both `prevent_destroy` (prevents deletion, not updates) and any lifecycle-based field lock (Terraform has no such mechanism for field-level updates). The correct alternatives — isolating the parameter group into a separate state, and adding a CI warning annotation — are structurally sound and do not require Terraform features that do not exist. This pattern of correctly rejecting an inappropriate tool and offering the correct alternative appears previously in Example 6 Turn 5 (`prevent_destroy` vs `deletion_protection`) and is intentionally repeated to reinforce the principle.
+
+---
+
 ## 4. Callout taxonomy
 
 The course uses four callout types. Each has a specific pedagogical purpose. They are not used interchangeably.
@@ -391,12 +413,12 @@ The prompting tip at the end of Step 5 works inductively: the learner has seen t
 
 | Area | Current status | Planned |
 |------|---------------|---------|
-| Tier 2 examples (5) | Locked placeholder cards on course map | In design |
-| Tier 3 examples (4) | Locked placeholder cards on course map | In design |
+| Tier 2 examples (5) | ✅ Complete | — |
+| Tier 3 examples (4) | Example 10 complete · Examples 11–13 in progress | In progress |
 | Course map progress tracking | Static counter (2 of 11) | Dynamic via localStorage when examples added |
 | Reviewer dashboard integration | Standalone `.md` | Link from sf-knowledge-hub reviewer dashboard |
 | Light/dark mode for diagrams | Light mode only (matches course) | No change planned |
-| Accessibility audit | Not yet conducted | Required before Tier 2 release |
+| Accessibility audit | Not yet conducted | Required before Tier 3 release |
 | Mobile layout | Functional but not optimised | Optimise before full course release |
 
 ---
@@ -419,9 +441,10 @@ All course files are hosted at `sflearningdevelopment.github.io` and stored in t
 | `example-7-kubernetes-hpa-pdb.html` | Tier 2, Example 7 — Kubernetes HPA and PDB |
 | `example-8-argocd-promotion.html` | Tier 2, Example 8 — Argo CD promotion flow |
 | `example-9-python-automation.html` | Tier 2, Example 9 — Python automation with retry logic |
+| `example-10-cross-layer-rca.html` | Tier 3, Example 10 — Cross-layer RCA |
 | `COURSE-DESIGN-RATIONALE.md` | This document — internal reviewer access only |
 
 ---
 
-*Document version: Tiers 1 & 2 complete. Updated as subsequent tiers are added.*  
+*Document version: Tiers 1 & 2 complete · Tier 3 in progress. Updated as subsequent examples are added.*  
 *Not linked from the course map. Reviewer access via repository.*
