@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Course Reviewer Dashboard — Module 1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Merriweather+Sans:wght@300;400;600;700&family=Source+Code+Pro:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+  :root {
+    --bg:#eef2f7; --bg2:#ffffff; --bg3:#f0f4f9; --border:#d0dae8;
+    --text:#1a2332; --text-dim:#4a5568; --text-dimmer:#8fa3bc;
+    --blue:#1a6eb5; --blue-light:#e8f1fb; --blue-mid:#b8d0ed; --blue-dark:#0f4a7a;
+    --teal:#0e7a6b; --teal-light:#e6f4f2;
+    --coral:#c0392b; --coral-light:#fdf0ee; --coral-mid:#f0b8b2;
+    --green:#1a6b3a; --green-light:#e8f5ed; --green-mid:#a3d4b8;
+    --amber:#92600a; --amber-light:#fdf3e3;
+    --purple:#5b4fcf; --purple-light:#f0effe;
+    --radius:12px;
+  }
+  html,body { min-height:100%; background:var(--bg); color:var(--text); font-family:'Merriweather Sans',sans-serif; font-size:15px; line-height:1.6; }
+
+  .topnav { background:var(--bg2); border-bottom:1px solid var(--border); padding:0 40px; height:52px; display:flex; align-items:center; gap:8px; font-size:12px; color:var(--text-dimmer); font-family:'Source Code Pro',monospace; }
+  .topnav a { color:var(--blue); text-decoration:none; }
+  .topnav a:hover { text-decoration:underline; }
+
+  .hero { background:#f5f0ff; border-bottom:2px solid #c4bdf0; padding:36px 40px 28px; }
+  .hero-inner { max-width:860px; margin:0 auto; }
+  .hero-eyebrow { font-size:10px; letter-spacing:.2em; text-transform:uppercase; color:var(--purple); font-weight:600; margin-bottom:10px; font-family:'Source Code Pro',monospace; }
+  .hero h1 { font-size:clamp(20px,2.5vw,26px); font-weight:700; color:var(--text); line-height:1.25; }
+  .hero h1 span { color:var(--purple); }
+  .hero-sub { margin-top:10px; font-size:14px; color:var(--text-dim); line-height:1.7; }
+
+  /* Overall progress */
+  .overall { max-width:860px; margin:28px auto 0; padding:0 40px; }
+  .overall-card { background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); padding:20px 24px; display:flex; align-items:center; gap:20px; flex-wrap:wrap; }
+  .overall-label { font-size:13px; color:var(--text-dim); font-family:'Source Code Pro',monospace; flex-shrink:0; }
+  .overall-track { flex:1; min-width:200px; height:8px; background:var(--border); border-radius:4px; overflow:hidden; }
+  .overall-fill { height:100%; background:var(--green); border-radius:4px; transition:width .4s ease; }
+  .overall-pct { font-size:13px; font-weight:700; font-family:'Source Code Pro',monospace; color:var(--green); flex-shrink:0; min-width:40px; text-align:right; }
+  .overall-steps { font-size:11px; font-family:'Source Code Pro',monospace; color:var(--text-dimmer); }
+
+  .main { max-width:860px; margin:0 auto; padding:32px 40px 80px; }
+
+  /* Section */
+  .tier-label { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:.2em; text-transform:uppercase; color:var(--text-dimmer); font-weight:600; margin:32px 0 12px; padding-bottom:8px; border-bottom:1px solid var(--border); }
+  .tier-label:first-child { margin-top:0; }
+
+  /* Example card */
+  .example-card { background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); padding:16px 20px; margin-bottom:10px; display:flex; align-items:center; gap:16px; transition:border-color .15s, box-shadow .15s; text-decoration:none; color:inherit; }
+  .example-card:hover { border-color:var(--purple); box-shadow:0 2px 8px rgba(91,79,207,.1); }
+  .example-card.complete { border-left:3px solid var(--green); }
+  .example-card.partial  { border-left:3px solid var(--amber); }
+  .example-card.pending  { border-left:3px solid var(--border); }
+
+  .card-icon { width:36px; height:36px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:16px; flex-shrink:0; background:var(--bg3); border:1px solid var(--border); }
+  .card-body { flex:1; min-width:0; }
+  .card-num { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:.15em; text-transform:uppercase; color:var(--text-dimmer); font-weight:600; margin-bottom:2px; }
+  .card-title { font-size:14px; font-weight:600; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .card-sub { font-size:12px; color:var(--text-dimmer); font-family:'Source Code Pro',monospace; margin-top:2px; }
+
+  /* Step dots */
+  .step-dots { display:flex; gap:5px; flex-shrink:0; }
+  .dot { width:10px; height:10px; border-radius:50%; border:1.5px solid var(--border); background:var(--bg3); transition:background .2s, border-color .2s; }
+  .dot.checked { background:var(--green); border-color:var(--green-mid); }
+
+  /* Status badge */
+  .status-badge { font-size:10px; font-family:'Source Code Pro',monospace; font-weight:600; padding:3px 10px; border-radius:20px; flex-shrink:0; white-space:nowrap; }
+  .badge-complete { background:var(--green-light); color:var(--green); border:1px solid var(--green-mid); }
+  .badge-partial  { background:var(--amber-light); color:var(--amber); border:1px solid #f0d4a0; }
+  .badge-pending  { background:var(--bg3); color:var(--text-dimmer); border:1px solid var(--border); }
+
+  /* Reset button */
+  .reset-wrap { margin-top:32px; padding-top:20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; }
+  .reset-all-btn { font-size:12px; font-family:'Source Code Pro',monospace; color:var(--coral); background:none; border:1px solid var(--coral-mid); border-radius:6px; padding:6px 14px; cursor:pointer; transition:background .15s; }
+  .reset-all-btn:hover { background:var(--coral-light); }
+
+  footer { background:var(--bg2); border-top:1px solid var(--border); padding:14px 40px; font-size:11px; font-family:'Source Code Pro',monospace; color:var(--text-dimmer); display:flex; justify-content:space-between; }
+
+  @media(max-width:640px) { .topnav,.main,.overall,footer { padding-left:20px; padding-right:20px; } .hero { padding:24px 20px; } .card-title { font-size:13px; } }
+</style>
+</head>
+<body>
+
+<nav class="topnav">
+  <a href="../course-map.html">← Course map</a>
+  <span style="margin:0 4px;">·</span>
+  <span>Reviewer Dashboard — Module 1</span>
+</nav>
+
+<div class="hero">
+  <div class="hero-inner">
+    <div class="hero-eyebrow">Internal · Reviewer access only</div>
+    <h1>Module 1 <span>Reviewer Dashboard</span></h1>
+    <p class="hero-sub">Review all 13 examples and both diagrams. Your progress is saved in this browser. Each example page has a checklist for the 5 steps and one embedded review question.</p>
+  </div>
+</div>
+
+<div class="overall">
+  <div class="overall-card">
+    <span class="overall-label">Overall review progress</span>
+    <div class="overall-track"><div class="overall-fill" id="overallFill" style="width:0%"></div></div>
+    <span class="overall-pct" id="overallPct">0%</span>
+    <span class="overall-steps" id="overallSteps">0 / 65 steps reviewed</span>
+  </div>
+</div>
+
+<div class="main">
+
+  <div class="tier-label">Foundations — Diagrams</div>
+
+  <a class="example-card pending" id="card-diagram-1" href="../claude-code-devops-diagram-1.html" target="_blank">
+    <div class="card-icon">📊</div>
+    <div class="card-body">
+      <div class="card-num">Diagram 1</div>
+      <div class="card-title">Participation model — 9 interactive nodes</div>
+      <div class="card-sub">Opens in learner view · no reviewer page</div>
+    </div>
+    <span class="status-badge badge-pending" id="badge-diagram-1">—</span>
+  </a>
+
+  <a class="example-card pending" id="card-diagram-2" href="../claude-code-devops-diagram-2.html" target="_blank">
+    <div class="card-icon">🔄</div>
+    <div class="card-body">
+      <div class="card-num">Diagram 2</div>
+      <div class="card-title">Pipeline integration model — 15 interactive nodes</div>
+      <div class="card-sub">Opens in learner view · no reviewer page</div>
+    </div>
+    <span class="status-badge badge-pending" id="badge-diagram-2">—</span>
+  </a>
+
+  <div class="tier-label">Tier 1 — Single-file tasks · Examples 1–4</div>
+
+  <a class="example-card pending" id="card-example-1" href="example-1-dockerfile.html">
+    <div class="card-icon">🐳</div>
+    <div class="card-body">
+      <div class="card-num">Example 1 · Tier 1</div>
+      <div class="card-title">Dockerfile</div>
+      <div class="card-sub">3 questions in bank · 1 review question embedded</div>
+    </div>
+    <div class="step-dots" id="dots-example-1">
+      <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    </div>
+    <span class="status-badge badge-pending" id="badge-example-1">Not started</span>
+  </a>
+
+  <a class="example-card pending" id="card-example-2" href="example-2-terraform-variables.html">
+    <div class="card-icon">🏗️</div>
+    <div class="card-body">
+      <div class="card-num">Example 2 · Tier 1</div>
+      <div class="card-title">Terraform variables.tf</div>
+      <div class="card-sub">3 questions in bank · 1 review question embedded</div>
+    </div>
+    <div class="step-dots" id="dots-example-2">
+      <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    </div>
+    <span class="status-badge badge-pending" id="badge-example-2">Not started</span>
+  </a>
+
+  <a class="example-card pending" id="card-example-3" href="example-3-github-actions-job.html">
+    <div class="card-icon">⚙️</div>
+    <div class="card-body">
+      <div class="card-num">Example 3 · Tier 1</div>
+      <div class="card-title">GitHub Actions pipeline</div>
+      <div class="card-sub">3 questions in bank · 1 review question embedded</div>
+    </div>
+    <div class="step-dots" id="dots-example-3">
+      <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    </div>
+    <span class="status-badge badge-pending" id="badge-example-3">Not started</span>
+  </a>
+
+  <a class="example-card pending" id="card-example-4" href="example-4-shell-script.html">
+    <div class="card-icon">🖥️</div>
+    <div class="card-body">
+      <div class="card-num">Example 4 · Tier 1</div>
+      <div class="card-title">Shell script</div>
+      <div class="card-sub">3 questions in bank · 1 review question embedded</div>
+    </div>
+    <div class="step-dots" id="dots-example-4">
+      <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    </div>
+    <span class="status-badge badge-pending" id="badge-example-4">Not started</span>
+  </a>
+
+  <div class="tier-label">Tier 2 — Multi-step workflows · Examples 5–9</div>
+
+  <a class="example-card pending" id="card-example-5" href="example-5-cicd-pipeline.html">
+    <div class="card-icon">🔒</div>
+    <div class="card-body">
+      <div class="card-num">Example 5 · Tier 2</div>
+      <div class="card-title">CI/CD pipeline with security scanning</div>
+      <div class="card-sub">4 questions in bank · 1 review question embedded</div>
+    </div>
+    <div class="step-dots" id="dots-example-5">
+      <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    </div>
+    <span class="status-badge badge-pending" id="badge-example-5">Not started</span>
+  </a>
+
+  <a class="example-card pending" id="card-example-6" href="example-6-terraform-multienv.html">
+    <div class="card-icon">🌍</div>
+    <div class="card-body">
+      <div class="card-num">Example 6 · Tier 2</div>
+      <div class="card-title">Multi-environment Terraform with remote state</div>
+      <div class="card-sub">3 questions in bank · 1 review question embedded</div>
+    </div>
+    <div class="step-dots" id="dots-example-6">
+      <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    </div>
+    <span class="status-badge badge-pending" id="badge-example-6">Not started</span>
+  </a>
+
+  <a class="example-card pending" id="card-example-7" href="example-7-kubernetes-hpa-pdb.html">
+    <div class="card-icon">☸️</div>
+    <div class="card-body">
+      <div class="card-num">Example 7 · Tier 2</div>
+      <div class="card-title">Kubernetes deployment with HPA and PDB</div>
+      <div class="card-sub">3 questions in bank · 1 review question embedded</div>
+    </div>
+    <div class="step-dots" id="dots-example-7">
+      <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    </div>
+    <span class="status-badge badge-pending" id="badge-example-7">Not started</span>
+  </a>
+
+  <a class="example-card pending" id="card-example-8" href="example-8-argocd-promotion.html">
+    <div class="card-icon">🚀</div>
+    <div class="card-body">
+      <div class="card-num">Example 8 · Tier 2</div>
+      <div class="card-title">Argo CD application promotion flow</div>
+      <div class="card-sub">3 questions in bank · 1 review question embedded</div>
+    </div>
+    <div class="step-dots" id="dots-example-8">
+      <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    </div>
+    <span class="status-badge badge-pending" id="badge-example-8">Not started</span>
+  </a>
+
+  <a class="example-card pending" id="card-example-9" href="example-9-python-automation.html">
+    <div class="card-icon">🐍</div>
+    <div class="card-body">
+      <div class="card-num">Example 9 · Tier 2</div>
+      <div class="card-title">Python automation with retry logic</div>
+      <div class="card-sub">3 questions in bank · 1 review question embedded</div>
+    </div>
+    <div class="step-dots" id="dots-example-9">
+      <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    </div>
+    <span class="status-badge badge-pending" id="badge-example-9">Not started</span>
+  </a>
+
+  <div class="tier-label">Tier 3 — Context-heavy scenarios · Examples 10–13</div>
+
+  <a class="example-card pending" id="card-example-10" href="example-10-cross-layer-rca.html">
+    <div class="card-icon">🔍</div>
+    <div class="card-body">
+      <div class="card-num">Example 10 · Tier 3</div>
+      <div class="card-title">Broken deployment: cross-layer RCA</div>
+      <div class="card-sub">3 questions in bank · 1 review question embedded</div>
+    </div>
+    <div class="step-dots" id="dots-example-10">
+      <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    </div>
+    <span class="status-badge badge-pending" id="badge-example-10">Not started</span>
+  </a>
+
+  <a class="example-card pending" id="card-example-11" href="example-11-pipeline-triage.html">
+    <div class="card-icon">📈</div>
+    <div class="card-body">
+      <div class="card-num">Example 11 · Tier 3</div>
+      <div class="card-title">CI pipeline performance triage</div>
+      <div class="card-sub">3 questions in bank · 1 review question embedded</div>
+    </div>
+    <div class="step-dots" id="dots-example-11">
+      <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    </div>
+    <span class="status-badge badge-pending" id="badge-example-11">Not started</span>
+  </a>
+
+  <a class="example-card pending" id="card-example-12" href="example-12-incident-rca-aiops.html">
+    <div class="card-icon">🚨</div>
+    <div class="card-body">
+      <div class="card-num">Example 12 · Tier 3</div>
+      <div class="card-title">Incident RCA with AIOps handoff</div>
+      <div class="card-sub">3 questions in bank · 1 review question embedded</div>
+    </div>
+    <div class="step-dots" id="dots-example-12">
+      <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    </div>
+    <span class="status-badge badge-pending" id="badge-example-12">Not started</span>
+  </a>
+
+  <a class="example-card pending" id="card-example-13" href="example-13-alert-enrichment.html">
+    <div class="card-icon">📋</div>
+    <div class="card-body">
+      <div class="card-num">Example 13 · Tier 3</div>
+      <div class="card-title">Alert enrichment and runbook generation</div>
+      <div class="card-sub">3 questions in bank · 1 review question embedded</div>
+    </div>
+    <div class="step-dots" id="dots-example-13">
+      <div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div><div class="dot"></div>
+    </div>
+    <span class="status-badge badge-pending" id="badge-example-13">Not started</span>
+  </a>
+
+  <div class="reset-wrap">
+    <button class="reset-all-btn" onclick="resetAll()">Reset all review progress</button>
+  </div>
+
+</div>
+
+<footer>
+  <span>AIOps &amp; DevOps Learning Path · SourceFuse L&amp;D · Reviewer access only</span>
+  <span>Module 1 — 13 examples · 65 reviewable steps</span>
+</footer>
+
+<script>
+// ── Examples that have reviewer pages (with 5 checkboxes each) ───────────────
+const REVIEWABLE = [
+  'example-1','example-2','example-3','example-4','example-5',
+  'example-6','example-7','example-8','example-9','example-10',
+  'example-11','example-12','example-13'
+];
+
+const TOTAL_STEPS = REVIEWABLE.length * 5;  // 65
+
+// ── Read checkbox state from localStorage for a given example ─────────────────
+function getCheckedCount(sourceId) {
+  try {
+    const state = JSON.parse(localStorage.getItem('reviewer_' + sourceId)) || {};
+    let count = 0;
+    for (let i = 1; i <= 5; i++) {
+      if (state['cb_' + i]) count++;
+    }
+    return count;
+  } catch(e) { return 0; }
+}
+
+// ── Update a single card's dots, badge and border class ───────────────────────
+function updateCard(sourceId) {
+  const count = getCheckedCount(sourceId);
+  const card  = document.getElementById('card-' + sourceId);
+  const badge = document.getElementById('badge-' + sourceId);
+  const dots  = document.getElementById('dots-' + sourceId);
+  if (!card) return count;
+
+  // Dots
+  if (dots) {
+    dots.querySelectorAll('.dot').forEach((dot, i) => {
+      dot.classList.toggle('checked', i < count);
+    });
+  }
+
+  // Border + badge
+  card.classList.remove('complete','partial','pending');
+  badge.classList.remove('badge-complete','badge-partial','badge-pending');
+
+  if (count === 5) {
+    card.classList.add('complete');
+    badge.classList.add('badge-complete');
+    badge.textContent = '✓ Complete';
+  } else if (count > 0) {
+    card.classList.add('partial');
+    badge.classList.add('badge-partial');
+    badge.textContent = `${count} / 5 steps`;
+  } else {
+    card.classList.add('pending');
+    badge.classList.add('badge-pending');
+    badge.textContent = 'Not started';
+  }
+
+  return count;
+}
+
+// ── Update overall progress bar ───────────────────────────────────────────────
+function updateOverall() {
+  let totalChecked = 0;
+  REVIEWABLE.forEach(id => { totalChecked += updateCard(id); });
+  const pct = TOTAL_STEPS > 0 ? Math.round(totalChecked / TOTAL_STEPS * 100) : 0;
+  document.getElementById('overallFill').style.width = pct + '%';
+  document.getElementById('overallPct').textContent = pct + '%';
+  document.getElementById('overallSteps').textContent = `${totalChecked} / ${TOTAL_STEPS} steps reviewed`;
+}
+
+// ── Reset all ─────────────────────────────────────────────────────────────────
+function resetAll() {
+  if (!confirm('Reset all review progress? This clears all checkboxes and notes from this browser.')) return;
+  REVIEWABLE.forEach(id => localStorage.removeItem('reviewer_' + id));
+  updateOverall();
+}
+
+// ── Poll for changes when returning from a reviewer page ─────────────────────
+// localStorage is updated in the reviewer page — we refresh the dashboard
+// when the tab regains focus so the dots update without a manual reload.
+window.addEventListener('focus', updateOverall);
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+updateOverall();
+</script>
+</body>
+</html>
