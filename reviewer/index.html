@@ -110,24 +110,30 @@
 
   <div class="tier-label">Foundations — Diagrams</div>
 
-  <a class="example-card pending" id="card-diagram-1" href="../claude-code-diagram-1.html" target="_blank">
+  <a class="example-card pending" id="card-diagram-1" href="reviewer-diagram-1.html">
     <div class="card-icon">📊</div>
     <div class="card-body">
       <div class="card-num">Diagram 1</div>
       <div class="card-title">Participation model — 9 interactive nodes</div>
-      <div class="card-sub">Opens in learner view · no reviewer page</div>
+      <div class="card-sub">2 review questions · 1 reviewed checkbox</div>
     </div>
-    <span class="status-badge badge-pending" id="badge-diagram-1">—</span>
+    <div class="step-dots" id="dots-diagram-1">
+      <div class="dot"></div>
+    </div>
+    <span class="status-badge badge-pending" id="badge-diagram-1">Not started</span>
   </a>
 
-  <a class="example-card pending" id="card-diagram-2" href="../claude-code-diagram-2.html" target="_blank">
+  <a class="example-card pending" id="card-diagram-2" href="reviewer-diagram-2.html">
     <div class="card-icon">🔄</div>
     <div class="card-body">
       <div class="card-num">Diagram 2</div>
       <div class="card-title">Pipeline integration model — 15 interactive nodes</div>
-      <div class="card-sub">Opens in learner view · no reviewer page</div>
+      <div class="card-sub">3 review questions · 1 reviewed checkbox</div>
     </div>
-    <span class="status-badge badge-pending" id="badge-diagram-2">—</span>
+    <div class="step-dots" id="dots-diagram-2">
+      <div class="dot"></div>
+    </div>
+    <span class="status-badge badge-pending" id="badge-diagram-2">Not started</span>
   </a>
 
   <div class="tier-label">Tier 1 — Single-file tasks · Examples 1–4</div>
@@ -313,58 +319,60 @@
 
 <footer>
   <span>AIOps &amp; DevOps Learning Path · SourceFuse L&amp;D · Reviewer access only</span>
-  <span>Module 1 — 13 examples · 65 reviewable steps</span>
+  <span>Module 1 — 13 examples · 2 diagrams · 67 reviewable steps</span>
 </footer>
 
 <script>
-// ── Examples that have reviewer pages (with 5 checkboxes each) ───────────────
+// ── Diagrams (1 checkbox each) and examples (5 checkboxes each) ─────────────
+const DIAGRAMS = ['diagram-1', 'diagram-2'];
 const REVIEWABLE = [
   'example-1','example-2','example-3','example-4','example-5',
   'example-6','example-7','example-8','example-9','example-10',
   'example-11','example-12','example-13'
 ];
 
-const TOTAL_STEPS = REVIEWABLE.length * 5;  // 65
+const TOTAL_STEPS = DIAGRAMS.length * 1 + REVIEWABLE.length * 5;  // 2 + 65 = 67
 
-// ── Read checkbox state from localStorage for a given example ─────────────────
-function getCheckedCount(sourceId) {
+// ── Read checkbox state from localStorage ────────────────────────────────────
+function getCheckedCount(sourceId, maxSteps) {
   try {
     const state = JSON.parse(localStorage.getItem('reviewer_' + sourceId)) || {};
+    if (maxSteps === 1) {
+      return state.checked ? 1 : 0;
+    }
     let count = 0;
-    for (let i = 1; i <= 5; i++) {
+    for (let i = 1; i <= maxSteps; i++) {
       if (state['cb_' + i]) count++;
     }
     return count;
   } catch(e) { return 0; }
 }
 
-// ── Update a single card's dots, badge and border class ───────────────────────
-function updateCard(sourceId) {
-  const count = getCheckedCount(sourceId);
+// ── Update a single card ──────────────────────────────────────────────────────
+function updateCard(sourceId, maxSteps) {
+  const count = getCheckedCount(sourceId, maxSteps);
   const card  = document.getElementById('card-' + sourceId);
   const badge = document.getElementById('badge-' + sourceId);
   const dots  = document.getElementById('dots-' + sourceId);
   if (!card) return count;
 
-  // Dots
   if (dots) {
     dots.querySelectorAll('.dot').forEach((dot, i) => {
       dot.classList.toggle('checked', i < count);
     });
   }
 
-  // Border + badge
   card.classList.remove('complete','partial','pending');
   badge.classList.remove('badge-complete','badge-partial','badge-pending');
 
-  if (count === 5) {
+  if (count === maxSteps) {
     card.classList.add('complete');
     badge.classList.add('badge-complete');
     badge.textContent = '✓ Complete';
   } else if (count > 0) {
     card.classList.add('partial');
     badge.classList.add('badge-partial');
-    badge.textContent = `${count} / 5 steps`;
+    badge.textContent = maxSteps === 1 ? 'In progress' : `${count} / ${maxSteps} steps`;
   } else {
     card.classList.add('pending');
     badge.classList.add('badge-pending');
@@ -377,7 +385,8 @@ function updateCard(sourceId) {
 // ── Update overall progress bar ───────────────────────────────────────────────
 function updateOverall() {
   let totalChecked = 0;
-  REVIEWABLE.forEach(id => { totalChecked += updateCard(id); });
+  DIAGRAMS.forEach(id  => { totalChecked += updateCard(id, 1); });
+  REVIEWABLE.forEach(id => { totalChecked += updateCard(id, 5); });
   const pct = TOTAL_STEPS > 0 ? Math.round(totalChecked / TOTAL_STEPS * 100) : 0;
   document.getElementById('overallFill').style.width = pct + '%';
   document.getElementById('overallPct').textContent = pct + '%';
@@ -387,16 +396,12 @@ function updateOverall() {
 // ── Reset all ─────────────────────────────────────────────────────────────────
 function resetAll() {
   if (!confirm('Reset all review progress? This clears all checkboxes and notes from this browser.')) return;
+  DIAGRAMS.forEach(id   => localStorage.removeItem('reviewer_' + id));
   REVIEWABLE.forEach(id => localStorage.removeItem('reviewer_' + id));
   updateOverall();
 }
 
-// ── Poll for changes when returning from a reviewer page ─────────────────────
-// localStorage is updated in the reviewer page — we refresh the dashboard
-// when the tab regains focus so the dots update without a manual reload.
 window.addEventListener('focus', updateOverall);
-
-// ── Boot ──────────────────────────────────────────────────────────────────────
 updateOverall();
 </script>
 </body>
