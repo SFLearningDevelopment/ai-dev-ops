@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>[Reviewer] Diagram 2 — Pipeline Integration Model</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Merriweather+Sans:wght@300;400;600;700&family=Source+Code+Pro:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+  :root {
+    --bg:#eef2f7; --bg2:#ffffff; --bg3:#f0f4f9; --border:#d0dae8;
+    --text:#1a2332; --text-dim:#4a5568; --text-dimmer:#8fa3bc;
+    --blue:#1a6eb5; --blue-light:#e8f1fb; --blue-mid:#b8d0ed; --blue-dark:#0f4a7a;
+    --teal:#0e7a6b; --teal-light:#e6f4f2;
+    --green:#1a6b3a; --green-light:#e8f5ed; --green-mid:#a3d4b8;
+    --coral:#c0392b; --coral-light:#fdf0ee; --coral-mid:#f0b8b2;
+    --amber:#92600a; --amber-light:#fdf3e3;
+    --purple:#5b4fcf; --purple-light:#f0effe;
+    --radius:12px;
+  }
+  html,body { min-height:100%; background:var(--bg); color:var(--text); font-family:'Merriweather Sans',sans-serif; font-size:15px; line-height:1.6; }
+  .topnav { background:var(--bg2); border-bottom:1px solid var(--border); padding:0 40px; height:52px; display:flex; align-items:center; gap:8px; font-size:12px; color:var(--text-dimmer); font-family:'Source Code Pro',monospace; }
+  .topnav a { color:var(--blue); text-decoration:none; } .topnav a:hover { text-decoration:underline; }
+  .topnav .sep { margin:0 4px; }
+  .reviewer-topbanner { background:#f5f0ff; border-bottom:2px solid #c4bdf0; padding:10px 40px; font-size:12px; font-family:'Source Code Pro',monospace; color:var(--purple); display:flex; align-items:center; gap:8px; }
+  .hero { background:var(--bg2); border-bottom:2px solid var(--border); padding:32px 40px 24px; }
+  .hero-inner { max-width:900px; margin:0 auto; }
+  .hero-eyebrow { font-size:10px; letter-spacing:.2em; text-transform:uppercase; color:var(--purple); font-weight:600; margin-bottom:8px; font-family:'Source Code Pro',monospace; }
+  .hero h1 { font-size:clamp(18px,2.5vw,24px); font-weight:700; color:var(--text); }
+  .hero h1 span { color:var(--blue); }
+  .hero-sub { margin-top:8px; font-size:13.5px; color:var(--text-dim); }
+  .main { max-width:900px; margin:0 auto; padding:32px 40px 80px; }
+  .diagram-frame-wrap { background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; margin-bottom:32px; }
+  .diagram-frame-label { background:var(--bg3); border-bottom:1px solid var(--border); padding:10px 16px; font-size:11px; font-family:'Source Code Pro',monospace; color:var(--text-dimmer); display:flex; align-items:center; justify-content:space-between; }
+  .diagram-frame-label a { color:var(--blue); text-decoration:none; font-size:11px; }
+  .diagram-frame-label a:hover { text-decoration:underline; }
+  iframe { width:100%; height:520px; border:none; display:block; }
+  .reviewer-panel { background:#f5f0ff; border:1px solid #c4bdf0; border-top:3px solid var(--purple); border-radius:var(--radius); padding:24px 28px; margin-bottom:20px; }
+  .reviewer-panel-label { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:.18em; text-transform:uppercase; color:var(--purple); font-weight:600; margin-bottom:16px; }
+  .reviewer-q-text { font-size:14px; font-weight:600; color:var(--text); line-height:1.65; margin-bottom:14px; }
+  .reviewer-options { display:flex; flex-direction:column; gap:8px; margin-bottom:18px; }
+  .reviewer-option { display:flex; align-items:flex-start; gap:10px; padding:10px 14px; border:1px solid var(--border); border-radius:8px; cursor:pointer; font-size:13.5px; color:var(--text-dim); line-height:1.5; transition:background .12s,border-color .12s; background:var(--bg2); }
+  .reviewer-option:hover { background:var(--bg3); border-color:var(--blue-mid); }
+  .reviewer-option.selected { background:var(--blue-light); border-color:var(--blue); color:var(--text); }
+  .reviewer-option.correct  { background:var(--green-light); border-color:var(--green-mid); color:var(--green); }
+  .reviewer-option.wrong    { background:var(--coral-light); border-color:var(--coral-mid); color:var(--coral); }
+  .reviewer-option-key { font-family:'Source Code Pro',monospace; font-size:11px; font-weight:700; color:var(--text-dimmer); flex-shrink:0; margin-top:1px; }
+  .reviewer-tf { display:flex; gap:10px; margin-bottom:18px; }
+  .reviewer-tf-btn { flex:1; padding:10px; border:1px solid var(--border); border-radius:8px; cursor:pointer; text-align:center; font-size:13.5px; font-weight:600; font-family:'Source Code Pro',monospace; color:var(--text-dim); background:var(--bg2); transition:background .12s; }
+  .reviewer-tf-btn:hover { background:var(--bg3); border-color:var(--blue-mid); }
+  .reviewer-tf-btn.selected { background:var(--blue-light); border-color:var(--blue); color:var(--blue); }
+  .reviewer-tf-btn.correct  { background:var(--green-light); border-color:var(--green-mid); color:var(--green); }
+  .reviewer-tf-btn.wrong    { background:var(--coral-light); border-color:var(--coral-mid); color:var(--coral); }
+  .reviewer-reveal { font-size:12px; font-family:'Source Code Pro',monospace; color:var(--purple); cursor:pointer; text-decoration:underline; background:none; border:none; padding:0; margin-bottom:14px; display:block; }
+  .reviewer-explanation { font-size:13px; color:var(--text-dim); line-height:1.7; padding:12px 14px; background:var(--bg3); border-radius:8px; margin-bottom:16px; display:none; }
+  .reviewer-explanation.visible { display:block; }
+  .reviewer-exp-label { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:.15em; text-transform:uppercase; font-weight:700; margin-bottom:4px; }
+  .reviewer-exp-label.correct { color:var(--green); }
+  .reviewer-exp-label.wrong   { color:var(--coral); }
+  .reviewer-bar { background:#fff8e6; border:1px solid #f0d4a0; border-left:3px solid #92600a; border-radius:8px; padding:10px 16px; margin-bottom:20px; display:flex; align-items:center; gap:10px; font-size:13px; color:#92600a; font-family:'Source Code Pro',monospace; }
+  .reviewer-bar input[type="checkbox"] { width:16px; height:16px; cursor:pointer; flex-shrink:0; accent-color:var(--green); }
+  .reviewer-bar label { cursor:pointer; font-weight:600; user-select:none; }
+  .reviewer-bar.checked { background:var(--green-light); border-color:var(--green-mid); border-left-color:var(--green); color:var(--green); }
+  .notes-label { font-size:11px; font-family:'Source Code Pro',monospace; letter-spacing:.12em; text-transform:uppercase; color:var(--text-dimmer); font-weight:600; margin-bottom:6px; }
+  .reviewer-comment { width:100%; min-height:100px; padding:10px 12px; border:1px solid #c4bdf0; border-radius:8px; font-family:'Merriweather Sans',sans-serif; font-size:13.5px; color:var(--text); background:var(--bg2); resize:vertical; line-height:1.6; }
+  .reviewer-comment:focus { outline:none; border-color:var(--purple); }
+  .save-note { font-size:11px; font-family:'Source Code Pro',monospace; color:var(--text-dimmer); margin-top:6px; }
+  .bottom-nav { display:flex; justify-content:space-between; align-items:center; padding:20px 0 0; border-top:1px solid var(--border); margin-top:32px; }
+  .nav-btn { display:inline-flex; align-items:center; gap:8px; font-size:13px; font-family:'Source Code Pro',monospace; color:var(--blue); text-decoration:none; padding:10px 18px; border:1px solid var(--blue-mid); border-radius:8px; background:var(--blue-light); transition:background .15s; font-weight:600; }
+  .nav-btn:hover { background:var(--blue-mid); border-color:var(--blue); }
+  .nav-btn.secondary { background:var(--bg2); color:var(--text-dim); border-color:var(--border); }
+  .nav-btn.secondary:hover { background:var(--bg3); }
+  footer { background:var(--bg2); border-top:1px solid var(--border); padding:14px 40px; font-size:11px; font-family:'Source Code Pro',monospace; color:var(--text-dimmer); display:flex; justify-content:space-between; }
+  @media(max-width:640px){.topnav,.main,footer,.reviewer-topbanner,.hero{padding-left:20px;padding-right:20px;}}
+</style>
+</head>
+<body>
+
+<nav class="topnav">
+  <a href="index.html">← Reviewer dashboard</a>
+  <span class="sep">·</span>
+  <span>Diagram 2 — Pipeline integration model</span>
+</nav>
+
+<div class="reviewer-topbanner">
+  <span>👁</span>
+  <span><strong>Reviewer mode</strong> — your answers and notes are saved in this browser.</span>
+</div>
+
+<div class="hero">
+  <div class="hero-inner">
+    <div class="hero-eyebrow">Reviewer page · Diagram 2</div>
+    <h1>Pipeline integration model — <span>15 interactive nodes</span></h1>
+    <p class="hero-sub">Review the diagram below, answer the three questions, and add any notes. Click each node to read its panel content before answering.</p>
+  </div>
+</div>
+
+<div class="main">
+
+  <div class="reviewer-bar" id="rev-bar">
+    <input type="checkbox" class="rev-checkbox" id="rev-cb" data-step="diagram">
+    <label for="rev-cb">Mark diagram as reviewed</label>
+  </div>
+
+  <div class="diagram-frame-wrap">
+    <div class="diagram-frame-label">
+      <span>🔄 Diagram 2 — Pipeline integration model (interactive)</span>
+      <a href="../claude-code-diagram-2.html" target="_blank">Open full screen ↗</a>
+    </div>
+    <iframe src="../claude-code-diagram-2.html" title="Pipeline integration model diagram"></iframe>
+  </div>
+
+  <!-- Question 1: D2-1 MCQ -->
+  <div class="reviewer-panel">
+    <div class="reviewer-panel-label">🔍 Review question 1 of 3 — D2-1 · Multiple choice</div>
+    <div class="reviewer-q-text">The pipeline integration model places Claude Code's participation at which stages of the DevOps pipeline?</div>
+    <div class="reviewer-options" id="opts-D2-1">
+      <div class="reviewer-option" data-key="A" onclick="selectMcq('D2-1','A',this)"><span class="reviewer-option-key">A</span><span>Code and Build stages only</span></div>
+      <div class="reviewer-option" data-key="B" onclick="selectMcq('D2-1','B',this)"><span class="reviewer-option-key">B</span><span>Plan and Deploy stages only</span></div>
+      <div class="reviewer-option" data-key="C" onclick="selectMcq('D2-1','C',this)"><span class="reviewer-option-key">C</span><span>Every stage from Code through Operate</span></div>
+      <div class="reviewer-option" data-key="D" onclick="selectMcq('D2-1','D',this)"><span class="reviewer-option-key">D</span><span>Build and Test stages only</span></div>
+    </div>
+    <button class="reviewer-reveal" onclick="revealAnswer('D2-1','C','mcq')">Check answer</button>
+    <div class="reviewer-explanation" id="exp-D2-1">
+      <div class="reviewer-exp-label"></div>
+      The pipeline integration model shows Claude Code participating at every stage — Code, Plan, Build, Test, Deploy, and Operate. This is the core claim of the course: Claude Code is a contextual participant across the full pipeline, not a one-stage code generator.
+    </div>
+  </div>
+
+  <!-- Question 2: D2-2 True/False -->
+  <div class="reviewer-panel">
+    <div class="reviewer-panel-label">🔍 Review question 2 of 3 — D2-2 · True / False</div>
+    <div class="reviewer-q-text">According to the pipeline integration model, the Deploy stage is where Claude Code's participation is most limited because deployment is fully automated and requires no contextual reasoning.</div>
+    <div class="reviewer-tf" id="tf-D2-2">
+      <div class="reviewer-tf-btn" data-val="true" onclick="selectTF('D2-2',true,this)">True</div>
+      <div class="reviewer-tf-btn" data-val="false" onclick="selectTF('D2-2',false,this)">False</div>
+    </div>
+    <button class="reviewer-reveal" onclick="revealAnswer('D2-2',false,'tf')">Check answer</button>
+    <div class="reviewer-explanation" id="exp-D2-2">
+      <div class="reviewer-exp-label"></div>
+      The pipeline integration model shows Claude Code participating meaningfully at the Deploy stage — correlating deployment events with runtime signals, identifying rollback conditions, and reasoning about deployment health. The shell script (Example 4) and rollback script (Example 5) both demonstrate Deploy-stage participation.
+    </div>
+  </div>
+
+  <!-- Question 3: D2-3 MCQ -->
+  <div class="reviewer-panel">
+    <div class="reviewer-panel-label">🔍 Review question 3 of 3 — D2-3 · Multiple choice</div>
+    <div class="reviewer-q-text">Which Tier 1 example corresponds to the Plan stage of the pipeline integration model?</div>
+    <div class="reviewer-options" id="opts-D2-3">
+      <div class="reviewer-option" data-key="A" onclick="selectMcq('D2-3','A',this)"><span class="reviewer-option-key">A</span><span>Example 1 — Dockerfile</span></div>
+      <div class="reviewer-option" data-key="B" onclick="selectMcq('D2-3','B',this)"><span class="reviewer-option-key">B</span><span>Example 2 — Terraform variables.tf</span></div>
+      <div class="reviewer-option" data-key="C" onclick="selectMcq('D2-3','C',this)"><span class="reviewer-option-key">C</span><span>Example 3 — GitHub Actions pipeline</span></div>
+      <div class="reviewer-option" data-key="D" onclick="selectMcq('D2-3','D',this)"><span class="reviewer-option-key">D</span><span>Example 4 — Shell script</span></div>
+    </div>
+    <button class="reviewer-reveal" onclick="revealAnswer('D2-3','B','mcq')">Check answer</button>
+    <div class="reviewer-explanation" id="exp-D2-3">
+      <div class="reviewer-exp-label"></div>
+      The variables.tf example maps to the Plan stage — it defines the interface for infrastructure that will be planned and applied. The Dockerfile maps to Code, GitHub Actions to Build/Test, and the shell script to Deploy.
+    </div>
+  </div>
+
+  <!-- Notes -->
+  <div class="notes-label">Reviewer notes</div>
+  <textarea class="reviewer-comment" id="rev-comment" placeholder="Add your review notes for this diagram…"></textarea>
+  <div class="save-note">Notes are auto-saved in your browser.</div>
+
+  <div class="bottom-nav">
+    <a class="nav-btn secondary" href="reviewer-diagram-1.html">← Diagram 1</a>
+    <a class="nav-btn" href="example-1-dockerfile.html">Example 1 — Dockerfile →</a>
+  </div>
+</div>
+
+<footer>
+  <span>AIOps &amp; DevOps Learning Path · SourceFuse L&amp;D · Reviewer access only</span>
+  <span>Diagram 2 — Pipeline integration model</span>
+</footer>
+
+<script>
+const REV_KEY = 'reviewer_diagram-2';
+function revLoad() { try { return JSON.parse(localStorage.getItem(REV_KEY)) || {}; } catch(e) { return {}; } }
+function revSave(s) { localStorage.setItem(REV_KEY, JSON.stringify(s)); }
+
+const cb = document.getElementById('rev-cb');
+(function() {
+  const s = revLoad();
+  if (s.checked) {
+    cb.checked = true;
+    cb.closest('.reviewer-bar').classList.add('checked');
+    cb.closest('.reviewer-bar').querySelector('label').textContent = '✓ Diagram reviewed';
+  }
+})();
+cb.addEventListener('change', () => {
+  const s = revLoad(); s.checked = cb.checked; revSave(s);
+  const bar = cb.closest('.reviewer-bar');
+  bar.classList.toggle('checked', cb.checked);
+  bar.querySelector('label').textContent = cb.checked ? '✓ Diagram reviewed' : 'Mark diagram as reviewed';
+});
+
+const commentEl = document.getElementById('rev-comment');
+(function() { const s = revLoad(); if (s.comment) commentEl.value = s.comment; })();
+commentEl.addEventListener('input', () => { const s = revLoad(); s.comment = commentEl.value; revSave(s); });
+
+const qState = {};
+
+function selectMcq(id, key, el) {
+  if (qState[id] && qState[id].submitted) return;
+  qState[id] = qState[id] || {};
+  qState[id].answer = key;
+  document.querySelectorAll(`#opts-${id} .reviewer-option`).forEach(o => o.classList.toggle('selected', o.dataset.key === key));
+  const s = revLoad(); s['q_' + id] = key; revSave(s);
+}
+
+function selectTF(id, val, el) {
+  if (qState[id] && qState[id].submitted) return;
+  qState[id] = qState[id] || {};
+  qState[id].answer = val;
+  document.querySelectorAll(`#tf-${id} .reviewer-tf-btn`).forEach(b => b.classList.toggle('selected', (b.dataset.val === 'true') === val));
+  const s = revLoad(); s['q_' + id] = val; revSave(s);
+}
+
+function revealAnswer(id, correct, type) {
+  const ans = qState[id] && qState[id].answer !== undefined ? qState[id].answer : null;
+  if (ans === null) { alert('Please select an answer first.'); return; }
+  qState[id] = qState[id] || {};
+  qState[id].submitted = true;
+  const isCorrect = ans === correct;
+  const expEl = document.getElementById('exp-' + id);
+  const lbl = expEl.querySelector('.reviewer-exp-label');
+  lbl.textContent = isCorrect ? '✓ Correct' : '✗ Incorrect';
+  lbl.className = 'reviewer-exp-label ' + (isCorrect ? 'correct' : 'wrong');
+  expEl.classList.add('visible');
+  if (type === 'mcq') {
+    document.querySelectorAll(`#opts-${id} .reviewer-option`).forEach(o => {
+      o.classList.remove('selected','correct','wrong');
+      if (o.dataset.key === String(correct)) o.classList.add('correct');
+      else if (o.dataset.key === ans) o.classList.add('wrong');
+    });
+  } else {
+    document.querySelectorAll(`#tf-${id} .reviewer-tf-btn`).forEach(b => {
+      b.classList.remove('selected','correct','wrong');
+      const bVal = b.dataset.val === 'true';
+      if (bVal === correct) b.classList.add('correct');
+      else if (bVal === ans && bVal !== correct) b.classList.add('wrong');
+    });
+  }
+  event.target.style.display = 'none';
+}
+
+(function() {
+  const s = revLoad();
+  if (s['q_D2-1']) selectMcq('D2-1', s['q_D2-1'], null);
+  if (s['q_D2-2'] !== undefined) selectTF('D2-2', s['q_D2-2'], null);
+  if (s['q_D2-3']) selectMcq('D2-3', s['q_D2-3'], null);
+})();
+</script>
+</body>
+</html>
