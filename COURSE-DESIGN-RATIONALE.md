@@ -280,6 +280,25 @@ The filesystem scan optimisation reduces PR scan time from 5.2 to 1.5 minutes �
 
 ---
 
+#### Example 12 — Incident RCA with AIOps handoff
+
+**The structural pivot of the entire course.**
+Example 12 is where Module 1 ends and the bridge to Module 2 begins. Turns 1–3 follow the established Tier 3 RCA pattern. Turn 4 is structurally new: the engineer asks Claude Code to convert the triage narrative into a machine-readable JSON payload formatted for an AIOps remediation pipeline. This is not a documentation task — it is a data transformation task. The output of Turn 4 is what Module 2's use cases consume as input. Reviewers should evaluate whether the payload schema is rich enough to support the Module 2 examples being designed, particularly the alert correlation fields and the remediation action prerequisite gates.
+
+**The noise alert dismissal in Turn 1 is the most operationally valuable moment.**
+Four alerts fire within 90 seconds. One of them — the network policy change alert (PD-003) — is a false positive. Claude Code dismissed it in Turn 1 from the network policy audit evidence: no policy changed, the scanner misclassified the cert expiry event as policy-adjacent. Without the audit log in the evidence dump, PD-003 would have been a valid investigation thread. With it, it is dismissed in the same pass as the root cause identification. This is the most direct demonstration in the course of why simultaneous evidence provision matters: noise that requires a separate investigation thread when encountered alone becomes dismissible in a single pass when its evidence is provided alongside the causal signals.
+
+**The `causal_chain_position` field enables downstream alert suppression.**
+The AIOps payload assigns position values (1, 2, 3) to causal alerts. This field is not decorative — it enables the AIOps pipeline to suppress symptom alerts (positions 2 and 3) automatically once the root cause (position 1) is remediated. Without causal chain positions, the pipeline would either attempt to remediate each alert independently (creating redundant actions) or require human review to determine which alerts resolved on their own. The field is introduced here and explained in the Turn 4 response — reviewers building the AIOps module should treat it as a schema requirement for Module 2 examples.
+
+**The `prerequisite` gate on the rolling restart is the critical sequencing constraint.**
+The automated remediation has two actions: `renew_certificate` → `rolling_restart`. The rolling restart has `"prerequisite": "certificate_ready"`. This gate prevents the AIOps pipeline from restarting pods before the new certificate is available — which would leave the pods running with the expired cert and produce no improvement. Claude Code added this gate without being prompted, reasoning that restarting before cert renewal does not fix the problem. This is the same reasoning pattern as the Example 8 `needs: [scan, approve]` structure — ordering matters, and Claude Code models the correct ordering without being told to.
+
+**The hardened rotation job in Turn 5 emits a structured Kubernetes event.**
+The rotation job script in Turn 5 ends with a `kubectl create event` command that emits a JSON-structured `CertificateRotated` event. This event is machine-readable — it can be watched by the AIOps pipeline to confirm remediation, update the certificate inventory, and reset the detection window for future expiry monitoring. This pattern — infrastructure jobs emitting structured events for downstream consumption — is introduced here as a design pattern that Module 2 will reference when discussing AIOps data pipelines.
+
+---
+
 ## 4. Callout taxonomy
 
 The course uses four callout types. Each has a specific pedagogical purpose. They are not used interchangeably.
@@ -465,6 +484,7 @@ All course files are hosted at `sflearningdevelopment.github.io` and stored in t
 | `example-9-python-automation.html` | Tier 2, Example 9 — Python automation with retry logic |
 | `example-10-cross-layer-rca.html` | Tier 3, Example 10 — Cross-layer RCA |
 | `example-11-pipeline-triage.html` | Tier 3, Example 11 — CI pipeline performance triage |
+| `example-12-incident-rca-aiops.html` | Tier 3, Example 12 — Incident RCA with AIOps handoff |
 | `COURSE-DESIGN-RATIONALE.md` | This document — internal reviewer access only |
 
 ---
