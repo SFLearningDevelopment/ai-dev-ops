@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Example 10 — Broken Deployment: Cross-Layer RCA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Merriweather+Sans:wght@300;400;600;700&family=Source+Code+Pro:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+  :root {
+    --bg:#eef2f7; --bg2:#ffffff; --bg3:#f0f4f9; --border:#d0dae8;
+    --text:#1a2332; --text-dim:#4a5568; --text-dimmer:#8fa3bc;
+    --blue:#1a6eb5; --blue-light:#e8f1fb; --blue-mid:#b8d0ed; --blue-dark:#0f4a7a;
+    --teal:#0e7a6b; --teal-light:#e6f4f2;
+    --coral:#c0392b; --coral-light:#fdf0ee; --coral-mid:#f0b8b2;
+    --green:#1a6b3a; --green-light:#e8f5ed;
+    --amber:#92600a; --amber-light:#fdf3e3;
+    --purple:#5b4fcf; --purple-light:#f0effe;
+    --code-bg:#1e2433; --code-text:#cdd6f4; --radius:12px;
+  }
+  html,body { min-height:100%; background:var(--bg); color:var(--text); font-family:'Merriweather Sans',sans-serif; font-size:15px; line-height:1.6; }
+  .topnav { background:var(--bg2); border-bottom:1px solid var(--border); padding:0 40px; height:52px; display:flex; align-items:center; gap:8px; font-size:12px; color:var(--text-dimmer); font-family:'Source Code Pro',monospace; position:sticky; top:0; z-index:100; }
+  .topnav a { color:var(--blue); text-decoration:none; } .topnav a:hover { text-decoration:underline; }
+  .topnav .sep { margin:0 4px; color:var(--text-dimmer); }
+  .stepnav { background:var(--bg2); border-bottom:1px solid var(--border); padding:0 40px; display:flex; align-items:stretch; position:sticky; top:52px; z-index:99; overflow-x:auto; }
+  .stepnav-item { display:flex; align-items:center; gap:8px; padding:14px 20px; font-size:12px; font-family:'Source Code Pro',monospace; color:var(--text-dimmer); cursor:pointer; border-bottom:3px solid transparent; white-space:nowrap; transition:color .15s,border-color .15s; text-decoration:none; }
+  .stepnav-item:hover { color:var(--text-dim); }
+  .stepnav-item.active { color:var(--blue); border-bottom-color:var(--blue); font-weight:600; }
+  .stepnav-num { width:20px; height:20px; border-radius:50%; background:var(--bg3); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; flex-shrink:0; }
+  .stepnav-item.active .stepnav-num { background:var(--blue); border-color:var(--blue); color:white; }
+  .hero { background:var(--bg2); border-bottom:2px solid var(--border); padding:40px 40px 32px; }
+  .hero-inner { max-width:900px; margin:0 auto; }
+  .hero-eyebrow { font-size:10px; letter-spacing:.2em; text-transform:uppercase; color:var(--blue); font-weight:600; margin-bottom:10px; font-family:'Source Code Pro',monospace; }
+  .hero h1 { font-size:clamp(18px,2.5vw,26px); font-weight:700; color:var(--text); line-height:1.25; }
+  .hero h1 span { color:var(--blue); }
+  .hero-meta { margin-top:14px; display:flex; flex-wrap:wrap; gap:8px; }
+  .meta-pill { font-size:10.5px; font-family:'Source Code Pro',monospace; padding:3px 10px; border-radius:20px; font-weight:600; }
+  .pill-tier { background:var(--coral-light); color:var(--coral); border:1px solid var(--coral-mid); }
+  .pill-topic { background:var(--teal-light); color:var(--teal); border:1px solid #a3d4ce; }
+  .pill-turns { background:var(--bg3); color:var(--text-dim); border:1px solid var(--border); font-weight:400; }
+  .main { max-width:900px; margin:0 auto; padding:40px 40px 80px; }
+  .step-section { margin-bottom:56px; scroll-margin-top:120px; }
+  .step-header { display:flex; align-items:center; gap:14px; margin-bottom:20px; padding-bottom:16px; border-bottom:2px solid var(--border); }
+  .step-number { width:40px; height:40px; border-radius:50%; background:var(--blue); color:white; display:flex; align-items:center; justify-content:center; font-size:16px; font-weight:700; font-family:'Source Code Pro',monospace; flex-shrink:0; }
+  .step-label { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:.18em; text-transform:uppercase; color:var(--blue); font-weight:600; margin-bottom:3px; }
+  .step-title { font-size:18px; font-weight:700; color:var(--text); line-height:1.25; }
+  .prose { font-size:14.5px; color:var(--text-dim); line-height:1.8; margin-bottom:20px; }
+  .prose strong { color:var(--text); font-weight:600; }
+  .prose code { font-family:'Source Code Pro',monospace; font-size:13px; background:var(--bg3); border:1px solid var(--border); padding:1px 5px; border-radius:4px; color:var(--blue-dark); }
+  .evidence-map { background:var(--bg2); border:1px solid var(--border); border-top:3px solid var(--coral); border-radius:var(--radius); overflow:hidden; margin:20px 0; }
+  .evidence-map-header { padding:12px 18px; background:var(--coral-light); border-bottom:1px solid var(--border); font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:.18em; text-transform:uppercase; color:var(--coral); font-weight:600; }
+  .evidence-map table { width:100%; border-collapse:collapse; }
+  .evidence-map th { padding:10px 16px; font-size:11px; font-family:'Source Code Pro',monospace; color:var(--text-dimmer); font-weight:600; text-align:left; border-bottom:1px solid var(--border); background:var(--bg3); }
+  .evidence-map td { padding:10px 16px; font-size:13px; color:var(--text-dim); border-bottom:1px solid var(--border); vertical-align:top; }
+  .evidence-map tr:last-child td { border-bottom:none; }
+  .evidence-map td:first-child { font-family:'Source Code Pro',monospace; font-size:12px; color:var(--blue-dark); font-weight:600; white-space:nowrap; }
+  .layer-pill { font-size:9.5px; font-family:'Source Code Pro',monospace; padding:2px 8px; border-radius:20px; font-weight:600; white-space:nowrap; }
+  .layer-app   { background:var(--blue-light); color:var(--blue); border:1px solid var(--blue-mid); }
+  .layer-k8s   { background:var(--teal-light); color:var(--teal); border:1px solid #a3d4ce; }
+  .layer-infra { background:var(--amber-light); color:var(--amber); border:1px solid #f0d4a0; }
+  .layer-net   { background:var(--purple-light); color:var(--purple); border:1px solid #c4bdf0; }
+  .callout { border-radius:var(--radius); padding:16px 18px; margin:20px 0; font-size:13.5px; line-height:1.7; }
+  .callout-label { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:.15em; text-transform:uppercase; font-weight:700; margin-bottom:6px; }
+  .callout.info { background:var(--blue-light); border:1px solid var(--blue-mid); border-left:3px solid var(--blue); color:var(--text-dim); }
+  .callout.info .callout-label { color:var(--blue); }
+  .callout.warn { background:#fdf5f5; border:1px solid var(--coral-mid); border-left:3px solid var(--coral); color:var(--text-dim); }
+  .callout.warn .callout-label { color:var(--coral); }
+  .callout.good { background:var(--green-light); border:1px solid #a3d4b8; border-left:3px solid var(--green); color:var(--text-dim); }
+  .callout.good .callout-label { color:var(--green); }
+  .callout.tip  { background:var(--amber-light); border:1px solid #f0d4a0; border-left:3px solid var(--amber); color:var(--text-dim); }
+  .callout.tip  .callout-label { color:var(--amber); }
+  .callout strong { color:var(--text); font-weight:600; }
+  .callout code { font-family:'Source Code Pro',monospace; font-size:12.5px; background:rgba(0,0,0,.06); padding:1px 5px; border-radius:4px; }
+  .code-wrap { margin:20px 0; border-radius:0; overflow:hidden; border:1px solid #2a3144; background:#1e2433; }
+  .code-header { background:#252b3b; padding:10px 16px; display:flex; align-items:center; justify-content:space-between; }
+  .code-filename { font-size:11px; font-family:'Source Code Pro',monospace; color:#ffffff; letter-spacing:.05em; }
+  .code-copy { font-size:10px; font-family:'Source Code Pro',monospace; color:#7a8ab0; background:none; border:1px solid #3a4155; border-radius:4px; padding:2px 8px; cursor:pointer; transition:color .15s,border-color .15s; }
+  .code-copy:hover { color:#cdd6f4; border-color:#6a7ab0; }
+  pre { background:#1e2433 !important; padding:20px; overflow-x:auto; margin:0; }
+  code.block { font-family:'Source Code Pro',monospace; font-size:13px; line-height:1.7; color:var(--code-text); background:none; border:none; padding:0; display:block; }
+  .kw{color:#cba6f7;} .cm{color:#6c7086;font-style:italic;} .st{color:#a6e3a1;}
+  .nm{color:#fab387;} .op{color:#89dceb;} .an{color:#f38ba8;} .fn{color:#89b4fa;}
+  .annotation-list { list-style:none; display:flex; flex-direction:column; gap:12px; margin:20px 0; }
+  .annotation-list li { display:flex; gap:12px; align-items:flex-start; font-size:13.5px; color:var(--text-dim); line-height:1.7; }
+  .ann-badge { flex-shrink:0; font-size:10px; font-family:'Source Code Pro',monospace; font-weight:700; padding:2px 8px; border-radius:4px; margin-top:2px; }
+  .ann-good { background:var(--green-light); color:var(--green); border:1px solid #a3d4b8; }
+  .ann-warn { background:var(--coral-light); color:var(--coral); border:1px solid var(--coral-mid); }
+  .ann-info { background:var(--blue-light); color:var(--blue); border:1px solid var(--blue-mid); }
+  .annotation-list li strong { color:var(--text); font-weight:600; }
+  .annotation-list li code { font-family:'Source Code Pro',monospace; font-size:12.5px; background:var(--bg3); border:1px solid var(--border); padding:1px 5px; border-radius:4px; color:var(--blue-dark); }
+  .conversation { display:flex; flex-direction:column; gap:0; margin:16px 0; border:1px solid #2a3144; border-radius:var(--radius); overflow:hidden; }
+  .conv-turn { padding:18px 22px; }
+  .conv-turn + .conv-turn { border-top:1px solid #2a3144; }
+  .conv-turn.engineer { background:var(--bg3); }
+  .conv-turn.claude   { background:#1e2433; }
+  .conv-role { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:.18em; text-transform:uppercase; font-weight:700; margin-bottom:8px; }
+  .conv-turn.engineer .conv-role { color:var(--teal); }
+  .conv-turn.claude   .conv-role { color:#7a8ab0; }
+  .conv-body { font-size:13.5px; line-height:1.75; }
+  .conv-turn.engineer .conv-body { color:var(--text-dim); }
+  .conv-turn.claude   .conv-body { color:#cdd6f4; }
+  .conv-turn.engineer .conv-body strong { color:var(--text); font-weight:600; }
+  .conv-turn.claude   .conv-body strong { color:#ffffff; font-weight:600; }
+  .conv-turn.engineer .conv-body code { font-family:'Source Code Pro',monospace; font-size:12.5px; background:var(--bg3); border:1px solid var(--border); padding:1px 5px; border-radius:4px; color:var(--blue-dark); }
+  .conv-turn.claude   .conv-body code { font-family:'Source Code Pro',monospace; font-size:12.5px; background:#252b3b; border:1px solid #3a4155; padding:1px 5px; border-radius:4px; color:#89dceb; }
+  .conv-turn.claude   .conv-body em { font-style:italic; color:#6c7086; }
+  .conv-turn.claude   .code-wrap { margin:12px 0; }
+  .turn-nav { display:flex; align-items:center; gap:6px; margin-bottom:16px; flex-wrap:wrap; }
+  .turn-nav-label { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:.15em; text-transform:uppercase; color:var(--text-dimmer); font-weight:600; margin-right:4px; }
+  .turn-pip { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; font-family:'Source Code Pro',monospace; border:1px solid var(--border); background:var(--bg3); color:var(--text-dimmer); }
+  .turn-pip.active { background:var(--blue); border-color:var(--blue); color:#fff; }
+  .turn-pip.done   { background:var(--green-light); border-color:#a3d4b8; color:var(--green); }
+  .turn-connector  { width:20px; height:1px; background:var(--border); }
+  .finding-chain { background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); padding:20px 24px; margin:24px 0; }
+  .finding-chain-label { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:.18em; text-transform:uppercase; color:var(--coral); font-weight:600; margin-bottom:14px; }
+  .fc-row { display:flex; align-items:flex-start; gap:12px; margin-bottom:12px; }
+  .fc-row:last-child { margin-bottom:0; }
+  .fc-layer { font-family:'Source Code Pro',monospace; font-size:11.5px; font-weight:600; color:var(--blue-dark); background:var(--blue-light); border:1px solid var(--blue-mid); border-radius:6px; padding:4px 10px; white-space:nowrap; flex-shrink:0; }
+  .fc-arrow { color:var(--text-dimmer); font-size:14px; margin-top:3px; flex-shrink:0; }
+  .fc-desc { font-size:13px; color:var(--text-dim); line-height:1.6; padding-top:2px; }
+  .fc-desc strong { color:var(--text); font-weight:600; }
+  .turn-label { display:inline-flex; align-items:center; gap:6px; font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:.12em; text-transform:uppercase; color:var(--text-dimmer); background:var(--bg3); border:1px solid var(--border); border-radius:20px; padding:3px 10px; margin-bottom:14px; font-weight:600; }
+  .section-divider { height:1px; background:var(--border); margin:40px 0; }
+  .bottom-nav { display:flex; justify-content:space-between; align-items:center; padding:20px 0 0; border-top:1px solid var(--border); margin-top:40px; }
+  .nav-btn { display:inline-flex; align-items:center; gap:8px; font-size:13px; font-family:'Source Code Pro',monospace; color:var(--blue); text-decoration:none; padding:10px 18px; border:1px solid var(--blue-mid); border-radius:8px; background:var(--blue-light); transition:background .15s,border-color .15s; font-weight:600; }
+  .nav-btn:hover { background:var(--blue-mid); border-color:var(--blue); }
+  .nav-btn.secondary { background:var(--bg2); color:var(--text-dim); border-color:var(--border); }
+  .nav-btn.secondary:hover { background:var(--bg3); }
+  footer { background:var(--bg2); border-top:1px solid var(--border); padding:14px 40px; font-size:11px; font-family:'Source Code Pro',monospace; color:var(--text-dimmer); display:flex; justify-content:space-between; align-items:center; }
+  @media(max-width:640px){.topnav,.main,footer{padding-left:20px;padding-right:20px;}.hero{padding:28px 20px;}.stepnav{padding:0 20px;}}
+</style>
+</head>
+<body>
+
+<nav class="topnav">
+  <a href="course-map.html">Course map</a>
+  <span class="sep">/</span>
+  <a href="course-map.html">Tier 3 examples</a>
+  <span class="sep">/</span>
+  <span>Example 10 — Cross-layer RCA</span>
+</nav>
+
+<nav class="stepnav" id="stepnav">
+  <a class="stepnav-item active" href="#step-1"><span class="stepnav-num">1</span>Problem</a>
+  <a class="stepnav-item" href="#step-2"><span class="stepnav-num">2</span>Naive approach</a>
+  <a class="stepnav-item" href="#step-3"><span class="stepnav-num">3</span>Claude Code interaction</a>
+  <a class="stepnav-item" href="#step-4"><span class="stepnav-num">4</span>Refined output</a>
+  <a class="stepnav-item" href="#step-5"><span class="stepnav-num">5</span>Watch out</a>
+</nav>
+
+<div class="hero">
+  <div class="hero-inner">
+    <div class="hero-eyebrow">Example 10 of 13 · Tier 3 · Context-heavy scenario</div>
+    <h1>Broken deployment: <span>cross-layer RCA</span></h1>
+    <div class="hero-meta">
+      <span class="meta-pill pill-tier">Tier 3 — Context-heavy scenario</span>
+      <span class="meta-pill pill-topic">Incident analysis · RCA</span>
+      <span class="meta-pill pill-turns">5-turn interaction</span>
+      <span class="meta-pill pill-turns">4 evidence layers · causal chain</span>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- ══ STEP 1 ══ -->
+  <section class="step-section" id="step-1">
+    <div class="step-header">
+      <div class="step-number">1</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 1 of 5</div>
+        <div class="step-title">The problem</div>
+      </div>
+    </div>
+
+    <div class="callout warn">
+      <div class="callout-label">Tier 3 — what changes</div>
+      Tiers 1 and 2 were about <strong>generating</strong> artifacts — Dockerfiles, pipelines, manifests, scripts. Tier 3 is about <strong>diagnosing</strong> systems. The engineer's job shifts from "write this" to "tell me what is wrong and why." Claude Code's job shifts from code generator to cross-layer analyst. The interaction structure changes accordingly: Turn 1 is not a generation prompt — it is an evidence dump. The value Claude Code provides is not in the code it writes but in the causal chain it constructs from evidence that spans multiple system layers simultaneously.
+    </div>
+
+    <p class="prose">
+      A production deployment of <code>payment-api</code> completed successfully — the CI/CD pipeline from Example 5 reported green, the Argo CD sync from Example 8 showed <code>Healthy</code>, and the smoke test from Example 9 passed. Twenty minutes later, the on-call engineer receives a PagerDuty alert: payment success rate has dropped from 99.4% to 61%. No code was changed. The deployment is the only recent change.
+    </p>
+
+    <p class="prose">
+      The engineer has four evidence sources. Each one alone is inconclusive. Together they point to a single root cause — but only if the evidence is read across layers simultaneously, not sequentially.
+    </p>
+
+    <div class="callout info">
+      <div class="callout-label">The Tier 3 shift in prompting</div>
+      In Tier 1 and 2, prompts were structured as requirements lists. In Tier 3, the primary prompt is an <strong>evidence dump</strong> — the engineer pastes raw signals from multiple system layers and asks Claude Code to correlate them. The quality of the diagnosis depends on the completeness and accuracy of the evidence, not on the precision of the requirements. This is a fundamentally different prompting mode and the examples are designed to make that shift visible.
+    </div>
+
+    <!-- Evidence map replaces File map in Tier 3 -->
+    <div class="evidence-map">
+      <div class="evidence-map-header">Evidence layers in this scenario</div>
+      <table>
+        <thead><tr><th>Source</th><th>What it shows</th><th>Layer</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>Application logs (pod)</td>
+            <td>Repeated <code>connection refused</code> errors on RDS endpoint, increasing latency on payment processing path</td>
+            <td><span class="layer-pill layer-app">Application</span></td>
+          </tr>
+          <tr>
+            <td>Kubernetes events</td>
+            <td>Pod restarts, OOMKilled events on one replica, readiness probe failures</td>
+            <td><span class="layer-pill layer-k8s">Kubernetes</span></td>
+          </tr>
+          <tr>
+            <td>Terraform state diff</td>
+            <td>RDS parameter group changed in the same apply that updated the deployment — <code>max_connections</code> reduced from 200 to 100</td>
+            <td><span class="layer-pill layer-infra">Infrastructure</span></td>
+          </tr>
+          <tr>
+            <td>RDS CloudWatch metrics</td>
+            <td>DatabaseConnections at 100/100 (at limit), connection throttling events, FreeableMemory normal</td>
+            <td><span class="layer-pill layer-infra">Infrastructure</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ══ STEP 2 ══ -->
+  <section class="step-section" id="step-2">
+    <div class="step-header">
+      <div class="step-number">2</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 2 of 5</div>
+        <div class="step-title">The naive approach</div>
+      </div>
+    </div>
+
+    <p class="prose">
+      The naive approach to a production incident is to investigate one layer at a time, in the order that feels most natural — usually starting with application logs, then moving to Kubernetes, then to infrastructure if the first two layers don't explain it. This sequential investigation misses cross-layer causality.
+    </p>
+
+    <div class="callout warn">
+      <div class="callout-label">The naive investigation sequence</div>
+      <strong>Step 1:</strong> Check application logs → sees <code>connection refused</code> → concludes "database is down" → checks RDS → RDS is running → confused.<br><br>
+      <strong>Step 2:</strong> Check Kubernetes → sees OOMKilled → concludes "memory limit too low" → increases memory limit → redeploys → problem persists.<br><br>
+      <strong>Step 3:</strong> Check RDS metrics → sees DatabaseConnections at 100% → concludes "connection pool leak" → restarts pods → brief improvement, then problem returns.<br><br>
+      <strong>Step 4:</strong> Escalates. Someone notices the Terraform apply ran at the same time as the deployment. Someone else checks the parameter group diff. The root cause is found 90 minutes after the incident started.
+    </div>
+
+    <p class="prose">
+      Each step in the naive sequence is individually rational. The problem is that sequential single-layer investigation treats symptoms as causes. The OOMKilled event is a consequence of connection exhaustion (pods holding open connections until killed). The <code>connection refused</code> errors are a consequence of <code>max_connections</code> being halved. The root cause — the parameter group change — is only visible when the Terraform state diff is correlated with the RDS CloudWatch metrics.</p>
+
+    <ul class="annotation-list">
+      <li>
+        <span class="ann-badge ann-warn">Methodology</span>
+        <div><strong>Sequential layer investigation misses causal chains that span layers.</strong> Each layer makes sense in isolation. The application logs show connection errors — the database appears to be rejecting connections. The Kubernetes events show OOMKilled — memory appears to be the problem. Neither observation is wrong; both are symptoms of the same root cause at a different layer. Sequential investigation cannot distinguish cause from consequence without explicit cross-layer correlation.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Methodology</span>
+        <div><strong>The highest-signal evidence (Terraform state diff) is checked last.</strong> In most incident investigations, infrastructure change history is consulted only after application and cluster signals have failed to explain the problem. But in this scenario, the Terraform apply is the causal event — everything else flows from it. The investigation pattern that checks infrastructure changes first, in correlation with the application signals, reaches the root cause in one step rather than four.</div>
+      </li>
+    </ul>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ══ STEP 3 ══ -->
+  <section class="step-section" id="step-3">
+    <div class="step-header">
+      <div class="step-number">3</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 3 of 5</div>
+        <div class="step-title">The Claude Code interaction</div>
+      </div>
+    </div>
+
+    <p class="prose">Five turns. Turn 1 is the evidence dump — all four layers provided simultaneously. Turn 2 asks for the causal chain. Turn 3 asks for immediate mitigation steps. Turn 4 asks for a permanent fix. Turn 5 asks for a prevention rule to add to the Terraform module.</p>
+
+    <div class="callout info">
+      <div class="callout-label">Why all four layers in Turn 1</div>
+      The defining characteristic of Tier 3 prompting is providing cross-layer evidence in the first turn, not sequentially across turns. Providing evidence one layer at a time forces Claude Code to reason about each layer independently before seeing the connections — the same mistake as the naive sequential investigation. Providing all layers simultaneously lets Claude Code read the signals as a system and identify the causal chain on the first pass.
+    </div>
+
+    <!-- Turn 1 -->
+    <div class="turn-nav">
+      <span class="turn-nav-label">Turns</span>
+      <span class="turn-pip active">1</span><span class="turn-connector"></span>
+      <span class="turn-pip">2</span><span class="turn-connector"></span>
+      <span class="turn-pip">3</span><span class="turn-connector"></span>
+      <span class="turn-pip">4</span><span class="turn-connector"></span>
+      <span class="turn-pip">5</span>
+    </div>
+
+    <div class="turn-label">Turn 1 of 5 — Evidence dump: all four layers simultaneously</div>
+    <div class="conversation">
+      <div class="conv-turn engineer">
+        <div class="conv-role">Engineer → Claude Code</div>
+        <div class="conv-body">
+          <p>Production incident. Payment success rate dropped from 99.4% to 61% twenty minutes after a deployment. The CI/CD pipeline reported green. Nothing else was changed. Here is everything I have — all four evidence sources at once:</p>
+
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">Application logs — payment-api pod (last 10 minutes)</span></div>
+            <pre><code class="block">2026-03-15T14:22:03Z ERROR payment-processor: Database connection refused: dial tcp 10.0.1.45:5432: connect: connection refused
+2026-03-15T14:22:03Z ERROR payment-processor: Retrying payment transaction (attempt 2/3)
+2026-03-15T14:22:08Z ERROR payment-processor: Retrying payment transaction (attempt 3/3)
+2026-03-15T14:22:08Z ERROR payment-processor: Payment failed after 3 attempts: connection pool exhausted
+2026-03-15T14:22:15Z WARN  connection-pool: Pool size 50, active 50, idle 0, pending 23
+2026-03-15T14:22:15Z ERROR payment-processor: Database connection refused [repeated 47x in last 60s]
+2026-03-15T14:23:01Z INFO  health: /health returning 200
+2026-03-15T14:23:01Z INFO  health: /ready returning 503 (dependency: database unavailable)</code></pre>
+          </div>
+
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">kubectl get events -n payment --sort-by=.lastTimestamp</span></div>
+            <pre><code class="block">LAST SEEN   TYPE      REASON      OBJECT                          MESSAGE
+4m          Warning   OOMKilled   pod/payment-api-7d9f8c-aaa      Container payment-api exceeded memory limit
+4m          Normal    Pulled      pod/payment-api-7d9f8c-bbb      Successfully pulled image
+4m          Normal    Started     pod/payment-api-7d9f8c-bbb      Started container payment-api
+6m          Warning   Unhealthy   pod/payment-api-7d9f8c-aaa      Readiness probe failed: HTTP probe failed with statuscode: 503
+8m          Normal    Killing     pod/payment-api-7d9f8c-aaa      Stopping container payment-api
+22m         Normal    Pulled      pod/payment-api-7d9f8c-aaa      Successfully pulled image (new deployment)</code></pre>
+          </div>
+
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">Terraform plan output — same apply as deployment (excerpt)</span></div>
+            <pre><code class="block">  # aws_db_parameter_group.payment_api will be updated in-place
+  ~ resource "aws_db_parameter_group" "payment_api" {
+      ~ parameter {
+          ~ value = "200" -> "100"
+            name  = "max_connections"
+        }
+    }
+
+Plan: 0 to add, 1 to change, 0 to destroy.</code></pre>
+          </div>
+
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">RDS CloudWatch metrics (last 30 minutes)</span></div>
+            <pre><code class="block">DatabaseConnections:  [... 45 ... 47 ... 49 ... 50 ... 100 ... 100 ... 100]
+                                                            ^
+                                                      deployment + tf apply (14:00)
+ConnectionThrottled:  [0 ... 0 ... 0 ... 0 ... 0 ... 847 ... 1203 ... 988]
+FreeableMemory (GB):  [3.2 ... 3.1 ... 3.2 ... 3.1 ... 3.1 ... 3.0 ... 3.1]
+CPUUtilization (%):   [12 ... 11 ... 13 ... 12 ... 14 ... 15 ... 14]</code></pre>
+          </div>
+
+          <p style="margin-top:10px;">What is the root cause?</p>
+        </div>
+      </div>
+
+      <div class="conv-turn claude">
+        <div class="conv-role">Claude Code</div>
+        <div class="conv-body">
+          <p><strong>Root cause: the Terraform apply halved <code>max_connections</code> on the RDS parameter group from 200 to 100, while the application's connection pool is sized at 50 connections per pod with 3 replicas — 150 total connections required, exceeding the new limit of 100.</strong></p>
+
+          <p style="margin-top:10px;">The causal chain across all four layers:</p>
+
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">Causal chain — root cause to symptoms</span></div>
+            <pre><code class="block"><span class="cm"># Infrastructure layer (root cause)</span>
+Terraform apply: max_connections 200 → 100
+RDS rejects new connections above limit 100
+
+<span class="cm"># Application layer (first-order consequence)</span>
+Pool: size=50 × 3 replicas = 150 connections needed
+RDS accepts only 100 → 50 connections refused
+connection pool exhausted → pending=23 → payment failures
+
+<span class="cm"># Kubernetes layer (second-order consequence)</span>
+Pods hold open connections waiting for pool slots
+Pending connections accumulate → heap grows → OOMKilled
+OOMKilled pod restarts → new pod requests 50 connections
+→ exceeds limit again → cycle repeats
+
+<span class="cm"># Smoke test (false negative)</span>
+/health → 200 (process is alive)
+/ready  → 503 (database unavailable)
+Smoke test passed /health but /ready was 503 at 14:23:01
+→ The deployment was already degraded when smoke test ran</code></pre>
+          </div>
+
+          <p style="margin-top:10px;">The OOMKilled event is a consequence, not a cause — pods are holding pending connection attempts in memory until the kernel kills them. Increasing the memory limit would not fix the problem; it would only delay the kill. The <code>/ready: 503</code> in the application log at 14:23:01 is particularly significant: the smoke test from Example 9 checks both <code>/health</code> and <code>/ready</code>, but if it ran before 14:23:01 it may have caught the service in a window where <code>/ready</code> was still returning 200 before the connection pool fully exhausted.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Turn 2 -->
+    <div class="turn-nav" style="margin-top:28px;">
+      <span class="turn-nav-label">Turns</span>
+      <span class="turn-pip done">1</span><span class="turn-connector"></span>
+      <span class="turn-pip active">2</span><span class="turn-connector"></span>
+      <span class="turn-pip">3</span><span class="turn-connector"></span>
+      <span class="turn-pip">4</span><span class="turn-connector"></span>
+      <span class="turn-pip">5</span>
+    </div>
+
+    <div class="turn-label">Turn 2 of 5 — Immediate mitigation</div>
+    <div class="conversation">
+      <div class="conv-turn engineer">
+        <div class="conv-role">Engineer → Claude Code</div>
+        <div class="conv-body">
+          <p>Confirmed. The parameter group change was unintentional — it was in a PR that was meant to only update the deployment image tag. What do I do right now to restore service?</p>
+        </div>
+      </div>
+      <div class="conv-turn claude">
+        <div class="conv-role">Claude Code</div>
+        <div class="conv-body">
+          <p>Two parallel tracks — do both simultaneously:</p>
+          <p style="margin-top:10px;"><strong>Track 1: Restore <code>max_connections</code> immediately (fastest path)</strong></p>
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">Immediate mitigation — restore max_connections via AWS CLI</span><button class="code-copy" onclick="copyCode(this)">copy</button></div>
+            <pre><code class="block"><span class="cm"># Restore max_connections to 200 without waiting for a Terraform apply</span>
+<span class="fn">aws</span> rds modify-db-parameter-group \
+  --db-parameter-group-name payment-api-prod \
+  --parameters <span class="st">"ParameterName=max_connections,ParameterValue=200,ApplyMethod=immediate"</span>
+
+<span class="cm"># Verify the change was applied</span>
+<span class="fn">aws</span> rds describe-db-parameters \
+  --db-parameter-group-name payment-api-prod \
+  --query <span class="st">"Parameters[?ParameterName=='max_connections']"</span>
+
+<span class="cm"># Watch DatabaseConnections metric recover</span>
+<span class="fn">aws</span> cloudwatch get-metric-statistics \
+  --namespace AWS/RDS \
+  --metric-name DatabaseConnections \
+  --period 60 --statistics Average \
+  --start-time $(date -u -d '5 minutes ago' +%Y-%m-%dT%H:%M:%SZ) \
+  --end-time $(date -u +%Y-%m-%dT%H:%M:%SZ)</code></pre>
+          </div>
+          <p style="margin-top:10px;"><strong>Track 2: Restart pods to clear accumulated connection backlog</strong></p>
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">Restart pods after parameter group change</span><button class="code-copy" onclick="copyCode(this)">copy</button></div>
+            <pre><code class="block"><span class="cm"># Rolling restart — respects PDB from Example 7 (minAvailable: 2)</span>
+<span class="fn">kubectl</span> rollout restart deployment/payment-api -n payment
+
+<span class="cm"># Watch recovery</span>
+<span class="fn">kubectl</span> rollout status deployment/payment-api -n payment --timeout=180s</code></pre>
+          </div>
+          <p style="margin-top:8px;">The <code>ApplyMethod=immediate</code> flag applies the parameter change without requiring a DB reboot — <code>max_connections</code> is a dynamic parameter in PostgreSQL. New connections will be accepted as soon as the parameter propagates (typically under 60 seconds). The pod restart clears the accumulated pending connection state so the pool re-establishes cleanly against the restored limit.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Turn 3 -->
+    <div class="turn-nav" style="margin-top:28px;">
+      <span class="turn-nav-label">Turns</span>
+      <span class="turn-pip done">1</span><span class="turn-connector"></span>
+      <span class="turn-pip done">2</span><span class="turn-connector"></span>
+      <span class="turn-pip active">3</span><span class="turn-connector"></span>
+      <span class="turn-pip">4</span><span class="turn-connector"></span>
+      <span class="turn-pip">5</span>
+    </div>
+
+    <div class="turn-label">Turn 3 of 5 — Permanent fix: separate infrastructure and application changes</div>
+    <div class="conversation">
+      <div class="conv-turn engineer">
+        <div class="conv-role">Engineer → Claude Code</div>
+        <div class="conv-body">
+          <p>Service is recovering. Now — how do I prevent this from happening again? The PR that caused this was supposed to be a deployment-only change. The Terraform parameter group change was in the same PR by mistake.</p>
+        </div>
+      </div>
+      <div class="conv-turn claude">
+        <div class="conv-role">Claude Code</div>
+        <div class="conv-body">
+          <p>Three structural changes — each one addresses a different failure mode in the chain:</p>
+
+          <p style="margin-top:10px;"><strong>Fix 1: Separate CI/CD pipelines for infrastructure and application changes.</strong></p>
+          <p style="margin-top:6px;">The root architectural problem is that a single PR could contain both a Terraform change and a Kubernetes deployment change. These have different blast radii, different rollback mechanisms, and different approval requirements. Add a path filter to the pipeline from Example 5:</p>
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">.github/workflows/cicd.yml — add path filters</span><button class="code-copy" onclick="copyCode(this)">copy</button></div>
+            <pre><code class="block"><span class="kw">on:</span>
+  <span class="kw">push:</span>
+    <span class="kw">branches:</span> <span class="st">[ main ]</span>
+    <span class="kw">paths:</span>
+      - <span class="st">'k8s/**'</span>
+      - <span class="st">'Dockerfile'</span>
+      - <span class="st">'src/**'</span>
+      <span class="cm"># Explicitly exclude infra/ — a change there should trigger a separate workflow</span>
+
+<span class="cm"># Separate workflow: .github/workflows/infra.yml</span>
+<span class="kw">on:</span>
+  <span class="kw">push:</span>
+    <span class="kw">paths:</span>
+      - <span class="st">'infra/**'</span></code></pre>
+          </div>
+
+          <p style="margin-top:10px;"><strong>Fix 2: Add a connection budget validation to the Terraform RDS module.</strong></p>
+          <p style="margin-top:6px;">The module from Example 6 should validate that <code>max_connections</code> is at least twice the application's connection pool size. Add to <code>modules/rds/variables.tf</code>:</p>
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">modules/rds/variables.tf — add connection budget guard</span><button class="code-copy" onclick="copyCode(this)">copy</button></div>
+            <pre><code class="block"><span class="kw">variable</span> <span class="st">"max_connections"</span> {
+  <span class="kw">type</span>        = <span class="fn">number</span>
+  <span class="kw">description</span> = <span class="st">"PostgreSQL max_connections parameter. Must be >= 2x the application connection pool size."</span>
+  <span class="kw">default</span>     = <span class="nm">200</span>
+
+  <span class="kw">validation</span> {
+    <span class="kw">condition</span>     = <span class="kw">var</span>.max_connections >= <span class="nm">100</span>
+    <span class="kw">error_message</span> = <span class="st">"max_connections must be >= 100. Application pool is 50 per replica × 3 replicas minimum."</span>
+  }
+}</code></pre>
+          </div>
+
+          <p style="margin-top:10px;"><strong>Fix 3: Add <code>max_connections</code> to the smoke test verification.</strong></p>
+          <p style="margin-top:6px;">The smoke test from Example 9 checks <code>/health</code> and <code>/ready</code>. Add a connection pool check to the readiness probe itself in the application — or add a dedicated <code>/metrics</code> check to the smoke test that verifies the connection pool is not exhausted before the deployment is marked successful.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Turn 4 -->
+    <div class="turn-nav" style="margin-top:28px;">
+      <span class="turn-nav-label">Turns</span>
+      <span class="turn-pip done">1</span><span class="turn-connector"></span>
+      <span class="turn-pip done">2</span><span class="turn-connector"></span>
+      <span class="turn-pip done">3</span><span class="turn-connector"></span>
+      <span class="turn-pip active">4</span><span class="turn-connector"></span>
+      <span class="turn-pip">5</span>
+    </div>
+
+    <div class="turn-label">Turn 4 of 5 — Incident timeline and postmortem summary</div>
+    <div class="conversation">
+      <div class="conv-turn engineer">
+        <div class="conv-role">Engineer → Claude Code</div>
+        <div class="conv-body">
+          <p>Generate a structured incident timeline and five-line postmortem summary I can paste into our incident tracking system. Include the detection gap — the smoke test passed but the service was already degraded.</p>
+        </div>
+      </div>
+      <div class="conv-turn claude">
+        <div class="conv-role">Claude Code</div>
+        <div class="conv-body">
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">Incident timeline — payment-api 2026-03-15</span><button class="code-copy" onclick="copyCode(this)">copy</button></div>
+            <pre><code class="block">14:00  Deployment + Terraform apply initiated (same PR)
+14:02  New pods scheduled, image pull successful
+14:03  Terraform apply completes: max_connections 200 → 100
+14:04  New pods begin accepting connections — pool fills to 50/pod
+14:05  Smoke test runs: /health → 200, /ready → 200 (pool not yet exhausted)
+14:05  Pipeline reports green. Deployment marked successful.
+14:08  Connection pool reaches capacity (150 connections > 100 limit)
+14:10  /ready begins returning 503. Payment failures begin accumulating.
+14:12  First OOMKilled event (pod holding pending connections)
+14:20  PagerDuty alert fires: payment success rate 61%
+14:22  On-call engineer begins investigation
+14:31  Root cause identified (Terraform state diff)
+14:33  max_connections restored to 200 via AWS CLI
+14:35  Pods restarted (rolling restart, PDB respected)
+14:38  Payment success rate recovers to 99.2%
+14:45  Full recovery confirmed. Incident duration: 35 minutes.</code></pre>
+          </div>
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">Postmortem summary (5 lines)</span></div>
+            <pre><code class="block">A Terraform parameter group change (max_connections 200→100) was included
+in the same PR as a deployment image update. The reduced connection limit
+caused RDS to reject connections once the application pool exceeded 100,
+producing payment failures. The smoke test passed during a 3-minute window
+before pool exhaustion — creating a false-green deployment signal. Fix:
+separate infra and app pipelines; add connection budget validation to the
+RDS module; extend smoke test to verify connection pool health.</code></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Turn 5 -->
+    <div class="turn-nav" style="margin-top:28px;">
+      <span class="turn-nav-label">Turns</span>
+      <span class="turn-pip done">1</span><span class="turn-connector"></span>
+      <span class="turn-pip done">2</span><span class="turn-connector"></span>
+      <span class="turn-pip done">3</span><span class="turn-connector"></span>
+      <span class="turn-pip done">4</span><span class="turn-connector"></span>
+      <span class="turn-pip active">5</span>
+    </div>
+
+    <div class="turn-label">Turn 5 of 5 — Prevention rule added to Terraform module</div>
+    <div class="conversation">
+      <div class="conv-turn engineer">
+        <div class="conv-role">Engineer → Claude Code</div>
+        <div class="conv-body">
+          <p>Add a <code>lifecycle</code> rule to the RDS parameter group resource in the module that prevents any change to <code>max_connections</code> from being applied without explicit approval — similar to how we handle <code>deletion_protection</code> in Example 6. Should this be a Terraform <code>prevent_destroy</code>, an external approval gate, or something else?</p>
+        </div>
+      </div>
+      <div class="conv-turn claude">
+        <div class="conv-role">Claude Code</div>
+        <div class="conv-body">
+          <p>Neither <code>prevent_destroy</code> nor a lifecycle rule is the right mechanism here. <code>prevent_destroy</code> prevents the resource from being deleted, not changed. There is no Terraform-native lifecycle rule that blocks specific parameter changes — lifecycle rules only control create/destroy behaviour, not field-level updates.</p>
+          <p style="margin-top:10px;">The correct mechanism is a combination of two things:</p>
+          <p style="margin-top:10px;"><strong>1. Separate the parameter group from the main RDS module apply.</strong> Move the parameter group into its own Terraform resource with a separate state key, so it cannot be changed in the same apply as anything else. Changes to it require a dedicated plan and apply cycle with explicit review:</p>
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">infra/rds-params/main.tf — isolated parameter group</span><button class="code-copy" onclick="copyCode(this)">copy</button></div>
+            <pre><code class="block"><span class="cm"># Separate state from the main RDS module.
+# Any change here requires: terraform plan -target=aws_db_parameter_group.payment_api
+# followed by explicit approval before apply.</span>
+<span class="kw">resource</span> <span class="st">"aws_db_parameter_group"</span> <span class="st">"payment_api"</span> {
+  <span class="kw">name</span>   = <span class="st">"payment-api-${var.environment}"</span>
+  <span class="kw">family</span> = <span class="st">"postgres15"</span>
+
+  <span class="kw">parameter</span> {
+    <span class="kw">name</span>         = <span class="st">"max_connections"</span>
+    <span class="kw">value</span>        = <span class="kw">var</span>.max_connections
+    <span class="kw">apply_method</span> = <span class="st">"immediate"</span>
+  }
+
+  <span class="kw">lifecycle</span> {
+    <span class="cm"># Changing the parameter group family requires replacement — prevent accidental destroy</span>
+    <span class="kw">prevent_destroy</span> = <span class="nm">true</span>
+  }
+}</code></pre>
+          </div>
+          <p style="margin-top:10px;"><strong>2. Add a pre-plan check in CI that flags <code>max_connections</code> changes.</strong></p>
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">.github/workflows/infra.yml — flag max_connections changes</span><button class="code-copy" onclick="copyCode(this)">copy</button></div>
+            <pre><code class="block"><span class="kw">- name:</span> <span class="st">Check for max_connections changes</span>
+  <span class="kw">run:</span> |
+    <span class="kw">if</span> terraform plan -out=tfplan && terraform show -json tfplan | \
+      jq -e <span class="st">'.resource_changes[] | select(.change.actions[] == "update") |
+        select(.change.before.parameter[].value != .change.after.parameter[].value) |
+        select(.change.before.parameter[].name == "max_connections")'</span> > /dev/null; <span class="kw">then</span>
+      <span class="fn">echo</span> <span class="st">"::warning::max_connections is changing in this plan. Review connection budget before applying."</span>
+      <span class="fn">echo</span> <span class="st">"Application pool: 50 connections/pod × 3 replicas minimum = 150 connections required"</span>
+    <span class="kw">fi</span></code></pre>
+          </div>
+          <p style="margin-top:8px;">This CI check does not block the plan — it emits a warning annotation on the PR that the reviewer must acknowledge. Blocking the apply on a warning creates friction for legitimate changes; a visible warning with documented context creates friction only for unreviewed changes.</p>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ══ STEP 4 ══ -->
+  <section class="step-section" id="step-4">
+    <div class="step-header">
+      <div class="step-number">4</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 4 of 5</div>
+        <div class="step-title">The refined output</div>
+      </div>
+    </div>
+
+    <p class="prose">
+      Tier 3 examples do not produce a primary code artifact — they produce a diagnosis, a set of targeted fixes, and a prevention rule. The refined output is the causal chain and the structural changes that prevent recurrence.
+    </p>
+
+    <div class="finding-chain">
+      <div class="finding-chain-label">Root cause chain — infrastructure to symptoms</div>
+
+      <div class="fc-row">
+        <span class="fc-layer">Infrastructure</span>
+        <span class="fc-arrow">→</span>
+        <div class="fc-desc"><strong>Terraform apply reduces <code>max_connections</code> from 200 to 100.</strong> This is the causal event. It is in the same PR as the deployment image update — neither the engineer nor the reviewer noticed it because the deployment change was the intended focus of the PR review.</div>
+      </div>
+
+      <div class="fc-row">
+        <span class="fc-layer">Application</span>
+        <span class="fc-arrow">→</span>
+        <div class="fc-desc"><strong>Connection pool exhausted.</strong> The application has a pool of 50 connections per pod, 3 replicas = 150 total. RDS now accepts only 100. The 50 excess connections are refused. The pool fills to capacity, then requests queue as pending. Payment transactions fail when the queue timeout is reached.</div>
+      </div>
+
+      <div class="fc-row">
+        <span class="fc-layer">Kubernetes</span>
+        <span class="fc-arrow">→</span>
+        <div class="fc-desc"><strong>OOMKilled is a second-order consequence.</strong> Pods accumulate in-memory connection state for pending requests. Heap grows. Memory limit (768Mi from Example 7) is reached. Kernel kills the pod. New pod starts — requests 50 connections — exceeds limit again — cycle repeats. Increasing the memory limit would delay but not prevent the kill cycle.</div>
+      </div>
+
+      <div class="fc-row">
+        <span class="fc-layer">Detection gap</span>
+        <span class="fc-arrow">→</span>
+        <div class="fc-desc"><strong>Smoke test passed during a 3-minute false window.</strong> The smoke test ran at 14:05, before connection pool exhaustion. <code>/health</code> returned 200 (process alive), <code>/ready</code> returned 200 (pool not yet full). By 14:10, <code>/ready</code> was returning 503. The deployment was already degraded before the detection signal fired. This gap motivates the connection pool health check addition to the smoke test.</div>
+      </div>
+    </div>
+
+    <p class="prose">Three structural fixes resulted from the RCA, each closing a different gap:</p>
+
+    <ul class="annotation-list">
+      <li>
+        <span class="ann-badge ann-good">Prevention</span>
+        <div><strong>Path-filtered CI/CD pipelines</strong> prevent infrastructure and application changes from being deployed in a single pipeline run. The blast radius of each change type is now scoped independently.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-good">Prevention</span>
+        <div><strong>Connection budget validation in the Terraform module</strong> catches <code>max_connections</code> values that are below the application's minimum at plan time, before the change reaches the cluster.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-good">Prevention</span>
+        <div><strong>Connection pool health check in the smoke test</strong> closes the 3-minute detection gap by verifying that the connection pool has capacity before marking the deployment successful.</div>
+      </li>
+    </ul>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ══ STEP 5 ══ -->
+  <section class="step-section" id="step-5">
+    <div class="step-header">
+      <div class="step-number">5</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 5 of 5</div>
+        <div class="step-title">Watch out</div>
+      </div>
+    </div>
+
+    <p class="prose">Claude Code produced a correct cross-layer RCA from a single evidence dump, correct immediate mitigation steps, and structurally sound prevention rules. Here is what it cannot verify without your specific environment.</p>
+
+    <div class="callout good">
+      <div class="callout-label">What Claude Code handled well</div>
+      Cross-layer causal chain identified from simultaneous evidence in Turn 1 (not sequential), OOMKilled correctly identified as a consequence not a cause, smoke test detection gap identified from the 14:23:01 log line, <code>ApplyMethod=immediate</code> specified correctly for a dynamic PostgreSQL parameter, <code>prevent_destroy</code> correctly rejected for field-level change prevention with the correct alternative explanation, connection budget arithmetic (50 × 3 = 150 > 100) derived from evidence without being stated explicitly.
+    </div>
+
+    <ul class="annotation-list" style="margin-top:24px;">
+      <li>
+        <span class="ann-badge ann-warn">Verify</span>
+        <div><strong><code>max_connections</code> is dynamic in PostgreSQL but not in all RDS engine versions.</strong> The mitigation uses <code>ApplyMethod=immediate</code>, which works for dynamic parameters. In PostgreSQL on RDS, <code>max_connections</code> is static by default — it requires a DB reboot to take effect. Verify with: <code>aws rds describe-db-parameters --db-parameter-group-name payment-api-prod --query "Parameters[?ParameterName=='max_connections'].IsModifiable"</code>. If the parameter requires a reboot, <code>ApplyMethod=pending-reboot</code> is required and the connection limit will not be restored until the RDS instance restarts.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Verify</span>
+        <div><strong>The connection pool size assumption (50 per pod) must be verified.</strong> Claude Code derived 50 connections per pod from the log line <code>Pool size 50, active 50, idle 0, pending 23</code>. This is the runtime pool size — but the configured pool size (in the application's database configuration) may differ from the runtime observation, particularly if the pool had not yet reached its configured maximum. Check the application's <code>DATABASE_POOL_SIZE</code> or equivalent environment variable before using 50 as the baseline for the connection budget validation.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Verify</span>
+        <div><strong>The CI check's <code>jq</code> filter for <code>max_connections</code> changes is approximate.</strong> The <code>jq</code> expression in Turn 5 filters parameter group changes by comparing before/after values for parameters named <code>max_connections</code>. The exact JSON structure of <code>terraform show -json</code> output varies between Terraform versions and provider releases. Validate the filter against a test plan output before relying on it in CI.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-info">Note</span>
+        <div><strong>This incident demonstrates the value of cross-layer evidence in Turn 1.</strong> The diagnosis was complete in a single turn because all four evidence layers were provided simultaneously. Had the engineer provided only the application logs first, the initial hypothesis would have been "database is down" — which is incorrect. The Terraform state diff is the evidence that converts an incorrect hypothesis into a correct root cause. In real incidents, the temptation is to provide evidence as it is gathered — this example is designed to counter that instinct.</div>
+      </li>
+    </ul>
+
+    <div class="callout tip">
+      <div class="callout-label">Prompting tip for cross-layer RCA</div>
+      <strong>Provide all evidence layers in the first turn, not sequentially.</strong> Sequential evidence provision mirrors sequential investigation — it forces Claude Code to form and then revise hypotheses one layer at a time, which is the same mistake as the naive investigation approach. A single evidence dump with all layers simultaneously lets Claude Code read the signals as a connected system. The richer the evidence in Turn 1, the more precise the diagnosis — sparse evidence produces hedged hypotheses; complete evidence produces confident causal chains.
+    </div>
+  </section>
+
+  <div class="bottom-nav">
+    <a class="nav-btn secondary" href="example-9-python-automation.html">← Example 9 — Python automation</a>
+    <a class="nav-btn" href="example-11-pipeline-triage.html">Example 11 — Pipeline performance triage →</a>
+  </div>
+
+</div>
+
+<footer>
+  <span>AIOps &amp; DevOps Learning Path · SourceFuse L&amp;D</span>
+  <span>Example 10 of 13 · Tier 3 · Cross-layer RCA</span>
+</footer>
+
+<script>
+  const sections = document.querySelectorAll('.step-section');
+  const navItems = document.querySelectorAll('.stepnav-item');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const id = entry.target.id;
+        navItems.forEach(item => {
+          item.classList.toggle('active', item.getAttribute('href') === '#' + id);
+        });
+      }
+    });
+  }, { rootMargin:'-30% 0px -60% 0px', threshold:0 });
+  sections.forEach(s => observer.observe(s));
+
+  function copyCode(btn) {
+    const pre = btn.closest('.code-wrap').querySelector('pre');
+    navigator.clipboard.writeText(pre.innerText).then(() => {
+      btn.textContent = 'copied!';
+      setTimeout(() => btn.textContent = 'copy', 2000);
+    });
+  }
+</script>
+</body>
+</html>
