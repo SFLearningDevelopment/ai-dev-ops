@@ -198,6 +198,25 @@ The Service, HPA, PDB, topology spread constraints, and Deployment pod template 
 
 ---
 
+#### Example 8 — Argo CD application promotion flow
+
+**Naive approach failure mode: automation without guardrails is worse than manual deployment.**
+The naive Argo CD setup has `prune: true` and `selfHeal: true` on the prod Application, with `targetRevision: main`. This gives Git unlimited write authority over the production cluster with no human checkpoint. A wrong commit, a refactored directory, or an accidental file deletion becomes a prod incident — and the `selfHeal` flag means even a manual emergency rollback via `kubectl` is immediately reverted. The Step 2 `warn` callout articulates this precisely: "True GitOps for prod requires automation with guardrails, not automation without limits." This is the most consequential failure mode in any Tier 2 example — the naive approach is actively more dangerous than no automation at all.
+
+**Turn 1: the conditional `automated` block is the most architecturally significant decision.**
+The ApplicationSet template uses a Go template conditional `{{#if (eq autoSync "true")}}` to omit the `automated` block entirely for prod — not just set it to empty. This is correct: an `automated: {}` block with no flags still enables auto-sync with defaults in some Argo CD versions. The only safe way to disable auto-sync in an ApplicationSet template is to omit the block. Claude Code chose this without being prompted, and explained why in the response. This is a non-obvious Argo CD behaviour that is not clearly documented and has caused production incidents where teams believed auto-sync was disabled but the empty block was still triggering syncs.
+
+**Turn 2: the `PLACEHOLDER` tag in the prod overlay is an intentional fail-safe.**
+The prod overlay's `newTag: PLACEHOLDER` is not a documentation placeholder — it is a deployment-time guard. The string `PLACEHOLDER` is not a valid image tag; any attempt to apply the prod overlay without running the promotion script first will fail at the image pull step with a recognisable error. This pattern converts a process requirement (always run the promotion script) into a technical enforcement mechanism. The course explains this explicitly in the Turn 2 response, making the intent visible to anyone who reads the file.
+
+**Turn 4: two-issue diagnosis from a single Argo CD status JSON.**
+The status output shows both a `ComparisonError` (HPA `autoscaling/v2` not supported on the cluster version) and a `Degraded` health message (Deployment minimum pods not available). Claude Code correctly identifies that these are two connected issues — not two independent problems. The HPA API version incompatibility causes the HPA not to be applied, which causes the Deployment to be unable to reach its desired replica count, which causes the Degraded health. Naming the causal chain — not just listing two errors — is what distinguishes the diagnosis from a list of symptoms. The recommendation to verify the prod cluster version before the prod promotion (made at the end of Turn 4) is the kind of forward-looking advice an experienced SRE gives after a staging incident.
+
+**Turn 5: the `REGISTRY` placeholder audit flags the one deployment prerequisite.**
+The overlay audit is clean across all three structural checks. The only finding is the `REGISTRY` placeholder — not a structural problem but a deployment prerequisite. Claude Code flags it with the specific failure mode: Kustomize matches image names exactly, and a partial match silently skips the override. The word "silently" is the key: the promotion would appear to succeed, Argo CD would sync, and the cluster would continue running the old image. This is the same category of failure as the Example 5 container name alignment issue — a silent mismatch that produces no error but does the wrong thing.
+
+---
+
 ## 4. Callout taxonomy
 
 The course uses four callout types. Each has a specific pedagogical purpose. They are not used interchangeably.
