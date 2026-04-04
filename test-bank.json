@@ -1,0 +1,604 @@
+{
+  "meta": {
+    "course": "Practical Usage of Claude Code for DevOps Automation",
+    "module": 1,
+    "version": "2026-03-15",
+    "total_questions": 42,
+    "note": "Question count per example is calibrated to what the example teaches, not a fixed quota. reviewer_featured marks the one question surfaced on the reviewer page for that source."
+  },
+  "questions": [
+
+    {
+      "id": "D1-1",
+      "source": "diagram-1",
+      "type": "mcq",
+      "reviewer_featured": true,
+      "question": "According to the participation model diagram, which of the following is an INPUT stream that Claude Code draws from — not an output it produces?",
+      "options": {
+        "A": "A generated Dockerfile",
+        "B": "Infrastructure state",
+        "C": "A refactored shell script",
+        "D": "A Kubernetes manifest"
+      },
+      "correct": "B",
+      "explanation": "The participation model identifies four input streams: repo context, runtime signals, infrastructure state, and policy context. Dockerfiles, scripts, and manifests are outputs Claude Code produces, not inputs it reads."
+    },
+    {
+      "id": "D1-2",
+      "source": "diagram-1",
+      "type": "true_false",
+      "reviewer_featured": false,
+      "question": "In the participation model, 'runtime signals' refers only to application log output — not to error messages from CI tools or kubectl.",
+      "correct": false,
+      "explanation": "Runtime signals include any output from the running system: application logs, CI job output, kubectl error messages, scan results. The participation model treats all of these as signals Claude Code can correlate against code it produced."
+    },
+    {
+      "id": "D2-1",
+      "source": "diagram-2",
+      "type": "mcq",
+      "reviewer_featured": false,
+      "question": "The pipeline integration model places Claude Code's participation at which stages of the DevOps pipeline?",
+      "options": {
+        "A": "Code and Build stages only",
+        "B": "Plan and Deploy stages only",
+        "C": "Every stage from Code through Operate",
+        "D": "Build and Test stages only"
+      },
+      "correct": "C",
+      "explanation": "The pipeline integration model shows Claude Code participating at every stage — Code, Plan, Build, Test, Deploy, and Operate. This is the core claim of the course: Claude Code is a contextual participant across the full pipeline, not a one-stage code generator."
+    },
+    {
+      "id": "D2-2",
+      "source": "diagram-2",
+      "type": "true_false",
+      "reviewer_featured": true,
+      "question": "According to the pipeline integration model, the Deploy stage is where Claude Code's participation is most limited because deployment is fully automated and requires no contextual reasoning.",
+      "correct": false,
+      "explanation": "The pipeline integration model shows Claude Code participating meaningfully at the Deploy stage — correlating deployment events with runtime signals, identifying rollback conditions, and reasoning about deployment health. The shell script (Example 4) and rollback script (Example 5) both demonstrate Deploy-stage participation."
+    },
+    {
+      "id": "D2-3",
+      "source": "diagram-2",
+      "type": "mcq",
+      "reviewer_featured": false,
+      "question": "Which Tier 1 example corresponds to the Plan stage of the pipeline integration model?",
+      "options": {
+        "A": "Example 1 — Dockerfile",
+        "B": "Example 2 — Terraform variables.tf",
+        "C": "Example 3 — GitHub Actions pipeline",
+        "D": "Example 4 — Shell script"
+      },
+      "correct": "B",
+      "explanation": "The variables.tf example maps to the Plan stage — it defines the interface for infrastructure that will be planned and applied. The Dockerfile maps to Code, GitHub Actions to Build/Test, and the shell script to Deploy."
+    },
+
+    {
+      "id": "E1-1",
+      "source": "example-1",
+      "type": "mcq",
+      "reviewer_featured": true,
+      "question": "In Example 1, Claude Code added `dumb-init` to the Dockerfile without being asked. What operational problem does `dumb-init` solve?",
+      "options": {
+        "A": "It reduces the Docker image size by removing unnecessary OS packages",
+        "B": "It ensures the Node.js process handles SIGTERM correctly when Kubernetes drains a pod",
+        "C": "It prevents the container from running as root",
+        "D": "It enables layer caching during the Docker build"
+      },
+      "correct": "B",
+      "explanation": "A Node.js process running as PID 1 without an init system does not handle SIGTERM gracefully. When Kubernetes drains a pod, it sends SIGTERM — without dumb-init, the process ignores it and is forcibly killed. dumb-init acts as a minimal init system that forwards signals correctly."
+    },
+    {
+      "id": "E1-2",
+      "source": "example-1",
+      "type": "true_false",
+      "reviewer_featured": false,
+      "question": "In the naive Dockerfile from Example 1, copying the full application directory before running `npm install` is a security problem.",
+      "correct": false,
+      "explanation": "Copying the full directory before `npm install` is a cache efficiency problem, not a security problem. It means any code change invalidates the npm install cache layer, forcing a full reinstall on every build. The security problems in the naive Dockerfile are running as root and using `node:latest`."
+    },
+    {
+      "id": "E1-3",
+      "source": "example-1",
+      "type": "mcq",
+      "reviewer_featured": false,
+      "question": "When the `readOnlyRootFilesystem` constraint was introduced in Example 1 Turn 3, Claude Code's solution was to modify the Dockerfile. Is this correct?",
+      "options": {
+        "A": "Yes — the Dockerfile needed a VOLUME instruction to create a writable directory",
+        "B": "No — Claude Code produced a Kubernetes emptyDir volume mount, not a Dockerfile change",
+        "C": "Yes — the Dockerfile needed a RUN chmod command to make /app/logs writable",
+        "D": "No — Claude Code advised disabling readOnlyRootFilesystem as it is incompatible with Node.js"
+      },
+      "correct": "B",
+      "explanation": "The readOnlyRootFilesystem constraint is a Kubernetes-layer requirement and must be satisfied at the Kubernetes layer — via an emptyDir volume mount on /app/logs. A Dockerfile change cannot satisfy a Kubernetes security context constraint. This is one of the key lessons of Example 1: constraints at the cluster layer are solved at the cluster layer."
+    },
+
+    {
+      "id": "E2-1",
+      "source": "example-2",
+      "type": "mcq",
+      "reviewer_featured": true,
+      "question": "In Example 2, Claude Code marked the `password` variable as `sensitive = true` and immediately noted a limitation. What was that limitation?",
+      "options": {
+        "A": "Sensitive variables cannot have default values in Terraform",
+        "B": "Sensitive variables are encrypted at rest in the state file",
+        "C": "Marking a variable sensitive suppresses it from plan output but does not encrypt it in the state file",
+        "D": "Sensitive variables require a minimum length validation rule"
+      },
+      "correct": "C",
+      "explanation": "`sensitive = true` suppresses the variable's value from `terraform plan` and `terraform apply` output — it will not appear in logs. However, the value is still stored in plaintext in the Terraform state file. Engineers who believe `sensitive = true` secures the state backend are mistaken."
+    },
+    {
+      "id": "E2-2",
+      "source": "example-2",
+      "type": "true_false",
+      "reviewer_featured": false,
+      "question": "The cross-variable validation introduced in Example 2 (referencing `var.allocated_storage` inside another variable's validation block) works in all versions of Terraform.",
+      "correct": false,
+      "explanation": "Cross-variable references in validation blocks require Terraform ≥ 1.3. In earlier versions, validation blocks can only reference the variable being validated. Claude Code flagged this version requirement and provided the `precondition` block alternative for teams on older versions."
+    },
+    {
+      "id": "E2-3",
+      "source": "example-2",
+      "type": "mcq",
+      "reviewer_featured": false,
+      "question": "In Example 2 Turn 3, the engineer shared an existing module file and Claude Code inferred four naming conventions. Which of the following was NOT one of the inferred conventions?",
+      "options": {
+        "A": "Required variables are declared before optional ones",
+        "B": "Variable descriptions end with a period",
+        "C": "Variables are sorted alphabetically by name",
+        "D": "Attribute ordering follows: type, description, sensitive, default, validation"
+      },
+      "correct": "C",
+      "explanation": "The four inferred conventions were: required before optional ordering, descriptions ending with a period, a specific attribute ordering (type → description → sensitive → default → validation), and section comment headers. Alphabetical sorting was not one of them."
+    },
+
+    {
+      "id": "E3-1",
+      "source": "example-3",
+      "type": "mcq",
+      "reviewer_featured": true,
+      "question": "In Example 3 Turn 2, the GitHub Actions OIDC configuration failed with 'Resource not accessible by integration'. What was the root cause?",
+      "options": {
+        "A": "The AWS IAM role trust policy did not include the GitHub OIDC provider",
+        "B": "The `id-token: write` permission was declared at the workflow level but not at the job level, and GitHub requires job-level declaration when any permissions block is present",
+        "C": "The `AWS_ROLE_ARN` secret was not set in the repository settings",
+        "D": "The `configure-aws-credentials` action version was incompatible with OIDC"
+      },
+      "correct": "B",
+      "explanation": "When any `permissions` block is declared at the workflow level, child jobs that need additional permissions must declare them explicitly — they do not inherit. The `build-push` job needed `id-token: write` at the job level to request an OIDC token. This behaviour was tightened in 2023 and is one of the most common OIDC setup failures."
+    },
+    {
+      "id": "E3-2",
+      "source": "example-3",
+      "type": "true_false",
+      "reviewer_featured": false,
+      "question": "In Example 3, setting `max-parallel: 1` on the matrix strategy means the workflow only tests one Node.js version, skipping the other.",
+      "correct": false,
+      "explanation": "`max-parallel: 1` does not skip matrix jobs — it serialises them. Both Node 18 and Node 20 are tested, but sequentially rather than in parallel. This doubles the test stage wall time, which is the problem identified in Example 11."
+    },
+    {
+      "id": "E3-3",
+      "source": "example-3",
+      "type": "mcq",
+      "reviewer_featured": false,
+      "question": "In Example 3 Turn 3, the `fromJSON()` function was used in the workflow. What problem does it solve?",
+      "options": {
+        "A": "It parses the AWS credentials JSON response from the OIDC provider",
+        "B": "It converts a JSON-encoded string input from `workflow_call` into an array the matrix strategy can iterate",
+        "C": "It decodes the base64-encoded Docker image digest from ECR",
+        "D": "It parses the Trivy scan report JSON output"
+      },
+      "correct": "B",
+      "explanation": "The `workflow_call` trigger only supports string, boolean, and number input types — not arrays. To pass a list of Node.js versions as an input, it must be encoded as a JSON string. `fromJSON()` converts that string back into an array that the matrix strategy can iterate."
+    },
+
+    {
+      "id": "E4-1",
+      "source": "example-4",
+      "type": "mcq",
+      "reviewer_featured": true,
+      "question": "The naive shell script in Example 4 exits with code 0 even when the deployment is unhealthy. Which of the following is the PRIMARY mechanism that allows this to happen?",
+      "options": {
+        "A": "The script uses `curl` which always returns exit code 0",
+        "B": "The script lacks `set -e` so it continues executing after command failures and always reaches the final `echo` which exits 0",
+        "C": "The script has a syntax error that prevents it from checking the exit code",
+        "D": "Kubernetes `rollout status` always returns 0 regardless of deployment health"
+      },
+      "correct": "B",
+      "explanation": "Without `set -e`, a failing command does not abort the script. The `kubectl rollout status` can time out, curl can fail, and the script continues executing, reaching `echo 'Deployment check complete'` which exits 0. The absence of `set -euo pipefail` is the root cause of the false-confidence failure mode."
+    },
+    {
+      "id": "E4-2",
+      "source": "example-4",
+      "type": "true_false",
+      "reviewer_featured": false,
+      "question": "In Example 4 Turn 2, the Bash 3.2 arithmetic comparison bug was fixed by rewriting the entire argument validation section.",
+      "correct": false,
+      "explanation": "The fix was targeted: the mixed `[[ ]] || [[ -eq ]]` construct was split into a regex check (which works in Bash 3.2) followed by a `(( ))` arithmetic context comparison (which also works in Bash 3.2). Claude Code did not rewrite the entire section — it made the minimum change needed to fix the specific incompatibility."
+    },
+    {
+      "id": "E4-3",
+      "source": "example-4",
+      "type": "mcq",
+      "reviewer_featured": false,
+      "question": "In Example 4, why does `(( attempt++ )) || true` need the `|| true` suffix when used under `set -e`?",
+      "options": {
+        "A": "Because `++` is not a valid operator in Bash without `|| true`",
+        "B": "Because arithmetic expressions in `(( ))` exit with status 1 when the result is 0, which would trigger `set -e` and abort the script",
+        "C": "Because `|| true` resets the attempt counter to zero after each iteration",
+        "D": "Because `set -e` prevents the use of arithmetic expressions entirely"
+      },
+      "correct": "B",
+      "explanation": "Arithmetic expressions in `(( ))` return exit status 1 when the result evaluates to 0 (falsy). If `attempt` ever produces a 0 result after increment, `set -e` would treat it as a failed command and abort the script. `|| true` suppresses this — it is the standard idiom for safe arithmetic increment under `set -e`."
+    },
+
+    {
+      "id": "E5-1",
+      "source": "example-5",
+      "type": "mcq",
+      "reviewer_featured": true,
+      "question": "In Example 5, the Trivy scan artifact upload uses `if: always()`. Why is this condition important?",
+      "options": {
+        "A": "It ensures the artifact is uploaded on every push, not just on main branch",
+        "B": "It uploads the scan report even when the scan fails and blocks the pipeline, preserving the evidence for why the pipeline was blocked",
+        "C": "It prevents the scan from being skipped when the cache is cold",
+        "D": "It allows the artifact to be downloaded by all team members regardless of permissions"
+      },
+      "correct": "B",
+      "explanation": "When the Trivy scan finds a CRITICAL vulnerability and exits 1, the job fails. Without `if: always()`, the upload step would be skipped because the preceding step failed. The scan report is the evidence for why the pipeline was blocked — losing it on failure defeats the audit purpose."
+    },
+    {
+      "id": "E5-2",
+      "source": "example-5",
+      "type": "true_false",
+      "reviewer_featured": false,
+      "question": "In Example 5, `provenance: false` was set on the ECR push step as a security measure to prevent image provenance data from being stored in ECR.",
+      "correct": false,
+      "explanation": "`provenance: false` was set for a technical compatibility reason, not security. Docker Build Push Action v5 enables provenance attestations by default, which creates multi-platform image manifests. ECR handles these inconsistently, making the `digest` output unreliable. Disabling provenance produces a clean single-manifest image with a reliable digest that the deploy job can reference."
+    },
+    {
+      "id": "E5-3",
+      "source": "example-5",
+      "type": "mcq",
+      "reviewer_featured": false,
+      "question": "In Example 5 Turn 4, the rollout failure showed `Exit Code: 137`. What does this indicate?",
+      "options": {
+        "A": "The application crashed due to an unhandled exception",
+        "B": "The container was killed by the kernel OOM killer because it exceeded its memory limit",
+        "C": "The deployment timed out waiting for pods to become ready",
+        "D": "The container failed its liveness probe three consecutive times"
+      },
+      "correct": "B",
+      "explanation": "Exit code 137 = 128 + 9 (SIGKILL). The kernel OOM killer sends SIGKILL to a process that exceeds its memory limit. This is distinct from a CrashLoopBackOff caused by an application bug — the process was killed externally, not by an internal error."
+    },
+    {
+      "id": "E5-4",
+      "source": "example-5",
+      "type": "true_false",
+      "reviewer_featured": false,
+      "question": "In Example 5, the deploy job constructs the image URI itself using the ECR registry URL and the git SHA, independent of what the push job produced.",
+      "correct": false,
+      "explanation": "The image URI flows from the push job to the deploy job via `needs.push.outputs.image-uri`. The deploy job never re-derives the URI — it receives it as a job output. This ensures the deployed image is exactly what was scanned and approved, not a re-derived URI that could drift if tag naming logic changes."
+    },
+
+    {
+      "id": "E6-1",
+      "source": "example-6",
+      "type": "mcq",
+      "reviewer_featured": true,
+      "question": "In Example 6, the `backend.tf` file is committed to the repository without a `key` value. How is the correct state key provided at runtime?",
+      "options": {
+        "A": "Via a `TF_VAR_key` environment variable set in the CI pipeline",
+        "B": "Via `-backend-config=\"key=payment-api/dev/terraform.tfstate\"` at `terraform init` time",
+        "C": "Via a separate `backend-override.tf` file that is generated by the CI pipeline",
+        "D": "Via the `terraform.tfvars` file in the environments directory"
+      },
+      "correct": "B",
+      "explanation": "The backend key is injected via `-backend-config` at `terraform init` time. This means the same committed `backend.tf` serves all three environments — the environment is never hardcoded in version control. The CI pipeline injects the correct key based on the target environment."
+    },
+    {
+      "id": "E6-2",
+      "source": "example-6",
+      "type": "true_false",
+      "reviewer_featured": false,
+      "question": "In Example 6, the `prevent_destroy` lifecycle rule was used to prevent accidental deletion of the production RDS instance.",
+      "correct": false,
+      "explanation": "Claude Code explicitly rejected `prevent_destroy` for this purpose. `prevent_destroy` is a Terraform client-side guard — it can be bypassed by removing the lifecycle block before running destroy. Instead, `deletion_protection = true` on the RDS instance was used, which is an AWS API-level guard that rejects deletion requests regardless of what the Terraform configuration says."
+    },
+    {
+      "id": "E6-3",
+      "source": "example-6",
+      "type": "mcq",
+      "reviewer_featured": false,
+      "question": "In Example 6 Turn 4, `terraform init` failed because the S3 bucket did not exist. Why could Terraform not create the bucket itself as part of the init?",
+      "options": {
+        "A": "Terraform does not have permission to create S3 buckets",
+        "B": "The backend bucket must already exist before `terraform init` can configure the backend — Terraform cannot use the backend to create the backend's own prerequisites",
+        "C": "S3 bucket creation requires a separate Terraform workspace",
+        "D": "The AWS CLI must be used for all S3 operations in the ap-south-1 region"
+      },
+      "correct": "B",
+      "explanation": "This is the classic chicken-and-egg problem with remote state backends. Terraform cannot initialise the backend until the backend resources exist, but you cannot use Terraform (which requires the backend) to create those resources. The bootstrap script solves this by creating the S3 bucket and DynamoDB table with the AWS CLI directly, before Terraform is initialised."
+    },
+
+    {
+      "id": "E7-1",
+      "source": "example-7",
+      "type": "mcq",
+      "reviewer_featured": true,
+      "question": "In Example 7, the PDB used `minAvailable: 2` rather than `maxUnavailable: 1`. Why does this choice matter when the HPA scales the deployment to 10 replicas?",
+      "options": {
+        "A": "At 10 replicas, `maxUnavailable: 1` would allow 9 pods to be evicted simultaneously",
+        "B": "At 10 replicas, `maxUnavailable: 1` would still only allow 1 pod to be evicted at a time, making node drains very slow; `minAvailable: 2` allows 8 simultaneous evictions",
+        "C": "At 10 replicas, `minAvailable: 2` prevents the HPA from scaling below 2 replicas",
+        "D": "`maxUnavailable: 1` is not supported by Kubernetes when HPA is enabled"
+      },
+      "correct": "B",
+      "explanation": "`maxUnavailable: 1` means at most 1 pod may be unavailable at any time — regardless of how many replicas are running. At 10 replicas, this serialises node drains one pod at a time. `minAvailable: 2` is an absolute floor: at 10 replicas, 8 pods can be evicted simultaneously. Node maintenance proceeds much faster during high-traffic periods."
+    },
+    {
+      "id": "E7-2",
+      "source": "example-7",
+      "type": "true_false",
+      "reviewer_featured": false,
+      "question": "In Example 7, the `DoNotSchedule` topology spread constraint guarantees that pods are always evenly distributed across availability zones.",
+      "correct": false,
+      "explanation": "`DoNotSchedule` enforces a hard constraint: pods will not be scheduled if doing so would violate `maxSkew: 1`. It guarantees the skew never exceeds 1 — but it does not guarantee perfectly even distribution. If a zone has fewer available nodes, the scheduler will leave pods in Pending rather than violate the constraint."
+    },
+    {
+      "id": "E7-3",
+      "source": "example-7",
+      "type": "mcq",
+      "reviewer_featured": false,
+      "question": "In Example 7 Turn 4, the HPA showed `<unknown>` for current metrics. What was the root cause and how was it verified?",
+      "options": {
+        "A": "The HPA was misconfigured — verified by checking the HPA YAML for syntax errors",
+        "B": "The metrics-server was not installed — verified by `kubectl top pods` returning an error",
+        "C": "The Deployment had no resource requests set — verified by checking the deployment manifest",
+        "D": "The HPA was targeting the wrong deployment — verified by checking `scaleTargetRef`"
+      },
+      "correct": "B",
+      "explanation": "The error `the server could not find the requested resource (get pods.metrics.k8s.io)` confirms the metrics.k8s.io API is not registered, meaning metrics-server is not installed. `kubectl top pods` returning `Metrics API not available` independently confirmed the same thing."
+    },
+
+    {
+      "id": "E8-1",
+      "source": "example-8",
+      "type": "mcq",
+      "reviewer_featured": true,
+      "question": "In Example 8, the prod Application in the ApplicationSet had `automated` omitted entirely rather than set to an empty block. Why does this distinction matter?",
+      "options": {
+        "A": "An empty `automated: {}` block is a YAML syntax error in Argo CD",
+        "B": "An empty `automated: {}` block still enables auto-sync with defaults in some Argo CD versions — omitting the block entirely is the only safe way to disable auto-sync",
+        "C": "Omitting `automated` is required when `selfHeal: false` is set",
+        "D": "The distinction does not matter — both approaches disable auto-sync identically"
+      },
+      "correct": "B",
+      "explanation": "In some Argo CD versions, an `automated: {}` block with no fields still enables auto-sync with default settings. The only reliable way to disable auto-sync in an ApplicationSet template is to omit the `automated` block entirely. Claude Code chose this without being prompted and explained the version-specific behaviour."
+    },
+    {
+      "id": "E8-2",
+      "source": "example-8",
+      "type": "true_false",
+      "reviewer_featured": false,
+      "question": "In Example 8, `prune: true` and `selfHeal: true` in the prod Application are described as dangerous because they give Git unlimited write authority over the production cluster with no human checkpoint.",
+      "correct": true,
+      "explanation": "This is the exact framing from Step 2's `warn` callout. `prune: true` means resources removed from Git are deleted from the cluster — including by accident. `selfHeal: true` means any manual emergency change (kubectl edit, kubectl set) is immediately reverted. Together, they remove all human override capability from production."
+    },
+    {
+      "id": "E8-3",
+      "source": "example-8",
+      "type": "mcq",
+      "reviewer_featured": false,
+      "question": "In Example 8, the prod overlay's `newTag: PLACEHOLDER` is described as an intentional fail-safe. What happens if the promotion script is not run and someone applies the prod overlay directly?",
+      "options": {
+        "A": "Kustomize refuses to build the overlay because PLACEHOLDER is not a valid YAML value",
+        "B": "The image pull fails with an `image not found` error because PLACEHOLDER is not a valid image tag in ECR",
+        "C": "The deployment succeeds but uses the previous image tag, ignoring PLACEHOLDER",
+        "D": "Argo CD blocks the sync because it detects the placeholder string"
+      },
+      "correct": "B",
+      "explanation": "PLACEHOLDER is an intentionally invalid image tag. When Kubernetes attempts to pull the image `REGISTRY/payment-api:PLACEHOLDER`, it fails at the image pull step with a recognisable error. This converts a process requirement (always run the promotion script) into a technical enforcement mechanism — the deployment cannot proceed without a valid tag."
+    },
+
+    {
+      "id": "E9-1",
+      "source": "example-9",
+      "type": "mcq",
+      "reviewer_featured": true,
+      "question": "In Example 9, the `main(argv=None)` pattern was used in the smoke test script. What specific benefit does this provide?",
+      "options": {
+        "A": "It allows the script to be imported as a module without executing the main logic",
+        "B": "It makes the CLI testable by allowing tests to pass argument lists directly without mocking `sys.argv`",
+        "C": "It provides a default set of arguments when the script is run without any flags",
+        "D": "It enables the script to accept both positional and keyword arguments"
+      },
+      "correct": "B",
+      "explanation": "When `argv=None`, argparse reads from `sys.argv` (normal CLI invocation). When tests pass a list like `['--url', url, '--max-attempts', '5']`, argparse uses that list instead. This makes the full CLI testable with `main(['--url', ...])` without needing to patch `sys.argv` — a fragile approach."
+    },
+    {
+      "id": "E9-2",
+      "source": "example-9",
+      "type": "true_false",
+      "reviewer_featured": false,
+      "question": "In Example 9, a 404 response from the health endpoint is retried up to `max_attempts` times because the service might not yet be running.",
+      "correct": false,
+      "explanation": "`is_retryable` returns False for 4xx responses (except 429). A 404 indicates the endpoint does not exist — retrying will not fix a missing endpoint. Only network errors (ConnectionError, Timeout), 429, and 5xx responses are retried. This prevents the script from wasting retry attempts on permanent errors."
+    },
+    {
+      "id": "E9-3",
+      "source": "example-9",
+      "type": "mcq",
+      "reviewer_featured": false,
+      "question": "In Example 9 Turn 4, two tests failed. What was the root cause identified by Claude Code?",
+      "options": {
+        "A": "A bug in the `is_retryable` function — it incorrectly classified 404 as retryable",
+        "B": "A test design issue — the mock server's shared `call_count` class variable did not account for requests made across both /health and /ready endpoints",
+        "C": "A race condition — the mock HTTP server was not ready when the test started",
+        "D": "A bug in `retry_request` — it was not incrementing the attempt counter correctly"
+      },
+      "correct": "B",
+      "explanation": "The implementation was working correctly. The test design was flawed: `_SequenceHandler.call_count` is a class variable shared across all requests from both endpoint checks. The test expected 1 total request but the script makes requests to both /health and /ready. The fix was extending the response sequence to account for all requests across both endpoints."
+    },
+
+    {
+      "id": "E10-1",
+      "source": "example-10",
+      "type": "mcq",
+      "reviewer_featured": true,
+      "question": "In Example 10, all four evidence layers were provided to Claude Code in the first turn simultaneously. Why is this approach better than providing them sequentially?",
+      "options": {
+        "A": "Sequential provision exceeds Claude Code's context window limit",
+        "B": "Sequential provision forces Claude Code to form and revise hypotheses one layer at a time — the same mistake as the naive investigation. Simultaneous provision lets Claude Code read signals as a connected system",
+        "C": "Simultaneous provision is faster because it reduces the number of turns required",
+        "D": "Sequential provision produces lower-confidence diagnoses because Claude Code cannot backtrack"
+      },
+      "correct": "B",
+      "explanation": "The pedagogical point of Example 10 is that sequential evidence provision mirrors sequential investigation — it forces layer-by-layer hypothesis formation and revision. The Terraform state diff (root cause) only becomes visible as a root cause when correlated with the RDS CloudWatch metrics. Providing them simultaneously enables that correlation in a single pass."
+    },
+    {
+      "id": "E10-2",
+      "source": "example-10",
+      "type": "true_false",
+      "reviewer_featured": false,
+      "question": "In Example 10, the OOMKilled Kubernetes event was identified as the root cause of the payment failure incident.",
+      "correct": false,
+      "explanation": "OOMKilled was identified as a second-order consequence, not the root cause. The root cause was the Terraform apply that halved `max_connections` from 200 to 100. This caused connection pool exhaustion, which caused payment failures (error rate spike), which caused pods to hold pending connections, accumulating memory until the kernel killed them. Increasing the memory limit would have delayed but not prevented the OOMKill cycle."
+    },
+    {
+      "id": "E10-3",
+      "source": "example-10",
+      "type": "mcq",
+      "reviewer_featured": false,
+      "question": "In Example 10, the smoke test from Example 9 passed at 14:05 but the service was already degraded by 14:08. What does this reveal about the smoke test design?",
+      "options": {
+        "A": "The smoke test was checking the wrong endpoints",
+        "B": "The smoke test ran during a 3-minute window before connection pool exhaustion — it passed a check that no longer reflected the service's actual health",
+        "C": "The smoke test had insufficient retry attempts to detect the degradation",
+        "D": "The smoke test's timeout was too short to detect slow connection pool exhaustion"
+      },
+      "correct": "B",
+      "explanation": "The smoke test ran at 14:05 when /health and /ready both returned 200. Pool exhaustion did not complete until 14:08. The smoke test passed a point-in-time check that was valid at 14:05 but invalid three minutes later. This motivates adding connection pool health metrics to the smoke test — checking that the pool has available capacity, not just that the process is alive."
+    },
+
+    {
+      "id": "E11-1",
+      "source": "example-11",
+      "type": "mcq",
+      "reviewer_featured": true,
+      "question": "In Example 11, the cache hit rate dropped from 82% to 31% in the week of November 1st. What change caused this?",
+      "options": {
+        "A": "The addition of the AWS SDK v3 dependency, which increased `package-lock.json` size and caused hash collisions",
+        "B": "The `cache-dependency-path` was changed from `package-lock.json` to `**/package-lock.json`, which matched files inside `node_modules/` that mutate during install, invalidating the cache on every run",
+        "C": "The Node.js version was upgraded, which invalidated the existing cache entries",
+        "D": "GitHub Actions changed its cache eviction policy, reducing cache retention from 7 days to 1 day"
+      },
+      "correct": "B",
+      "explanation": "The glob pattern `**/package-lock.json` matches every lock file in the repository tree, including those inside `node_modules/` that are modified during `npm ci`. This means the cache key changes on every run after an install, producing a permanent cache miss cycle. The fix is reverting to `package-lock.json` which matches only the root lock file."
+    },
+    {
+      "id": "E11-2",
+      "source": "example-11",
+      "type": "true_false",
+      "reviewer_featured": false,
+      "question": "In Example 11, the 2.7x growth in dependency count was identified as the primary cause of the pipeline slowdown.",
+      "correct": false,
+      "explanation": "Dependency growth was correctly framed as contributing context, not a primary cause. With a working cache, 2.7x more packages adds roughly 30 seconds to warm installs. The dependency growth became a pipeline problem only when the cache stopped working. The three primary causes were the cache key regression, the `max-parallel: 1` serialisation, and the Trivy full image rescan."
+    },
+    {
+      "id": "E11-3",
+      "source": "example-11",
+      "type": "mcq",
+      "reviewer_featured": false,
+      "question": "In Example 11, what was the recommended order for implementing the three optimisations, and why?",
+      "options": {
+        "A": "Trivy first, then parallelisation, then cache — because Trivy has the highest confidence fix",
+        "B": "All three simultaneously — to maximise the total recovery in the shortest time",
+        "C": "Cache key fix first, then parallelisation, then Trivy — implement in rank order and measure between each so the contribution of each fix is independently attributable",
+        "D": "Parallelisation first because it has the highest expected recovery of 11 minutes"
+      },
+      "correct": "C",
+      "explanation": "Implementing in rank order with measurement between each fix is the correct engineering discipline. It lets you verify each fix's projected impact independently. Combined deployment makes it impossible to know which fix had which effect — and if one fix does not produce the expected improvement, you cannot identify which one without independent measurement."
+    },
+
+    {
+      "id": "E12-1",
+      "source": "example-12",
+      "type": "mcq",
+      "reviewer_featured": true,
+      "question": "In Example 12, four alerts fired within 90 seconds. Which alert was correctly identified as noise (a false positive)?",
+      "options": {
+        "A": "The pod restart count alert — pod restarts were caused by the liveness probe, not a separate issue",
+        "B": "The TLS certificate expiry warning — the cert had already expired so no warning was needed",
+        "C": "The network policy change alert — no policy changed; the scanner misclassified the cert expiry event as policy-adjacent",
+        "D": "The error rate alert — the error rate spike was within acceptable SLO bounds"
+      },
+      "correct": "C",
+      "explanation": "The network policy change alert (PD-003) was a false positive. The automated scanner classified the cert expiry event as a 'policy-adjacent event' and fired a policy change alert even though no NetworkPolicy object was modified. The network policy audit log confirmed no changes in the last 7 days."
+    },
+    {
+      "id": "E12-2",
+      "source": "example-12",
+      "type": "true_false",
+      "reviewer_featured": false,
+      "question": "In Example 12 Turn 4, the AIOps payload set `human_review_required: false` because the confidence score exceeded 0.95, meaning the remediation should always be fully automated for high-confidence diagnoses.",
+      "correct": false,
+      "explanation": "The Watch Out section explicitly states that `human_review_required: false` should be conservative in production. For invasive actions (scaling down, modifying network policy, changing resource limits), human review should be required regardless of confidence score. The threshold for automated action is a policy decision, not a confidence calculation. The example presents the flag but does not endorse treating high confidence as sufficient justification for all automated actions."
+    },
+    {
+      "id": "E12-3",
+      "source": "example-12",
+      "type": "mcq",
+      "reviewer_featured": false,
+      "question": "In Example 12 Turn 2, the remediation required renewing the certificate BEFORE restarting pods. Why is this sequencing critical?",
+      "options": {
+        "A": "Restarting pods before cert renewal causes Kubernetes to delete the old pods permanently",
+        "B": "Restarting pods before cert renewal is safe — pods will pick up the new cert on next restart regardless of timing",
+        "C": "Restarting pods before cert renewal means the new pods start with the same expired cert, producing no improvement — the error rate remains high",
+        "D": "The cert renewal process requires all pods to be stopped first"
+      },
+      "correct": "C",
+      "explanation": "If pods are restarted before the new certificate is available in the Kubernetes Secret, they start with the expired cert still mounted. TLS handshakes continue to fail, error rate remains high, and pods restart again in a cycle. The fix is: renew cert → wait for Ready status → then restart pods so they pick up the new cert."
+    },
+
+    {
+      "id": "E13-1",
+      "source": "example-13",
+      "type": "mcq",
+      "reviewer_featured": true,
+      "question": "In Example 13 Turn 1, Claude Code identified that the HighErrorRate alert requires a branching runbook rather than a single linear triage sequence. What observation from the incident history led to this conclusion?",
+      "options": {
+        "A": "HighErrorRate had the longest average resolution time of the three alerts",
+        "B": "HighErrorRate's three historical firings had three categorically different root causes: external API failure, deployment regression, and TLS cert expiry",
+        "C": "HighErrorRate always co-fires with DatabaseConnectionPoolExhausted",
+        "D": "HighErrorRate is a P1 alert, which always requires branching runbooks by policy"
+      },
+      "correct": "B",
+      "explanation": "A single linear triage sequence assumes one dominant root cause. HighErrorRate has three distinct root causes from its history — each requiring a different resolution action (wait for processor recovery vs rollback vs cert renewal). A linear sequence would misguide the engineer in two out of three cases. The branching structure is driven by the incident history, not by alert severity."
+    },
+    {
+      "id": "E13-2",
+      "source": "example-13",
+      "type": "true_false",
+      "reviewer_featured": false,
+      "question": "In Example 13, the `do_not: [\"restart_pods_if_external_api_degraded\"]` field in the enrichment payload means pods should never be restarted during a HighErrorRate incident.",
+      "correct": false,
+      "explanation": "The `do_not` field is conditional — it applies specifically when the diagnosis points to external API degradation (Branch B). Restarting pods is the correct action in Branch D (deployment regression). The field encodes a constraint for a specific root cause category, not a universal prohibition. This is why the AIOps pipeline must know the current hypothesis before deciding whether to suppress a restart action."
+    },
+    {
+      "id": "E13-3",
+      "source": "example-13",
+      "type": "mcq",
+      "reviewer_featured": false,
+      "question": "In Example 13, the root cause probability distributions for each alert (e.g. 0.33/0.33/0.34) were derived from the incident history. What is the most important limitation of these distributions?",
+      "options": {
+        "A": "The distributions only apply during business hours — incident patterns differ at night",
+        "B": "The distributions were calculated from three historical firings per alert, which is a statistically thin sample that will update significantly as more incidents accumulate",
+        "C": "The distributions cannot be used by the AIOps pipeline because they are not integers",
+        "D": "The distributions assume all root causes are equally likely, which is never true in practice"
+      },
+      "correct": "B",
+      "explanation": "Three data points per alert is a very thin sample. A single unusual incident can shift the distribution by 33 percentage points. The Watch Out section explicitly states these should be treated as rough priors, not reliable forecasts, and should be regenerated every quarter or after each new incident."
+    }
+  ]
+}
