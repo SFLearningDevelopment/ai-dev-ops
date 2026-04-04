@@ -1,0 +1,1406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>[Reviewer] Example 5 — Full CI/CD Pipeline with Security Scanning</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Merriweather+Sans:wght@300;400;600;700&family=Source+Code+Pro:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:           #eef2f7;
+    --bg2:          #ffffff;
+    --bg3:          #f0f4f9;
+    --border:       #d0dae8;
+    --text:         #1a2332;
+    --text-dim:     #4a5568;
+    --text-dimmer:  #8fa3bc;
+    --blue:         #1a6eb5;
+    --blue-light:   #e8f1fb;
+    --blue-mid:     #b8d0ed;
+    --blue-dark:    #0f4a7a;
+    --teal:         #0e7a6b;
+    --teal-light:   #e6f4f2;
+    --coral:        #c0392b;
+    --coral-light:  #fdf0ee;
+    --coral-mid:    #f0b8b2;
+    --green:        #1a6b3a;
+    --green-light:  #e8f5ed;
+    --amber:        #92600a;
+    --amber-light:  #fdf3e3;
+    --purple:       #5b4fcf;
+    --purple-light: #f0effe;
+    --code-bg:      #1e2433;
+    --code-text:    #cdd6f4;
+    --radius:       12px;
+  }
+
+  html, body { min-height:100%; background:var(--bg); color:var(--text); font-family:'Merriweather Sans',sans-serif; font-size:15px; line-height:1.6; }
+
+  /* ── Top nav ── */
+  .topnav { background:var(--bg2); border-bottom:1px solid var(--border); padding:0 40px; height:52px; display:flex; align-items:center; gap:8px; font-size:12px; color:var(--text-dimmer); font-family:'Source Code Pro',monospace; position:sticky; top:0; z-index:100; }
+  .topnav a { color:var(--blue); text-decoration:none; }
+  .topnav a:hover { text-decoration:underline; }
+  .topnav .sep { margin:0 4px; color:var(--text-dimmer); }
+
+  /* ── Step nav ── */
+  .stepnav { background:var(--bg2); border-bottom:1px solid var(--border); padding:0 40px; display:flex; align-items:stretch; position:sticky; top:52px; z-index:99; overflow-x:auto; }
+  .stepnav-item { display:flex; align-items:center; gap:8px; padding:14px 20px; font-size:12px; font-family:'Source Code Pro',monospace; color:var(--text-dimmer); cursor:pointer; border-bottom:3px solid transparent; white-space:nowrap; transition:color 0.15s,border-color 0.15s; text-decoration:none; }
+  .stepnav-item:hover { color:var(--text-dim); }
+  .stepnav-item.active { color:var(--blue); border-bottom-color:var(--blue); font-weight:600; }
+  .stepnav-num { width:20px; height:20px; border-radius:50%; background:var(--bg3); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; flex-shrink:0; transition:background 0.15s,border-color 0.15s,color 0.15s; }
+  .stepnav-item.active .stepnav-num { background:var(--blue); border-color:var(--blue); color:white; }
+
+  /* ── Hero ── */
+  .hero { background:var(--bg2); border-bottom:2px solid var(--border); padding:40px 40px 32px; }
+  .hero-inner { max-width:900px; margin:0 auto; }
+  .hero-eyebrow { font-size:10px; letter-spacing:0.2em; text-transform:uppercase; color:var(--blue); font-weight:600; margin-bottom:10px; font-family:'Source Code Pro',monospace; }
+  .hero h1 { font-size:clamp(18px,2.5vw,26px); font-weight:700; color:var(--text); line-height:1.25; }
+  .hero h1 span { color:var(--blue); }
+  .hero-meta { margin-top:14px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  .meta-pill { font-size:10.5px; font-family:'Source Code Pro',monospace; padding:3px 10px; border-radius:20px; font-weight:600; }
+  .pill-tier   { background:var(--purple-light); color:var(--purple); border:1px solid #c4bdf0; }
+  .pill-topic  { background:var(--teal-light); color:var(--teal); border:1px solid #a3d4ce; }
+  .pill-turns  { background:var(--bg3); color:var(--text-dim); border:1px solid var(--border); font-weight:400; }
+
+  /* ── Main ── */
+  .main { max-width:900px; margin:0 auto; padding:40px 40px 80px; }
+
+  /* ── Step sections ── */
+  .step-section { margin-bottom:56px; scroll-margin-top:120px; }
+  .step-header { display:flex; align-items:center; gap:14px; margin-bottom:20px; padding-bottom:16px; border-bottom:2px solid var(--border); }
+  .step-number { width:40px; height:40px; border-radius:50%; background:var(--blue); color:white; display:flex; align-items:center; justify-content:center; font-size:16px; font-weight:700; font-family:'Source Code Pro',monospace; flex-shrink:0; }
+  .step-label { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:0.18em; text-transform:uppercase; color:var(--blue); font-weight:600; margin-bottom:3px; }
+  .step-title { font-size:18px; font-weight:700; color:var(--text); line-height:1.25; }
+
+  /* ── Prose ── */
+  .prose { font-size:14.5px; color:var(--text-dim); line-height:1.8; margin-bottom:20px; }
+  .prose strong { color:var(--text); font-weight:600; }
+  .prose code { font-family:'Source Code Pro',monospace; font-size:13px; background:var(--bg3); border:1px solid var(--border); padding:1px 5px; border-radius:4px; color:var(--blue-dark); }
+
+  /* ── File map (Tier 2 addition) ── */
+  .file-map { background:var(--bg2); border:1px solid var(--border); border-top:3px solid var(--blue); border-radius:var(--radius); overflow:hidden; margin:20px 0; }
+  .file-map-header { padding:12px 18px; background:var(--blue-light); border-bottom:1px solid var(--border); font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:0.18em; text-transform:uppercase; color:var(--blue); font-weight:600; }
+  .file-map table { width:100%; border-collapse:collapse; }
+  .file-map th { padding:10px 16px; font-size:11px; font-family:'Source Code Pro',monospace; color:var(--text-dimmer); font-weight:600; text-align:left; border-bottom:1px solid var(--border); background:var(--bg3); }
+  .file-map td { padding:10px 16px; font-size:13px; color:var(--text-dim); border-bottom:1px solid var(--border); vertical-align:top; }
+  .file-map tr:last-child td { border-bottom:none; }
+  .file-map td:first-child { font-family:'Source Code Pro',monospace; font-size:12px; color:var(--blue-dark); font-weight:600; white-space:nowrap; }
+  .file-map td:nth-child(2) { color:var(--text-dim); }
+  .stage-pill { font-size:9.5px; font-family:'Source Code Pro',monospace; padding:2px 8px; border-radius:20px; font-weight:600; white-space:nowrap; }
+  .stage-plan   { background:var(--teal-light); color:var(--teal); border:1px solid #a3d4ce; }
+  .stage-build  { background:var(--blue-light); color:var(--blue); border:1px solid var(--blue-mid); }
+  .stage-deploy { background:var(--purple-light); color:var(--purple); border:1px solid #c4bdf0; }
+  .stage-scan   { background:#fdf3e3; color:#92600a; border:1px solid #f0d4a0; }
+
+  /* ── Callouts ── */
+  .callout { border-radius:var(--radius); padding:16px 18px; margin:20px 0; font-size:13.5px; line-height:1.7; }
+  .callout-label { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:0.15em; text-transform:uppercase; font-weight:700; margin-bottom:6px; }
+  .callout.info { background:var(--blue-light); border:1px solid var(--blue-mid); border-left:3px solid var(--blue); color:var(--text-dim); }
+  .callout.info .callout-label { color:var(--blue); }
+  .callout.warn { background:#fdf5f5; border:1px solid var(--coral-mid); border-left:3px solid var(--coral); color:var(--text-dim); }
+  .callout.warn .callout-label { color:var(--coral); }
+  .callout.good { background:var(--green-light); border:1px solid #a3d4b8; border-left:3px solid var(--green); color:var(--text-dim); }
+  .callout.good .callout-label { color:var(--green); }
+  .callout.tip  { background:var(--amber-light); border:1px solid #f0d4a0; border-left:3px solid var(--amber); color:var(--text-dim); }
+  .callout.tip  .callout-label { color:var(--amber); }
+  .callout strong { color:var(--text); font-weight:600; }
+  .callout code { font-family:'Source Code Pro',monospace; font-size:12.5px; background:rgba(0,0,0,0.06); padding:1px 5px; border-radius:4px; }
+
+  /* ── Code blocks ── */
+  .code-wrap { margin:20px 0; border-radius:0; overflow:hidden; border:1px solid #2a3144; background:#1e2433; }
+  .code-header { background:#252b3b; padding:10px 16px; display:flex; align-items:center; justify-content:space-between; }
+  .code-filename { font-size:11px; font-family:'Source Code Pro',monospace; color:#ffffff; letter-spacing:0.05em; }
+  .code-copy { font-size:10px; font-family:'Source Code Pro',monospace; color:#7a8ab0; background:none; border:1px solid #3a4155; border-radius:4px; padding:2px 8px; cursor:pointer; transition:color 0.15s,border-color 0.15s; }
+  .code-copy:hover { color:#cdd6f4; border-color:#6a7ab0; }
+  pre { background:#1e2433 !important; padding:20px; overflow-x:auto; margin:0; }
+  code.block { font-family:'Source Code Pro',monospace; font-size:13px; line-height:1.7; color:var(--code-text); background:none; border:none; padding:0; display:block; }
+  .kw { color:#cba6f7; } .cm { color:#6c7086; font-style:italic; } .st { color:#a6e3a1; }
+  .nm { color:#fab387; } .op { color:#89dceb; } .an { color:#f38ba8; }
+  .ty { color:#f9e2af; } .fn { color:#89b4fa; }
+
+  /* ── Diff ── */
+  .diff-wrap { margin:20px 0; border-radius:0; overflow:hidden; border:1px solid #2a3144; background:#1e2433; }
+  .diff-header { background:#252b3b; padding:10px 16px; font-size:11px; font-family:'Source Code Pro',monospace; color:#ffffff; }
+  .diff-body { background:#1e2433 !important; padding:16px 0; overflow-x:auto; }
+  .diff-line { padding:1px 20px; font-family:'Source Code Pro',monospace; font-size:13px; line-height:1.65; color:var(--code-text); display:block; }
+  .diff-line.add { background:rgba(166,227,161,0.12); color:#a6e3a1; }
+  .diff-line.add::before { content:'+  '; color:#a6e3a1; }
+  .diff-line.rem { background:rgba(243,139,168,0.12); color:#f38ba8; }
+  .diff-line.rem::before { content:'-  '; color:#f38ba8; }
+  .diff-line.neu::before { content:'   '; }
+
+  /* ── Annotations ── */
+  .annotation-list { list-style:none; display:flex; flex-direction:column; gap:12px; margin:20px 0; }
+  .annotation-list li { display:flex; gap:12px; align-items:flex-start; font-size:13.5px; color:var(--text-dim); line-height:1.7; }
+  .ann-badge { flex-shrink:0; font-size:10px; font-family:'Source Code Pro',monospace; font-weight:700; padding:2px 8px; border-radius:4px; margin-top:2px; }
+  .ann-good { background:var(--green-light); color:var(--green); border:1px solid #a3d4b8; }
+  .ann-warn { background:var(--coral-light); color:var(--coral); border:1px solid var(--coral-mid); }
+  .ann-info { background:var(--blue-light); color:var(--blue); border:1px solid var(--blue-mid); }
+  .annotation-list li strong { color:var(--text); font-weight:600; }
+  .annotation-list li code { font-family:'Source Code Pro',monospace; font-size:12.5px; background:var(--bg3); border:1px solid var(--border); padding:1px 5px; border-radius:4px; color:var(--blue-dark); }
+
+  /* ── Conversation ── */
+  .conversation { display:flex; flex-direction:column; gap:0; margin:16px 0; border:1px solid #2a3144; border-radius:var(--radius); overflow:hidden; }
+  .conv-turn { padding:18px 22px; }
+  .conv-turn + .conv-turn { border-top:1px solid #2a3144; }
+  .conv-turn.engineer { background:var(--bg3); }
+  .conv-turn.claude   { background:#1e2433; }
+  .conv-role { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:0.18em; text-transform:uppercase; font-weight:700; margin-bottom:8px; }
+  .conv-turn.engineer .conv-role { color:var(--teal); }
+  .conv-turn.claude   .conv-role { color:#7a8ab0; }
+  .conv-body { font-size:13.5px; line-height:1.75; }
+  .conv-turn.engineer .conv-body { color:var(--text-dim); }
+  .conv-turn.claude   .conv-body { color:#cdd6f4; }
+  .conv-turn.engineer .conv-body strong { color:var(--text); font-weight:600; }
+  .conv-turn.claude   .conv-body strong { color:#ffffff; font-weight:600; }
+  .conv-turn.engineer .conv-body code { font-family:'Source Code Pro',monospace; font-size:12.5px; background:var(--bg3); border:1px solid var(--border); padding:1px 5px; border-radius:4px; color:var(--blue-dark); }
+  .conv-turn.claude   .conv-body code { font-family:'Source Code Pro',monospace; font-size:12.5px; background:#252b3b; border:1px solid #3a4155; padding:1px 5px; border-radius:4px; color:#89dceb; }
+  .conv-turn.claude   .conv-body em { font-style:italic; color:#6c7086; }
+  .conv-turn.claude   .code-wrap { margin:12px 0; }
+
+  /* ── Turn navigator (Tier 2 addition) ── */
+  .turn-nav { display:flex; align-items:center; gap:6px; margin-bottom:16px; flex-wrap:wrap; }
+  .turn-nav-label { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:0.15em; text-transform:uppercase; color:var(--text-dimmer); font-weight:600; margin-right:4px; }
+  .turn-pip { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; font-family:'Source Code Pro',monospace; border:1px solid var(--border); background:var(--bg3); color:var(--text-dimmer); }
+  .turn-pip.active { background:var(--blue); border-color:var(--blue); color:#ffffff; }
+  .turn-pip.done   { background:var(--green-light); border-color:#a3d4b8; color:var(--green); }
+  .turn-connector { width:20px; height:1px; background:var(--border); }
+
+  /* ── File connection diagram (Tier 2 addition) ── */
+  .file-connect { background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); padding:20px 24px; margin:24px 0; }
+  .file-connect-label { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:0.18em; text-transform:uppercase; color:var(--blue); font-weight:600; margin-bottom:14px; }
+  .fc-row { display:flex; align-items:flex-start; gap:12px; margin-bottom:12px; }
+  .fc-row:last-child { margin-bottom:0; }
+  .fc-file { font-family:'Source Code Pro',monospace; font-size:11.5px; font-weight:600; color:var(--blue-dark); background:var(--blue-light); border:1px solid var(--blue-mid); border-radius:6px; padding:4px 10px; white-space:nowrap; flex-shrink:0; }
+  .fc-arrow { color:var(--text-dimmer); font-size:14px; margin-top:3px; flex-shrink:0; }
+  .fc-desc { font-size:13px; color:var(--text-dim); line-height:1.6; padding-top:2px; }
+  .fc-desc strong { color:var(--text); font-weight:600; }
+
+  /* ── Misc ── */
+  .turn-label { display:inline-flex; align-items:center; gap:6px; font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:0.12em; text-transform:uppercase; color:var(--text-dimmer); background:var(--bg3); border:1px solid var(--border); border-radius:20px; padding:3px 10px; margin-bottom:14px; font-weight:600; }
+  .section-divider { height:1px; background:var(--border); margin:40px 0; }
+
+  /* ── Bottom nav ── */
+  .bottom-nav { display:flex; justify-content:space-between; align-items:center; padding:20px 0 0; border-top:1px solid var(--border); margin-top:40px; }
+  .nav-btn { display:inline-flex; align-items:center; gap:8px; font-size:13px; font-family:'Source Code Pro',monospace; color:var(--blue); text-decoration:none; padding:10px 18px; border:1px solid var(--blue-mid); border-radius:8px; background:var(--blue-light); transition:background 0.15s,border-color 0.15s; font-weight:600; }
+  .nav-btn:hover { background:var(--blue-mid); border-color:var(--blue); }
+  .nav-btn.secondary { background:var(--bg2); color:var(--text-dim); border-color:var(--border); }
+  .nav-btn.secondary:hover { background:var(--bg3); }
+
+  footer { background:var(--bg2); border-top:1px solid var(--border); padding:14px 40px; font-size:11px; font-family:'Source Code Pro',monospace; color:var(--text-dimmer); display:flex; justify-content:space-between; align-items:center; }
+
+  @media (max-width:640px) { .topnav,.main,footer { padding-left:20px; padding-right:20px; } .hero { padding:28px 20px; } .stepnav { padding:0 20px; } }
+
+  /* ── Reviewer additions ──────────────────────────────────────────────────── */
+  .reviewer-bar {
+    background: #fff8e6;
+    border: 1px solid #f0d4a0;
+    border-left: 3px solid #92600a;
+    border-radius: 8px;
+    padding: 10px 16px;
+    margin-top: 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: #92600a;
+    font-family: 'Source Code Pro', monospace;
+  }
+  .reviewer-bar input[type="checkbox"] {
+    width: 16px; height: 16px; cursor: pointer; flex-shrink: 0;
+    accent-color: #1a6b3a;
+  }
+  .reviewer-bar label { cursor: pointer; font-weight: 600; user-select: none; }
+  .reviewer-bar.checked { background: #e8f5ed; border-color: #a3d4b8; border-left-color: #1a6b3a; color: #1a6b3a; }
+
+  .reviewer-panel {
+    background: #f5f0ff;
+    border: 1px solid #c4bdf0;
+    border-top: 3px solid #5b4fcf;
+    border-radius: 12px;
+    padding: 24px 28px;
+    margin: 32px 0;
+  }
+  .reviewer-panel-label {
+    font-size: 9px; font-family: 'Source Code Pro', monospace;
+    letter-spacing: .18em; text-transform: uppercase;
+    color: #5b4fcf; font-weight: 600; margin-bottom: 16px;
+  }
+  .reviewer-q-text {
+    font-size: 14px; font-weight: 600; color: #1a2332;
+    line-height: 1.65; margin-bottom: 14px;
+  }
+  .reviewer-options { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
+  .reviewer-option {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 10px 14px; border: 1px solid #d0dae8;
+    border-radius: 8px; cursor: pointer;
+    font-size: 13.5px; color: #4a5568; line-height: 1.5;
+    transition: background .12s, border-color .12s;
+    background: #ffffff;
+  }
+  .reviewer-option:hover { background: #f0f4f9; border-color: #b8d0ed; }
+  .reviewer-option.selected { background: #e8f1fb; border-color: #1a6eb5; color: #1a2332; }
+  .reviewer-option.correct  { background: #e8f5ed; border-color: #a3d4b8; color: #1a6b3a; }
+  .reviewer-option.wrong    { background: #fdf0ee; border-color: #f0b8b2; color: #c0392b; }
+  .reviewer-option-key { font-family: 'Source Code Pro', monospace; font-size: 11px; font-weight: 700; color: #8fa3bc; flex-shrink: 0; margin-top: 1px; }
+
+  .reviewer-tf { display: flex; gap: 10px; margin-bottom: 18px; }
+  .reviewer-tf-btn {
+    flex: 1; padding: 10px; border: 1px solid #d0dae8;
+    border-radius: 8px; cursor: pointer; text-align: center;
+    font-size: 13.5px; font-weight: 600;
+    font-family: 'Source Code Pro', monospace; color: #4a5568;
+    background: #ffffff; transition: background .12s;
+  }
+  .reviewer-tf-btn:hover { background: #f0f4f9; border-color: #b8d0ed; }
+  .reviewer-tf-btn.selected { background: #e8f1fb; border-color: #1a6eb5; color: #1a6eb5; }
+  .reviewer-tf-btn.correct  { background: #e8f5ed; border-color: #a3d4b8; color: #1a6b3a; }
+  .reviewer-tf-btn.wrong    { background: #fdf0ee; border-color: #f0b8b2; color: #c0392b; }
+
+  .reviewer-reveal {
+    font-size: 12px; font-family: 'Source Code Pro', monospace;
+    color: #5b4fcf; cursor: pointer; text-decoration: underline;
+    background: none; border: none; padding: 0; margin-bottom: 14px; display: block;
+  }
+  .reviewer-explanation {
+    font-size: 13px; color: #4a5568; line-height: 1.7;
+    padding: 12px 14px; background: #eef2f7; border-radius: 8px;
+    margin-bottom: 16px; display: none;
+  }
+  .reviewer-explanation.visible { display: block; }
+  .reviewer-exp-label { font-size: 9px; font-family: 'Source Code Pro', monospace; letter-spacing: .15em; text-transform: uppercase; font-weight: 700; margin-bottom: 4px; }
+  .reviewer-exp-label.correct { color: #1a6b3a; }
+  .reviewer-exp-label.wrong   { color: #c0392b; }
+
+  .reviewer-comment-label {
+    font-size: 11px; font-family: 'Source Code Pro', monospace;
+    letter-spacing: .12em; text-transform: uppercase;
+    color: #8fa3bc; font-weight: 600; margin-bottom: 6px;
+  }
+  .reviewer-comment {
+    width: 100%; min-height: 80px; padding: 10px 12px;
+    border: 1px solid #c4bdf0; border-radius: 8px;
+    font-family: 'Merriweather Sans', sans-serif; font-size: 13.5px;
+    color: #1a2332; background: #ffffff; resize: vertical;
+    line-height: 1.6; transition: border-color .15s;
+  }
+  .reviewer-comment:focus { outline: none; border-color: #5b4fcf; }
+  .reviewer-save-note {
+    font-size: 11px; font-family: 'Source Code Pro', monospace;
+    color: #8fa3bc; margin-top: 6px;
+  }
+
+  .reviewer-topbanner {
+    background: #f5f0ff; border-bottom: 2px solid #c4bdf0;
+    padding: 10px 40px; font-size: 12px;
+    font-family: 'Source Code Pro', monospace; color: #5b4fcf;
+    display: flex; align-items: center; gap: 8px;
+  }
+
+</style>
+</head>
+<body>
+<div class="reviewer-topbanner">
+  <span>👁</span>
+  <span><strong>Reviewer mode</strong> — checkboxes, question answers, and notes are saved in your browser.</span>
+</div>
+
+
+<nav class="topnav">
+  <a href="../course-map.html">Course map</a>
+  <span class="sep">/</span>
+  <a href="../course-map.html">Tier 2 examples</a>
+  <span class="sep">/</span>
+  <span>Example 5 — CI/CD pipeline with security scanning</span>
+</nav>
+
+<nav class="stepnav" id="stepnav">
+  <a class="stepnav-item active" href="#step-1"><span class="stepnav-num">1</span>Problem</a>
+  <a class="stepnav-item" href="#step-2"><span class="stepnav-num">2</span>Naive approach</a>
+  <a class="stepnav-item" href="#step-3"><span class="stepnav-num">3</span>Claude Code interaction</a>
+  <a class="stepnav-item" href="#step-4"><span class="stepnav-num">4</span>Refined output</a>
+  <a class="stepnav-item" href="#step-5"><span class="stepnav-num">5</span>Watch out</a>
+</nav>
+
+<div class="hero">
+  <div class="hero-inner">
+    <div class="hero-eyebrow">Example 5 of 13 · Tier 2 · Multi-step workflow</div>
+    <h1>Full CI/CD pipeline with <span>security scanning</span></h1>
+    <div class="hero-meta">
+      <span class="meta-pill pill-tier">Tier 2 — Multi-step workflow</span>
+      <span class="meta-pill pill-topic">CI/CD · Security</span>
+      <span class="meta-pill pill-turns">5-turn interaction</span>
+      <span class="meta-pill pill-turns">4 files · 3 pipeline stages</span>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- ══ STEP 1: PROBLEM ══ -->
+  <section class="step-section" id="step-1">
+    <div class="step-header">
+      <div class="step-number">1</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 1 of 5</div>
+        <div class="step-title">The problem</div>
+      </div>
+<div class="reviewer-bar" id="rev-bar-1">
+  <input type="checkbox" class="rev-checkbox" id="rev-cb-1" data-step="1">
+  <label for="rev-cb-1">Mark step as reviewed</label>
+</div>
+
+    </div>
+
+    <p class="prose">
+      The <code>payment-api</code> service now has a Dockerfile (Example 1) and a basic CI pipeline (Example 3). Both were Tier 1 single-file tasks. The team now needs a <strong>production-grade end-to-end CI/CD pipeline</strong> — one that builds, scans for vulnerabilities, pushes to ECR, deploys to EKS, and enforces security gates between stages. Three other service teams will adopt this pipeline as their standard.
+    </p>
+
+    <p class="prose">
+      This is the first Tier 2 example. Unlike Tier 1, the output is not one file — it is a system of files that must work together coherently. The naive approach's failure modes are integration gaps between files, not just weaknesses within a single file.
+    </p>
+
+    <div class="callout info">
+      <div class="callout-label">Requirements</div>
+      — <strong>Build stage:</strong> Docker image build, layer cache via BuildKit, image tagged with git SHA and branch name<br>
+      — <strong>Scan stage:</strong> Trivy vulnerability scan on the built image, CRITICAL findings block the pipeline, HIGH findings produce a warning report<br>
+      — <strong>Push stage:</strong> ECR push only if scan passes, OIDC auth, image digest captured as output<br>
+      — <strong>Deploy stage:</strong> <code>kubectl set image</code> on the EKS deployment, rollout status verified, automatic rollback if rollout fails<br>
+      — <strong>Approval gate:</strong> prod deployments require manual approval after scan, before push<br>
+      — <strong>Scan report:</strong> Trivy JSON output uploaded as a GitHub Actions artifact, retained 30 days<br>
+      — All secrets via OIDC — no long-lived AWS or Kubernetes credentials<br>
+      — Trivy config as a separate <code>.trivy.yaml</code> file, not inline flags
+    </div>
+
+    <!-- File map — Tier 2 addition -->
+    <div class="file-map">
+      <div class="file-map-header">Files involved in this example</div>
+      <table>
+        <thead>
+          <tr>
+            <th>File</th>
+            <th>Purpose</th>
+            <th>Stage</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>.github/workflows/cicd.yml</td>
+            <td>Main pipeline — build, scan, push, deploy jobs with approval gate</td>
+            <td><span class="stage-pill stage-build">Build · Push · Deploy</span></td>
+          </tr>
+          <tr>
+            <td>.trivy.yaml</td>
+            <td>Trivy scanner configuration — severity thresholds, ignore rules, output format</td>
+            <td><span class="stage-pill stage-scan">Scan</span></td>
+          </tr>
+          <tr>
+            <td>k8s/deployment.yaml</td>
+            <td>Kubernetes deployment manifest — the target of the <code>kubectl set image</code> deploy step</td>
+            <td><span class="stage-pill stage-deploy">Deploy</span></td>
+          </tr>
+          <tr>
+            <td>k8s/rollback.sh</td>
+            <td>Rollback script — triggered automatically if rollout status check fails</td>
+            <td><span class="stage-pill stage-deploy">Deploy</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ══ STEP 2: NAIVE APPROACH ══ -->
+  <section class="step-section" id="step-2">
+    <div class="step-header">
+      <div class="step-number">2</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 2 of 5</div>
+        <div class="step-title">The naive approach</div>
+      </div>
+<div class="reviewer-bar" id="rev-bar-2">
+  <input type="checkbox" class="rev-checkbox" id="rev-cb-2" data-step="2">
+  <label for="rev-cb-2">Mark step as reviewed</label>
+</div>
+
+    </div>
+
+    <p class="prose">
+      The naive pipeline is assembled from three sources: the basic CI workflow from Example 3, a Trivy scan step copied from a blog post, and a deploy step from an internal wiki. Each piece works in isolation. The integration between them does not.
+    </p>
+
+    <div class="code-wrap">
+      <div class="code-header"><span class="code-filename">.github/workflows/cicd.yml (naive)</span></div>
+      <pre><code class="block"><span class="kw">name:</span> <span class="st">CI/CD</span>
+
+<span class="kw">on:</span>
+  <span class="kw">push:</span>
+    <span class="kw">branches:</span> <span class="st">[ main ]</span>
+
+<span class="kw">jobs:</span>
+  <span class="kw">build:</span>
+    <span class="kw">runs-on:</span> <span class="st">ubuntu-latest</span>
+    <span class="kw">steps:</span>
+      - <span class="kw">uses:</span> <span class="ty">actions/checkout@v4</span>
+      - <span class="kw">name:</span> <span class="st">Build image</span>
+        <span class="kw">run:</span> <span class="st">docker build -t payment-api:${{ github.sha }} .</span>
+
+  <span class="kw">scan:</span>
+    <span class="kw">runs-on:</span> <span class="st">ubuntu-latest</span>
+    <span class="cm"># No dependency on build — image may not exist yet</span>
+    <span class="kw">steps:</span>
+      - <span class="kw">name:</span> <span class="st">Scan image</span>
+        <span class="kw">uses:</span> <span class="ty">aquasecurity/trivy-action@master</span>
+        <span class="kw">with:</span>
+          <span class="kw">image-ref:</span> <span class="st">payment-api:${{ github.sha }}</span>
+          <span class="kw">format:</span> <span class="st">table</span>
+          <span class="cm"># No severity threshold — scan never blocks the pipeline</span>
+          <span class="kw">exit-code:</span> <span class="nm">0</span>
+
+  <span class="kw">push:</span>
+    <span class="kw">runs-on:</span> <span class="st">ubuntu-latest</span>
+    <span class="cm"># No dependency on scan — pushes even if scan finds CRITICAL vulns</span>
+    <span class="kw">steps:</span>
+      - <span class="kw">uses:</span> <span class="ty">actions/checkout@v4</span>
+      - <span class="kw">name:</span> <span class="st">Configure AWS</span>
+        <span class="kw">uses:</span> <span class="ty">aws-actions/configure-aws-credentials@v4</span>
+        <span class="kw">with:</span>
+          <span class="kw">aws-access-key-id:</span> <span class="an">${{ secrets.AWS_ACCESS_KEY_ID }}</span>
+          <span class="kw">aws-secret-access-key:</span> <span class="an">${{ secrets.AWS_SECRET_ACCESS_KEY }}</span>
+          <span class="kw">aws-region:</span> <span class="st">ap-south-1</span>
+      - <span class="kw">name:</span> <span class="st">Push to ECR</span>
+        <span class="kw">run:</span> |
+          docker tag payment-api:${{ github.sha }} $ECR_REGISTRY/payment-api:${{ github.sha }}
+          docker push $ECR_REGISTRY/payment-api:${{ github.sha }}
+
+  <span class="kw">deploy:</span>
+    <span class="kw">runs-on:</span> <span class="st">ubuntu-latest</span>
+    <span class="cm"># No dependency on push — kubectl may reference image that doesn't exist in ECR</span>
+    <span class="kw">steps:</span>
+      - <span class="kw">name:</span> <span class="st">Deploy</span>
+        <span class="kw">run:</span> |
+          kubectl set image deployment/payment-api \
+            payment-api=$ECR_REGISTRY/payment-api:${{ github.sha }}
+          <span class="cm"># No rollout status check — deploy job succeeds even if pods crash</span></code></pre>
+    </div>
+
+    <p class="prose">Six integration failures — not file-level weaknesses but system-level gaps:</p>
+
+    <ul class="annotation-list">
+      <li>
+        <span class="ann-badge ann-warn">Integration</span>
+        <div><strong>Jobs run in parallel with no dependency chain.</strong> <code>scan</code> runs without waiting for <code>build</code>, so the image it scans may not exist yet. <code>deploy</code> runs without waiting for <code>push</code>, so it may reference an image that has not reached ECR. The pipeline appears to have four stages — it actually has four independent jobs that happen to run simultaneously.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Security</span>
+        <div><strong>Trivy <code>exit-code: 0</code> means the scan never blocks anything.</strong> The scan runs, prints a table, and exits successfully regardless of what it finds. CRITICAL vulnerabilities are logged and ignored. The scan is theatre — it creates the appearance of security gating without providing any.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Security</span>
+        <div><strong>Long-lived AWS credentials.</strong> <code>AWS_ACCESS_KEY_ID</code> and <code>AWS_SECRET_ACCESS_KEY</code> — static, never-expiring, stored as repository secrets. Repeating the failure mode from Example 3's naive approach, now in a more critical position: these credentials have ECR push access to production images.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Correctness</span>
+        <div><strong>No rollout status check after deploy.</strong> <code>kubectl set image</code> submits the rollout request and exits 0 — it does not wait for pods to become healthy. A bad image that causes CrashLoopBackOff will produce a successful deploy job. The pipeline goes green; the service is down.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Correctness</span>
+        <div><strong>No approval gate between scan and prod push.</strong> A CRITICAL finding is logged (once the exit-code is fixed) but the pipeline continues automatically to push and deploy. There is no human checkpoint between "we know there is a critical vulnerability" and "we are deploying it to production".</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Correctness</span>
+        <div><strong>No scan report artifact.</strong> The Trivy output is printed to the job log and lost when the log expires. There is no persisted, searchable record of what vulnerabilities existed in each deployed image — which is a compliance requirement in most regulated environments.</div>
+      </li>
+    </ul>
+
+    <div class="callout warn">
+      <div class="callout-label">The core problem</div>
+      The naive pipeline has the structural shape of a CI/CD system — four named stages — but none of the integration logic that makes those stages a system. Each job is a standalone script. The dependency chain, the security gate, the rollout verification, and the audit trail are all missing. It does not fail; it succeeds at doing the wrong things in the wrong order.
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ══ STEP 3: CLAUDE CODE INTERACTION ══ -->
+  <section class="step-section" id="step-3">
+    <div class="step-header">
+      <div class="step-number">3</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 3 of 5</div>
+        <div class="step-title">The Claude Code interaction</div>
+      </div>
+<div class="reviewer-bar" id="rev-bar-3">
+  <input type="checkbox" class="rev-checkbox" id="rev-cb-3" data-step="3">
+  <label for="rev-cb-3">Mark step as reviewed</label>
+</div>
+
+    </div>
+
+    <p class="prose">
+      Five turns. Turn 1 generates the pipeline with correct job dependencies and OIDC auth. Turn 2 adds the Trivy config file and scan severity gate. Turn 3 adds the approval gate and scan artifact upload. Turn 4 pastes a real rollout failure and produces the rollback script. Turn 5 aligns the Kubernetes deployment manifest to the pipeline's image reference pattern.
+    </p>
+
+    <!-- Turn navigator -->
+    <div class="turn-nav">
+      <span class="turn-nav-label">Turns</span>
+      <span class="turn-pip active">1</span>
+      <span class="turn-connector"></span>
+      <span class="turn-pip">2</span>
+      <span class="turn-connector"></span>
+      <span class="turn-pip">3</span>
+      <span class="turn-connector"></span>
+      <span class="turn-pip">4</span>
+      <span class="turn-connector"></span>
+      <span class="turn-pip">5</span>
+    </div>
+
+    <!-- Turn 1 -->
+    <div class="turn-label">Turn 1 of 5 — Pipeline with correct job dependency chain and OIDC</div>
+    <div class="conversation">
+      <div class="conv-turn engineer">
+        <div class="conv-role">Engineer → Claude Code</div>
+        <div class="conv-body">
+          <p>Generate a GitHub Actions CI/CD workflow for <code>payment-api</code>. Four jobs in strict sequence: build → scan → push → deploy. Requirements:</p>
+          <p style="margin-top:10px;">
+          <strong>build:</strong> Docker build with BuildKit enabled, tag with <code>github.sha</code> and <code>github.ref_name</code>, cache layers using <code>type=gha</code> cache<br>
+          <strong>scan:</strong> Trivy scan on the built image, config from <code>.trivy.yaml</code>, exit-code 1 on CRITICAL findings<br>
+          <strong>push:</strong> ECR push via OIDC (role ARN from <code>secrets.AWS_ROLE_ARN</code>), region <code>ap-south-1</code>, capture image digest as job output<br>
+          <strong>deploy:</strong> <code>kubectl set image</code> using the digest from push, rollout status check with 3-minute timeout, automatic rollback on failure<br>
+          Approval gate between scan and push for runs targeting <code>main</code>. Actions versions: checkout@v4, configure-aws-credentials@v4, amazon-ecr-login@v2.
+          </p>
+        </div>
+      </div>
+      <div class="conv-turn claude">
+        <div class="conv-role">Claude Code</div>
+        <div class="conv-body">
+          <div class="code-wrap">
+            <div class="code-header">
+              <span class="code-filename">.github/workflows/cicd.yml (turn 1)</span>
+              <button class="code-copy" onclick="copyCode(this)">copy</button>
+            </div>
+            <pre><code class="block"><span class="kw">name:</span> <span class="st">CI/CD — payment-api</span>
+
+<span class="kw">on:</span>
+  <span class="kw">push:</span>
+    <span class="kw">branches:</span> <span class="st">[ main ]</span>
+  <span class="kw">pull_request:</span>
+
+<span class="kw">permissions:</span>
+  <span class="kw">contents:</span> <span class="st">read</span>
+
+<span class="kw">env:</span>
+  <span class="kw">IMAGE_NAME:</span> <span class="st">payment-api</span>
+  <span class="kw">AWS_REGION:</span> <span class="st">ap-south-1</span>
+
+<span class="kw">jobs:</span>
+  <span class="cm"># ── 1. Build ─────────────────────────────────────────────────────────</span>
+  <span class="kw">build:</span>
+    <span class="kw">name:</span> <span class="st">Build image</span>
+    <span class="kw">runs-on:</span> <span class="st">ubuntu-latest</span>
+    <span class="kw">outputs:</span>
+      <span class="kw">image-tag:</span> <span class="st">${{ steps.meta.outputs.tag }}</span>
+    <span class="kw">steps:</span>
+      - <span class="kw">uses:</span> <span class="ty">actions/checkout@v4</span>
+
+      - <span class="kw">name:</span> <span class="st">Set up Docker Buildx</span>
+        <span class="kw">uses:</span> <span class="ty">docker/setup-buildx-action@v3</span>
+
+      - <span class="kw">name:</span> <span class="st">Set image metadata</span>
+        <span class="kw">id:</span> <span class="st">meta</span>
+        <span class="kw">run:</span> <span class="st">echo "tag=${{ github.sha }}-${{ github.ref_name }}" >> $GITHUB_OUTPUT</span>
+
+      - <span class="kw">name:</span> <span class="st">Build and export to Docker daemon</span>
+        <span class="kw">uses:</span> <span class="ty">docker/build-push-action@v5</span>
+        <span class="kw">with:</span>
+          <span class="kw">context:</span> <span class="st">.</span>
+          <span class="kw">push:</span> <span class="nm">false</span>
+          <span class="kw">load:</span> <span class="nm">true</span>   <span class="cm"># Load into local daemon for Trivy to scan</span>
+          <span class="kw">tags:</span> <span class="st">${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.tag }}</span>
+          <span class="kw">cache-from:</span> <span class="st">type=gha</span>
+          <span class="kw">cache-to:</span> <span class="st">type=gha,mode=max</span>
+
+  <span class="cm"># ── 2. Scan ──────────────────────────────────────────────────────────</span>
+  <span class="kw">scan:</span>
+    <span class="kw">name:</span> <span class="st">Security scan</span>
+    <span class="kw">runs-on:</span> <span class="st">ubuntu-latest</span>
+    <span class="kw">needs:</span> <span class="st">build</span>
+    <span class="kw">steps:</span>
+      - <span class="kw">uses:</span> <span class="ty">actions/checkout@v4</span>
+
+      - <span class="kw">name:</span> <span class="st">Rebuild image for scanning</span>
+        <span class="kw">uses:</span> <span class="ty">docker/build-push-action@v5</span>
+        <span class="kw">with:</span>
+          <span class="kw">context:</span> <span class="st">.</span>
+          <span class="kw">push:</span> <span class="nm">false</span>
+          <span class="kw">load:</span> <span class="nm">true</span>
+          <span class="kw">tags:</span> <span class="st">${{ env.IMAGE_NAME }}:${{ needs.build.outputs.image-tag }}</span>
+          <span class="kw">cache-from:</span> <span class="st">type=gha</span>   <span class="cm"># Full cache hit — no rebuild cost</span>
+
+      - <span class="kw">name:</span> <span class="st">Run Trivy scan</span>
+        <span class="kw">uses:</span> <span class="ty">aquasecurity/trivy-action@0.28.0</span>
+        <span class="kw">with:</span>
+          <span class="kw">image-ref:</span> <span class="st">${{ env.IMAGE_NAME }}:${{ needs.build.outputs.image-tag }}</span>
+          <span class="kw">trivy-config:</span> <span class="st">.trivy.yaml</span>
+          <span class="kw">output:</span> <span class="st">trivy-report.json</span>
+
+      - <span class="kw">name:</span> <span class="st">Upload scan report</span>
+        <span class="kw">if:</span> <span class="fn">always()</span>   <span class="cm"># Upload even if scan fails — report is the evidence</span>
+        <span class="kw">uses:</span> <span class="ty">actions/upload-artifact@v4</span>
+        <span class="kw">with:</span>
+          <span class="kw">name:</span> <span class="st">trivy-report-${{ github.sha }}</span>
+          <span class="kw">path:</span> <span class="st">trivy-report.json</span>
+          <span class="kw">retention-days:</span> <span class="nm">30</span>
+
+  <span class="cm"># ── 3. Approve (prod only) ────────────────────────────────────────────</span>
+  <span class="kw">approve:</span>
+    <span class="kw">name:</span> <span class="st">Approval gate</span>
+    <span class="kw">runs-on:</span> <span class="st">ubuntu-latest</span>
+    <span class="kw">needs:</span> <span class="st">scan</span>
+    <span class="kw">if:</span> <span class="fn">github.ref == 'refs/heads/main' && github.event_name == 'push'</span>
+    <span class="kw">environment:</span>
+      <span class="kw">name:</span> <span class="st">production</span>   <span class="cm"># Required reviewers configured in repo settings</span>
+
+    <span class="kw">steps:</span>
+      - <span class="kw">name:</span> <span class="st">Approval checkpoint</span>
+        <span class="kw">run:</span> <span class="st">echo "Scan passed. Proceeding to ECR push after approval."</span>
+
+  <span class="cm"># ── 4. Push ──────────────────────────────────────────────────────────</span>
+  <span class="kw">push:</span>
+    <span class="kw">name:</span> <span class="st">Push to ECR</span>
+    <span class="kw">runs-on:</span> <span class="st">ubuntu-latest</span>
+    <span class="kw">needs:</span> <span class="st">[ scan, approve ]</span>
+    <span class="kw">if:</span> <span class="fn">github.ref == 'refs/heads/main' && github.event_name == 'push'</span>
+    <span class="kw">permissions:</span>
+      <span class="kw">contents:</span> <span class="st">read</span>
+      <span class="kw">id-token:</span> <span class="st">write</span>
+    <span class="kw">outputs:</span>
+      <span class="kw">image-digest:</span> <span class="st">${{ steps.push.outputs.digest }}</span>
+      <span class="kw">image-uri:</span> <span class="st">${{ steps.login-ecr.outputs.registry }}/${{ env.IMAGE_NAME }}:${{ needs.build.outputs.image-tag }}</span>
+
+    <span class="kw">steps:</span>
+      - <span class="kw">uses:</span> <span class="ty">actions/checkout@v4</span>
+
+      - <span class="kw">name:</span> <span class="st">Configure AWS via OIDC</span>
+        <span class="kw">uses:</span> <span class="ty">aws-actions/configure-aws-credentials@v4</span>
+        <span class="kw">with:</span>
+          <span class="kw">role-to-assume:</span> <span class="st">${{ secrets.AWS_ROLE_ARN }}</span>
+          <span class="kw">aws-region:</span> <span class="st">${{ env.AWS_REGION }}</span>
+
+      - <span class="kw">name:</span> <span class="st">Login to ECR</span>
+        <span class="kw">id:</span> <span class="st">login-ecr</span>
+        <span class="kw">uses:</span> <span class="ty">aws-actions/amazon-ecr-login@v2</span>
+
+      - <span class="kw">name:</span> <span class="st">Build and push with digest capture</span>
+        <span class="kw">id:</span> <span class="st">push</span>
+        <span class="kw">uses:</span> <span class="ty">docker/build-push-action@v5</span>
+        <span class="kw">with:</span>
+          <span class="kw">context:</span> <span class="st">.</span>
+          <span class="kw">push:</span> <span class="nm">true</span>
+          <span class="kw">tags:</span> <span class="st">${{ steps.login-ecr.outputs.registry }}/${{ env.IMAGE_NAME }}:${{ needs.build.outputs.image-tag }}</span>
+          <span class="kw">cache-from:</span> <span class="st">type=gha</span>
+          <span class="kw">provenance:</span> <span class="nm">false</span>   <span class="cm"># Disable provenance attestation for ECR compatibility</span>
+
+  <span class="cm"># ── 5. Deploy ─────────────────────────────────────────────────────────</span>
+  <span class="kw">deploy:</span>
+    <span class="kw">name:</span> <span class="st">Deploy to EKS</span>
+    <span class="kw">runs-on:</span> <span class="st">ubuntu-latest</span>
+    <span class="kw">needs:</span> <span class="st">push</span>
+    <span class="kw">if:</span> <span class="fn">github.ref == 'refs/heads/main' && github.event_name == 'push'</span>
+    <span class="kw">permissions:</span>
+      <span class="kw">contents:</span> <span class="st">read</span>
+      <span class="kw">id-token:</span> <span class="st">write</span>
+
+    <span class="kw">steps:</span>
+      - <span class="kw">uses:</span> <span class="ty">actions/checkout@v4</span>
+
+      - <span class="kw">name:</span> <span class="st">Configure AWS via OIDC</span>
+        <span class="kw">uses:</span> <span class="ty">aws-actions/configure-aws-credentials@v4</span>
+        <span class="kw">with:</span>
+          <span class="kw">role-to-assume:</span> <span class="st">${{ secrets.AWS_ROLE_ARN }}</span>
+          <span class="kw">aws-region:</span> <span class="st">${{ env.AWS_REGION }}</span>
+
+      - <span class="kw">name:</span> <span class="st">Update kubeconfig for EKS</span>
+        <span class="kw">run:</span> <span class="st">aws eks update-kubeconfig --name payment-api-cluster --region ${{ env.AWS_REGION }}</span>
+
+      - <span class="kw">name:</span> <span class="st">Deploy image</span>
+        <span class="kw">id:</span> <span class="st">deploy</span>
+        <span class="kw">run:</span> |
+          kubectl set image deployment/payment-api \
+            payment-api=${{ needs.push.outputs.image-uri }} \
+            -n payment
+
+      - <span class="kw">name:</span> <span class="st">Verify rollout</span>
+        <span class="kw">id:</span> <span class="st">rollout</span>
+        <span class="kw">run:</span> |
+          kubectl rollout status deployment/payment-api \
+            -n payment \
+            --timeout=180s
+
+      - <span class="kw">name:</span> <span class="st">Rollback on failure</span>
+        <span class="kw">if:</span> <span class="fn">failure() && steps.rollout.conclusion == 'failure'</span>
+        <span class="kw">run:</span> <span class="st">bash k8s/rollback.sh payment-api payment</span></code></pre>
+          </div>
+          <p style="margin-top:12px;"><strong>Three decisions worth noting:</strong></p>
+          <p style="margin-top:8px;">— <code>needs: [scan, approve]</code> on the push job means both the scan passing AND a human approving are required. If the scan fails, the approve job never triggers, so the pipeline is blocked at two independent gates — not just the human approval.</p>
+          <p style="margin-top:8px;">— <code>if: always()</code> on the artifact upload means the Trivy report is uploaded even when the scan fails and blocks the pipeline. The report is the evidence for why the pipeline was blocked — losing it on failure would defeat the audit purpose.</p>
+          <p style="margin-top:8px;">— <code>provenance: false</code> on the ECR push: Docker Build Push Action v5 enables provenance attestations by default, which creates multi-platform image manifests. ECR handles these inconsistently and the <code>digest</code> output becomes unreliable. Disabling provenance produces a clean single-manifest image and a reliable digest that the deploy job can reference.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Turn 2 -->
+    <div class="turn-nav" style="margin-top:28px;">
+      <span class="turn-nav-label">Turns</span>
+      <span class="turn-pip done">1</span>
+      <span class="turn-connector"></span>
+      <span class="turn-pip active">2</span>
+      <span class="turn-connector"></span>
+      <span class="turn-pip">3</span>
+      <span class="turn-connector"></span>
+      <span class="turn-pip">4</span>
+      <span class="turn-connector"></span>
+      <span class="turn-pip">5</span>
+    </div>
+
+    <div class="turn-label">Turn 2 of 5 — Trivy configuration file</div>
+    <div class="conversation">
+      <div class="conv-turn engineer">
+        <div class="conv-role">Engineer → Claude Code</div>
+        <div class="conv-body">
+          <p>Generate the <code>.trivy.yaml</code> config file. Requirements:</p>
+          <p style="margin-top:10px;">
+          — Format: JSON (for artifact upload and machine parsing)<br>
+          — Severity: CRITICAL blocks pipeline (exit-code 1), HIGH produces report but does not block<br>
+          — Ignore unfixed vulnerabilities — we can only fix what has a patch available<br>
+          — Scan OS packages and application dependencies (npm)<br>
+          — Skip known false positives: CVE-2023-44487 (HTTP/2 Rapid Reset — mitigated at load balancer)<br>
+          — Timeout: 5 minutes
+          </p>
+        </div>
+      </div>
+      <div class="conv-turn claude">
+        <div class="conv-role">Claude Code</div>
+        <div class="conv-body">
+          <div class="code-wrap">
+            <div class="code-header">
+              <span class="code-filename">.trivy.yaml (turn 2)</span>
+              <button class="code-copy" onclick="copyCode(this)">copy</button>
+            </div>
+            <pre><code class="block"><span class="cm"># Trivy configuration for payment-api CI/CD pipeline</span>
+<span class="cm"># Docs: https://aquasecurity.github.io/trivy/latest/docs/references/configuration/config-file/</span>
+
+<span class="kw">image:</span>
+  <span class="kw">removed-pkgs:</span> <span class="nm">true</span>   <span class="cm"># Report packages removed from final image layers</span>
+
+<span class="kw">scan:</span>
+  <span class="kw">security-checks:</span>
+    - <span class="st">vuln</span>        <span class="cm"># OS and library vulnerabilities</span>
+    - <span class="st">secret</span>      <span class="cm"># Secrets accidentally baked into image layers</span>
+
+<span class="kw">vulnerability:</span>
+  <span class="kw">ignore-unfixed:</span> <span class="nm">true</span>   <span class="cm"># Skip vulns with no available patch</span>
+  <span class="kw">type:</span>
+    - <span class="st">os</span>          <span class="cm"># Alpine/Debian OS packages</span>
+    - <span class="st">library</span>     <span class="cm"># npm and other language packages</span>
+
+<span class="kw">format:</span> <span class="st">json</span>
+<span class="kw">output:</span> <span class="st">trivy-report.json</span>
+
+<span class="kw">severity:</span>
+  - <span class="st">CRITICAL</span>    <span class="cm"># Blocks pipeline (exit-code 1 via action config)</span>
+  - <span class="st">HIGH</span>        <span class="cm"># Reported but does not block</span>
+
+<span class="kw">timeout:</span> <span class="st">5m0s</span>
+
+<span class="kw">ignorefile:</span> <span class="st">.trivyignore.yaml</span></code></pre>
+          </div>
+
+          <div class="code-wrap" style="margin-top:14px;">
+            <div class="code-header">
+              <span class="code-filename">.trivyignore.yaml (CVE suppression list)</span>
+              <button class="code-copy" onclick="copyCode(this)">copy</button>
+            </div>
+            <pre><code class="block"><span class="kw">vulnerabilities:</span>
+  - <span class="kw">id:</span> <span class="st">CVE-2023-44487</span>
+    <span class="kw">reason:</span> <span class="st">HTTP/2 Rapid Reset — mitigated at load balancer layer. Not exploitable via this service.</span>
+    <span class="kw">expires:</span> <span class="st">2025-12-31</span>   <span class="cm"># Review suppression annually</span></code></pre>
+          </div>
+          <p style="margin-top:10px;">Two notes on the config split: the <code>ignorefile</code> reference keeps CVE suppressions in a separate file from scanner config. This is important for auditability — reviewers can see exactly which CVEs are suppressed and why without reading scanner configuration. The <code>expires</code> field forces annual review of whether the suppression is still justified.</p>
+          <p style="margin-top:8px;">On severity: Trivy's <code>severity</code> config controls which severities are <em>reported</em>. The exit-code behaviour (CRITICAL blocks, HIGH does not) is controlled by the <code>exit-code</code> and <code>exit-on-eol</code> settings in the GitHub Actions step — not in this config file. The workflow from Turn 1 handles this correctly via the action's <code>trivy-config</code> input pointing at this file.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Turn 3 -->
+    <div class="turn-nav" style="margin-top:28px;">
+      <span class="turn-nav-label">Turns</span>
+      <span class="turn-pip done">1</span><span class="turn-connector"></span>
+      <span class="turn-pip done">2</span><span class="turn-connector"></span>
+      <span class="turn-pip active">3</span><span class="turn-connector"></span>
+      <span class="turn-pip">4</span><span class="turn-connector"></span>
+      <span class="turn-pip">5</span>
+    </div>
+
+    <div class="turn-label">Turn 3 of 5 — Kubernetes deployment manifest</div>
+    <div class="conversation">
+      <div class="conv-turn engineer">
+        <div class="conv-role">Engineer → Claude Code</div>
+        <div class="conv-body">
+          <p>Generate <code>k8s/deployment.yaml</code> for the payment-api service. It needs to be compatible with the <code>kubectl set image</code> command in the deploy job — the container name must match what the pipeline references. Requirements:</p>
+          <p style="margin-top:10px;">
+          — Namespace: <code>payment</code><br>
+          — 3 replicas, rolling update strategy (max surge 1, max unavailable 0)<br>
+          — Resource requests: 256Mi memory, 250m CPU · limits: 512Mi memory, 500m CPU<br>
+          — Liveness probe: <code>GET /health</code> port 3000, initial delay 15s, period 20s<br>
+          — Readiness probe: <code>GET /health</code> port 3000, initial delay 5s, period 10s<br>
+          — SecurityContext: runAsNonRoot, readOnlyRootFilesystem, allowPrivilegeEscalation false<br>
+          — <code>emptyDir</code> volume for <code>/app/logs</code> (from Example 1)<br>
+          — Image placeholder: <code>REGISTRY/payment-api:latest</code> — will be replaced by pipeline
+          </p>
+        </div>
+      </div>
+      <div class="conv-turn claude">
+        <div class="conv-role">Claude Code</div>
+        <div class="conv-body">
+          <div class="code-wrap">
+            <div class="code-header">
+              <span class="code-filename">k8s/deployment.yaml (turn 3)</span>
+              <button class="code-copy" onclick="copyCode(this)">copy</button>
+            </div>
+            <pre><code class="block"><span class="kw">apiVersion:</span> <span class="st">apps/v1</span>
+<span class="kw">kind:</span> <span class="st">Deployment</span>
+<span class="kw">metadata:</span>
+  <span class="kw">name:</span> <span class="st">payment-api</span>
+  <span class="kw">namespace:</span> <span class="st">payment</span>
+  <span class="kw">labels:</span>
+    <span class="kw">app:</span> <span class="st">payment-api</span>
+    <span class="kw">app.kubernetes.io/name:</span> <span class="st">payment-api</span>
+    <span class="kw">app.kubernetes.io/managed-by:</span> <span class="st">github-actions</span>
+<span class="kw">spec:</span>
+  <span class="kw">replicas:</span> <span class="nm">3</span>
+  <span class="kw">selector:</span>
+    <span class="kw">matchLabels:</span>
+      <span class="kw">app:</span> <span class="st">payment-api</span>
+  <span class="kw">strategy:</span>
+    <span class="kw">type:</span> <span class="st">RollingUpdate</span>
+    <span class="kw">rollingUpdate:</span>
+      <span class="kw">maxSurge:</span> <span class="nm">1</span>
+      <span class="kw">maxUnavailable:</span> <span class="nm">0</span>   <span class="cm"># Zero-downtime: new pods must be ready before old ones terminate</span>
+  <span class="kw">template:</span>
+    <span class="kw">metadata:</span>
+      <span class="kw">labels:</span>
+        <span class="kw">app:</span> <span class="st">payment-api</span>
+    <span class="kw">spec:</span>
+      <span class="kw">securityContext:</span>
+        <span class="kw">runAsNonRoot:</span> <span class="nm">true</span>
+        <span class="kw">runAsUser:</span> <span class="nm">1000</span>
+      <span class="kw">containers:</span>
+        - <span class="kw">name:</span> <span class="st">payment-api</span>   <span class="cm"># Must match the name in kubectl set image command</span>
+          <span class="kw">image:</span> <span class="st">REGISTRY/payment-api:latest</span>   <span class="cm"># Replaced by pipeline on deploy</span>
+          <span class="kw">ports:</span>
+            - <span class="kw">containerPort:</span> <span class="nm">3000</span>
+          <span class="kw">resources:</span>
+            <span class="kw">requests:</span>
+              <span class="kw">memory:</span> <span class="st">256Mi</span>
+              <span class="kw">cpu:</span> <span class="st">250m</span>
+            <span class="kw">limits:</span>
+              <span class="kw">memory:</span> <span class="st">512Mi</span>
+              <span class="kw">cpu:</span> <span class="st">500m</span>
+          <span class="kw">securityContext:</span>
+            <span class="kw">readOnlyRootFilesystem:</span> <span class="nm">true</span>
+            <span class="kw">allowPrivilegeEscalation:</span> <span class="nm">false</span>
+            <span class="kw">capabilities:</span>
+              <span class="kw">drop:</span> <span class="st">[ ALL ]</span>
+          <span class="kw">livenessProbe:</span>
+            <span class="kw">httpGet:</span>
+              <span class="kw">path:</span> <span class="st">/health</span>
+              <span class="kw">port:</span> <span class="nm">3000</span>
+            <span class="kw">initialDelaySeconds:</span> <span class="nm">15</span>
+            <span class="kw">periodSeconds:</span> <span class="nm">20</span>
+            <span class="kw">failureThreshold:</span> <span class="nm">3</span>
+          <span class="kw">readinessProbe:</span>
+            <span class="kw">httpGet:</span>
+              <span class="kw">path:</span> <span class="st">/health</span>
+              <span class="kw">port:</span> <span class="nm">3000</span>
+            <span class="kw">initialDelaySeconds:</span> <span class="nm">5</span>
+            <span class="kw">periodSeconds:</span> <span class="nm">10</span>
+            <span class="kw">failureThreshold:</span> <span class="nm">3</span>
+          <span class="kw">volumeMounts:</span>
+            - <span class="kw">name:</span> <span class="st">logs</span>
+              <span class="kw">mountPath:</span> <span class="st">/app/logs</span>
+      <span class="kw">volumes:</span>
+        - <span class="kw">name:</span> <span class="st">logs</span>
+          <span class="kw">emptyDir:</span> {}</code></pre>
+          </div>
+          <p style="margin-top:10px;">The container name <code>payment-api</code> must match exactly what the pipeline references in <code>kubectl set image deployment/payment-api payment-api=...</code>. If the name drifts between this manifest and the pipeline, the set image command will succeed but silently update nothing — the deployment object will show the old image until someone notices the discrepancy.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Turn 4 -->
+    <div class="turn-nav" style="margin-top:28px;">
+      <span class="turn-nav-label">Turns</span>
+      <span class="turn-pip done">1</span><span class="turn-connector"></span>
+      <span class="turn-pip done">2</span><span class="turn-connector"></span>
+      <span class="turn-pip done">3</span><span class="turn-connector"></span>
+      <span class="turn-pip active">4</span><span class="turn-connector"></span>
+      <span class="turn-pip">5</span>
+    </div>
+
+    <div class="turn-label">Turn 4 of 5 — Real rollout failure pasted back, rollback script produced</div>
+    <p class="prose">The pipeline runs for the first time. Build, scan, approval, and push succeed. The deploy job fails at the rollout status step. The exact output is pasted back verbatim.</p>
+    <div class="conversation">
+      <div class="conv-turn engineer">
+        <div class="conv-role">Engineer → Claude Code</div>
+        <div class="conv-body">
+          <p>Deploy job failed at rollout status. Exact output:</p>
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">kubectl rollout status — exact output</span></div>
+            <pre><code class="block">Waiting for deployment "payment-api" rollout to finish: 1 out of 3 new replicas have been updated...
+Waiting for deployment "payment-api" rollout to finish: 1 out of 3 new replicas have been updated...
+error: timed out waiting for the condition
+Error: Process completed with exit code 1.
+
+kubectl describe deployment payment-api -n payment (excerpt):
+  Conditions:
+    Type           Status  Reason
+    ----           ------  ------
+    Available      False   MinimumReplicasUnavailable
+    Progressing    True    ReplicaSetUpdated
+
+kubectl describe pod payment-api-7d9f8c-xxxxx -n payment (excerpt):
+  State:          Waiting
+    Reason:       CrashLoopBackOff
+  Last State:     Terminated
+    Reason:       Error
+    Exit Code:    137
+  Events:
+    Warning  BackOff   2m    kubelet  Back-off restarting failed container</code></pre>
+          </div>
+          <p style="margin-top:10px;">Generate <code>k8s/rollback.sh</code> — the script that the pipeline calls on rollout failure. It should undo the deployment, verify the rollback succeeded, and output a clear summary of what it did.</p>
+        </div>
+      </div>
+      <div class="conv-turn claude">
+        <div class="conv-role">Claude Code</div>
+        <div class="conv-body">
+          <p><strong>Exit code 137 is OOMKilled</strong> — the container was killed by the kernel because it exceeded its memory limit (512Mi in the manifest). The CrashLoopBackOff is a consequence, not the root cause. Before deploying again, increase the memory limit or profile the application's actual consumption. The rollback script will restore the previous working version immediately.</p>
+          <div class="code-wrap">
+            <div class="code-header">
+              <span class="code-filename">k8s/rollback.sh (turn 4)</span>
+              <button class="code-copy" onclick="copyCode(this)">copy</button>
+            </div>
+            <pre><code class="block"><span class="cm">#!/usr/bin/env bash</span>
+<span class="cm"># k8s/rollback.sh — Automated rollback on deployment failure</span>
+<span class="cm"># Usage: ./rollback.sh DEPLOYMENT_NAME NAMESPACE</span>
+<span class="cm"># Called by the deploy job when rollout status times out.</span>
+<span class="kw">set</span> -euo pipefail
+
+<span class="kw">readonly</span> <span class="va">DEPLOYMENT</span>=<span class="st">"${1:?DEPLOYMENT_NAME required}"</span>
+<span class="kw">readonly</span> <span class="va">NAMESPACE</span>=<span class="st">"${2:?NAMESPACE required}"</span>
+<span class="kw">readonly</span> <span class="va">ROLLBACK_TIMEOUT</span>=<span class="nm">120</span>
+
+<span class="fn">echo</span> <span class="st">"[ROLLBACK] Initiating rollback for $DEPLOYMENT in $NAMESPACE"</span>
+<span class="fn">echo</span> <span class="st">"[ROLLBACK] Current image: $(kubectl get deployment "$DEPLOYMENT" -n "$NAMESPACE" -o jsonpath='{.spec.template.spec.containers[0].image}')"</span>
+
+<span class="cm"># Capture the previous revision for the summary</span>
+<span class="va">PREV_REVISION</span>=$(<span class="fn">kubectl</span> rollout history deployment/<span class="st">"$DEPLOYMENT"</span> \
+  -n <span class="st">"$NAMESPACE"</span> --no-headers | <span class="fn">tail</span> -2 | <span class="fn">head</span> -1 | <span class="fn">awk</span> <span class="st">'{print $1}'</span>)
+
+<span class="cm"># Execute rollback</span>
+<span class="fn">kubectl</span> rollout undo deployment/<span class="st">"$DEPLOYMENT"</span> -n <span class="st">"$NAMESPACE"</span>
+
+<span class="cm"># Verify rollback completes within timeout</span>
+<span class="fn">echo</span> <span class="st">"[ROLLBACK] Waiting for rollback to complete (timeout: ${ROLLBACK_TIMEOUT}s)..."</span>
+<span class="kw">if</span> <span class="fn">kubectl</span> rollout status deployment/<span class="st">"$DEPLOYMENT"</span> \
+    -n <span class="st">"$NAMESPACE"</span> \
+    --timeout=<span class="st">"${ROLLBACK_TIMEOUT}s"</span>; <span class="kw">then</span>
+  <span class="va">RESTORED_IMAGE</span>=$(<span class="fn">kubectl</span> get deployment <span class="st">"$DEPLOYMENT"</span> \
+    -n <span class="st">"$NAMESPACE"</span> \
+    -o jsonpath=<span class="st">'{.spec.template.spec.containers[0].image}'</span>)
+  <span class="fn">echo</span> <span class="st">"[ROLLBACK] SUCCESS — restored to revision $PREV_REVISION"</span>
+  <span class="fn">echo</span> <span class="st">"[ROLLBACK] Active image: $RESTORED_IMAGE"</span>
+  <span class="fn">exit</span> <span class="nm">0</span>
+<span class="kw">else</span>
+  <span class="fn">echo</span> <span class="st">"[ROLLBACK] FAILED — rollback did not complete within ${ROLLBACK_TIMEOUT}s" >&2</span>
+  <span class="fn">echo</span> <span class="st">"[ROLLBACK] Manual intervention required. Check: kubectl describe deployment $DEPLOYMENT -n $NAMESPACE" >&2</span>
+  <span class="fn">exit</span> <span class="nm">1</span>
+<span class="kw">fi</span></code></pre>
+          </div>
+          <p style="margin-top:10px;"><strong>On the OOMKilled root cause:</strong> exit code 137 = SIGKILL from the OOM killer. The container hit 512Mi and was terminated. Next steps: (1) run <code>kubectl top pods -n payment</code> during normal operation to establish actual memory usage, (2) increase the limit to 150% of the observed peak, (3) re-deploy. The rollback restores service immediately; the resource limit fix is a separate change.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Turn 5 -->
+    <div class="turn-nav" style="margin-top:28px;">
+      <span class="turn-nav-label">Turns</span>
+      <span class="turn-pip done">1</span><span class="turn-connector"></span>
+      <span class="turn-pip done">2</span><span class="turn-connector"></span>
+      <span class="turn-pip done">3</span><span class="turn-connector"></span>
+      <span class="turn-pip done">4</span><span class="turn-connector"></span>
+      <span class="turn-pip active">5</span>
+    </div>
+
+    <div class="turn-label">Turn 5 of 5 — Convention alignment across all four files</div>
+    <div class="conversation">
+      <div class="conv-turn engineer">
+        <div class="conv-role">Engineer → Claude Code</div>
+        <div class="conv-body">
+          <p>Two convention issues found when reviewing all four files together:</p>
+          <p style="margin-top:10px;">1. The deployment manifest uses <code>app.kubernetes.io/managed-by: github-actions</code> but our existing manifests use <code>managed-by: ci</code> — align it.<br>
+          2. The rollback script outputs <code>[ROLLBACK]</code> prefix but our other ops scripts use <code>[$(date -u +%H:%M:%S)]</code> timestamp prefix — align it.<br>
+          Don't regenerate the full files. Show only the changed lines.</p>
+        </div>
+      </div>
+      <div class="conv-turn claude">
+        <div class="conv-role">Claude Code</div>
+        <div class="conv-body">
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">k8s/deployment.yaml — label change only</span><button class="code-copy" onclick="copyCode(this)">copy</button></div>
+            <pre><code class="block"><span class="cm"># Change this line:</span>
+<span class="an">    app.kubernetes.io/managed-by: github-actions</span>
+<span class="cm"># To:</span>
+    <span class="kw">app.kubernetes.io/managed-by:</span> <span class="st">ci</span></code></pre>
+          </div>
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">k8s/rollback.sh — prefix pattern change</span><button class="code-copy" onclick="copyCode(this)">copy</button></div>
+            <pre><code class="block"><span class="cm"># Replace all instances of:</span>
+<span class="an">echo "[ROLLBACK] ..."</span>
+<span class="cm"># With the timestamp pattern:</span>
+<span class="fn">log</span>() { <span class="fn">echo</span> <span class="st">"[$(date -u +%H:%M:%S)] ROLLBACK $*"</span>; }
+<span class="cm"># Then replace echo "[ROLLBACK] ..." with log "..."</span>
+<span class="cm"># Example: log "Initiating rollback for $DEPLOYMENT in $NAMESPACE"</span>
+<span class="cm"># Stderr lines add >&2: log "Manual intervention required..." >&2</span></code></pre>
+          </div>
+          <p style="margin-top:10px;">Targeted changes only as requested. The <code>log()</code> helper function centralises the timestamp format so future additions to the script automatically use the correct prefix without needing to remember the date format.</p>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ══ STEP 4: REFINED OUTPUT ══ -->
+  <section class="step-section" id="step-4">
+    <div class="step-header">
+      <div class="step-number">4</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 4 of 5</div>
+        <div class="step-title">The refined output</div>
+      </div>
+<div class="reviewer-bar" id="rev-bar-4">
+  <input type="checkbox" class="rev-checkbox" id="rev-cb-4" data-step="4">
+  <label for="rev-cb-4">Mark step as reviewed</label>
+</div>
+
+    </div>
+
+    <p class="prose">
+      Four files, working as a system. Here is the key diff from naive to final, followed by a map of how the files connect — the integration points that make this a pipeline rather than four independent scripts.
+    </p>
+
+    <div class="diff-wrap">
+      <div class="diff-header">Naive → final: system-level changes</div>
+      <div class="diff-body">
+        <span class="diff-line rem">scan:                           # No dependency — runs before build completes</span>
+        <span class="diff-line add">scan:</span>
+        <span class="diff-line add">  needs: build                  # Strict sequence enforced</span>
+        <span class="diff-line neu"> </span>
+        <span class="diff-line rem">  exit-code: 0                  # Scan never blocks</span>
+        <span class="diff-line add">  trivy-config: .trivy.yaml     # Threshold in config file, not inline</span>
+        <span class="diff-line add">  # exit-code: 1 on CRITICAL — configured in .trivy.yaml</span>
+        <span class="diff-line neu"> </span>
+        <span class="diff-line add">approve:                        # New: human gate between scan and push</span>
+        <span class="diff-line add">  needs: scan</span>
+        <span class="diff-line add">  environment: production        # Requires configured reviewers</span>
+        <span class="diff-line neu"> </span>
+        <span class="diff-line rem">push:                           # No dependency on scan</span>
+        <span class="diff-line add">push:</span>
+        <span class="diff-line add">  needs: [ scan, approve ]       # Both gates must pass</span>
+        <span class="diff-line add">  outputs:</span>
+        <span class="diff-line add">    image-digest: ...            # Digest flows to deploy job</span>
+        <span class="diff-line add">    image-uri: ...               # Full URI flows to deploy job</span>
+        <span class="diff-line neu"> </span>
+        <span class="diff-line rem">  aws-access-key-id: ${{ secrets... }}  # Long-lived credentials</span>
+        <span class="diff-line add">  role-to-assume: ${{ secrets.AWS_ROLE_ARN }}  # OIDC</span>
+        <span class="diff-line neu"> </span>
+        <span class="diff-line rem">deploy:                         # No rollout check, no rollback</span>
+        <span class="diff-line add">deploy:</span>
+        <span class="diff-line add">  - kubectl rollout status --timeout=180s</span>
+        <span class="diff-line add">  - if: failure() → bash k8s/rollback.sh  # Auto-rollback</span>
+      </div>
+    </div>
+
+    <!-- How the files connect — Tier 2 addition -->
+    <div class="file-connect">
+      <div class="file-connect-label">How the four files connect</div>
+
+      <div class="fc-row">
+        <span class="fc-file">.trivy.yaml</span>
+        <span class="fc-arrow">→</span>
+        <div class="fc-desc"><strong>Referenced by cicd.yml scan job</strong> via <code>trivy-config: .trivy.yaml</code>. Controls severity thresholds, output format, and the ignore file reference. If this file is absent, the scan step uses Trivy defaults — which do not match the team's security policy and do not produce JSON output for the artifact.</div>
+      </div>
+
+      <div class="fc-row">
+        <span class="fc-file">.trivyignore.yaml</span>
+        <span class="fc-arrow">→</span>
+        <div class="fc-desc"><strong>Referenced by .trivy.yaml</strong> via <code>ignorefile</code>. Suppresses specific CVEs with documented reasons and expiry dates. Keeping this separate from the scanner config means security suppressions are independently reviewable and auditable.</div>
+      </div>
+
+      <div class="fc-row">
+        <span class="fc-file">cicd.yml push job</span>
+        <span class="fc-arrow">→</span>
+        <div class="fc-desc"><strong>Outputs image-uri to the deploy job</strong> via <code>needs.push.outputs.image-uri</code>. The deploy job never constructs the image URI itself — it receives it from the push job. This ensures the deployed image is exactly what was scanned and approved, not a re-derived URI that could drift if tag naming logic changes.</div>
+      </div>
+
+      <div class="fc-row">
+        <span class="fc-file">k8s/deployment.yaml</span>
+        <span class="fc-arrow">→</span>
+        <div class="fc-desc"><strong>Container name <code>payment-api</code> must match the deploy job's <code>kubectl set image</code> command.</strong> The manifest's <code>spec.containers[0].name</code> is the key in the set image command: <code>kubectl set image ... payment-api=NEW_IMAGE</code>. A name mismatch silently applies no change — the old image continues running with no error.</div>
+      </div>
+
+      <div class="fc-row">
+        <span class="fc-file">k8s/rollback.sh</span>
+        <span class="fc-arrow">→</span>
+        <div class="fc-desc"><strong>Called by cicd.yml deploy job</strong> on rollout failure via <code>if: failure() && steps.rollout.conclusion == 'failure'</code>. Receives deployment name and namespace as arguments — both must match the deploy job's values. The script is tested by the Turn 4 failure; it is not hypothetical automation.</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ══ STEP 5: WATCH OUT ══ -->
+  <section class="step-section" id="step-5">
+    <div class="step-header">
+      <div class="step-number">5</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 5 of 5</div>
+        <div class="step-title">Watch out</div>
+      </div>
+<div class="reviewer-bar" id="rev-bar-5">
+  <input type="checkbox" class="rev-checkbox" id="rev-cb-5" data-step="5">
+  <label for="rev-cb-5">Mark step as reviewed</label>
+</div>
+
+    </div>
+
+    <p class="prose">Claude Code produced a coherent four-file system across five turns. Here is what it handled correctly and what your specific environment must still verify.</p>
+
+    <div class="callout good">
+      <div class="callout-label">What Claude Code handled well</div>
+      Strict job dependency chain, <code>if: always()</code> on artifact upload so the scan report survives a scan failure, <code>provenance: false</code> for ECR digest reliability, dual gates (scan + approve) before push, image URI flowing from push to deploy via job outputs (never re-derived), <code>kubectl set image</code> container name alignment warning, exit code 137 = OOMKilled diagnosis from raw kubectl output, targeted convention fixes in Turn 5 without full file regeneration.
+    </div>
+
+    <ul class="annotation-list" style="margin-top:24px;">
+      <li>
+        <span class="ann-badge ann-warn">Verify</span>
+        <div><strong>The <code>production</code> environment must be configured in GitHub repository settings.</strong> The approval gate works via GitHub Environments — if the <code>production</code> environment does not exist in Settings → Environments, the approve job will run without requiring any reviewers. Create the environment and add required reviewers before the pipeline is considered production-ready.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Verify</span>
+        <div><strong>The EKS cluster name is hardcoded in the deploy job.</strong> <code>aws eks update-kubeconfig --name payment-api-cluster</code> assumes this exact cluster name. Claude Code used a reasonable default; your cluster name may differ. This will fail silently — the kubeconfig update succeeds with a different cluster name, and <code>kubectl set image</code> may target the wrong cluster.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Verify</span>
+        <div><strong>The rollback script requires <code>kubectl rollout history</code> access.</strong> The IAM role used for deploy needs RBAC permissions to read rollout history, not just set images. If the role has narrow permissions, the <code>kubectl rollout history</code> call in <code>rollback.sh</code> will fail before the actual rollback runs. Test the rollback script manually against your cluster before relying on it in production.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Verify</span>
+        <div><strong>The OOMKilled root cause from Turn 4 requires a separate fix.</strong> The rollback restored service, but the memory limit of 512Mi was insufficient for this service's actual usage. Run <code>kubectl top pods -n payment</code> during a representative load period, set the limit to 150% of the observed peak, and redeploy before the next feature release. The pipeline will produce the same OOMKilled failure until the limit is corrected.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Verify</span>
+        <div><strong>Trivy CVE suppression expiry dates require a review process.</strong> The <code>.trivyignore.yaml</code> sets <code>expires: 2025-12-31</code> for CVE-2023-44487. Trivy does not enforce this expiry automatically — it is a documentation convention, not a hard gate. Add a calendar reminder or a CI check that fails if any suppression has passed its expiry date.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-info">Note</span>
+        <div><strong>The scan job rebuilds the image rather than sharing it between jobs.</strong> GitHub Actions jobs run on separate runners with no shared filesystem. The scan job uses <code>cache-from: type=gha</code> to get a full cache hit — no layers are re-downloaded — but the build step must still run. This is correct behaviour; a zero-cost cache hit is the efficient path. If your cache hit rate is low, check that the <code>cache-to: type=gha,mode=max</code> in the build job is actually populating the cache.</div>
+      </li>
+    </ul>
+
+    <div class="callout tip">
+      <div class="callout-label">Prompting tip for multi-file pipelines</div>
+      In Tier 1, single-file prompts were self-contained. In Tier 2, the most important addition to every prompt is <strong>naming the integration contract explicitly</strong> — what one file produces that another file consumes. In Turn 3, specifying "the container name must match what the pipeline references" produced a correctly aligned manifest with a warning comment. Without that constraint, Claude Code would have used a reasonable default name that might not match — and the failure would have been silent.
+    </div>
+  </section>
+
+  
+<div class="reviewer-panel">
+  <div class="reviewer-panel-label">🔍 Reviewer question — E5-1</div>
+  <div class="reviewer-q-text">In Example 5, the Trivy scan artifact upload uses `if: always()`. Why is this condition important?</div>
+  <div class="reviewer-options">
+    <div class="reviewer-option" data-key="A" onclick="selectRevOption('A',this)"><span class="reviewer-option-key">A</span><span>It ensures the artifact is uploaded on every push, not just on main branch</span></div>
+    <div class="reviewer-option" data-key="B" onclick="selectRevOption('B',this)"><span class="reviewer-option-key">B</span><span>It uploads the scan report even when the scan fails and blocks the pipeline, preserving the evidence for why the pipeline was blocked</span></div>
+    <div class="reviewer-option" data-key="C" onclick="selectRevOption('C',this)"><span class="reviewer-option-key">C</span><span>It prevents the scan from being skipped when the cache is cold</span></div>
+    <div class="reviewer-option" data-key="D" onclick="selectRevOption('D',this)"><span class="reviewer-option-key">D</span><span>It allows the artifact to be downloaded by all team members regardless of permissions</span></div>
+  </div>
+  <button class="reviewer-reveal" id="rev-reveal-btn" onclick="revealRevAnswer()">Check answer</button>
+  <div class="reviewer-explanation" id="rev-explanation">
+    <div class="reviewer-exp-label"></div>
+    When the Trivy scan finds a CRITICAL vulnerability and exits 1, the job fails. Without `if: always()`, the upload step would be skipped because the preceding step failed. The scan report is the evidence for why the pipeline was blocked — losing it on failure defeats the audit purpose.
+  </div>
+  <div class="reviewer-comment-label">Reviewer notes</div>
+  <textarea class="reviewer-comment" id="rev-comment" placeholder="Add your review notes for this example…"></textarea>
+  <div class="reviewer-save-note">Notes are auto-saved in your browser.</div>
+</div>
+<script>window.REV_CORRECT = "B";</script>
+
+<div class="bottom-nav">
+    <a class="nav-btn secondary" href="../example-4-shell-script.html">← Example 4 — Shell script</a>
+    <a class="nav-btn" href="../example-6-terraform-multienv.html">Example 6 — Multi-environment Terraform →</a>
+  </div>
+
+</div>
+
+<footer>
+  <span>AIOps &amp; DevOps Learning Path · SourceFuse L&amp;D</span>
+  <span>Example 5 of 13 · Tier 2 · CI/CD pipeline with security scanning</span>
+</footer>
+
+<script>
+  const sections = document.querySelectorAll('.step-section');
+  const navItems = document.querySelectorAll('.stepnav-item');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const id = entry.target.id;
+        navItems.forEach(item => {
+          item.classList.toggle('active', item.getAttribute('href') === '#' + id);
+        });
+      }
+    });
+  }, { rootMargin: '-30% 0px -60% 0px', threshold: 0 });
+  sections.forEach(s => observer.observe(s));
+
+  function copyCode(btn) {
+    const pre = btn.closest('.code-wrap').querySelector('pre');
+    navigator.clipboard.writeText(pre.innerText).then(() => {
+      btn.textContent = 'copied!';
+      setTimeout(() => btn.textContent = 'copy', 2000);
+    });
+  }
+</script>
+
+<script>
+// ── Reviewer persistence ─────────────────────────────────────────────────────
+const REV_KEY = 'reviewer_example-5';
+
+function revLoad() {
+  try { return JSON.parse(localStorage.getItem(REV_KEY)) || {}; } catch(e) { return {}; }
+}
+
+function revSave(state) {
+  localStorage.setItem(REV_KEY, JSON.stringify(state));
+}
+
+// Restore checkboxes
+document.querySelectorAll('.rev-checkbox').forEach(cb => {
+  const state = revLoad();
+  if (state['cb_' + cb.dataset.step]) {
+    cb.checked = true;
+    cb.closest('.reviewer-bar').classList.add('checked');
+    cb.closest('.reviewer-bar').querySelector('label').textContent = '✓ Step reviewed';
+  }
+  cb.addEventListener('change', () => {
+    const s = revLoad();
+    s['cb_' + cb.dataset.step] = cb.checked;
+    revSave(s);
+    const bar = cb.closest('.reviewer-bar');
+    bar.classList.toggle('checked', cb.checked);
+    bar.querySelector('label').textContent = cb.checked ? '✓ Step reviewed' : 'Mark step as reviewed';
+  });
+});
+
+// Restore comment
+const commentEl = document.getElementById('rev-comment');
+if (commentEl) {
+  const state = revLoad();
+  if (state.comment) commentEl.value = state.comment;
+  commentEl.addEventListener('input', () => {
+    const s = revLoad();
+    s.comment = commentEl.value;
+    revSave(s);
+  });
+}
+
+// Reviewer question logic
+let revAnswer = null;
+let revSubmitted = false;
+
+(function restoreRevQ() {
+  const state = revLoad();
+  if (state.revAnswer !== undefined) {
+    revAnswer = state.revAnswer;
+    revSubmitted = state.revSubmitted || false;
+    if (revAnswer !== null) applyRevAnswer(revAnswer, revSubmitted);
+  }
+})();
+
+function selectRevOption(key, el) {
+  if (revSubmitted) return;
+  revAnswer = key;
+  document.querySelectorAll('.reviewer-option').forEach(o => o.classList.toggle('selected', o.dataset.key === key));
+  const s = revLoad(); s.revAnswer = key; revSave(s);
+}
+
+function selectRevTF(val, el) {
+  if (revSubmitted) return;
+  revAnswer = val;
+  document.querySelectorAll('.reviewer-tf-btn').forEach(b => {
+    b.classList.toggle('selected', (b.dataset.val === 'true') === val);
+  });
+  const s = revLoad(); s.revAnswer = val; revSave(s);
+}
+
+function revealRevAnswer() {
+  if (revAnswer === null) { alert('Please select an answer first.'); return; }
+  revSubmitted = true;
+  const s = revLoad(); s.revSubmitted = true; revSave(s);
+  applyRevAnswer(revAnswer, true);
+}
+
+function applyRevAnswer(ans, showResult) {
+  const correctVal = window.REV_CORRECT;
+  // MCQ
+  document.querySelectorAll('.reviewer-option').forEach(o => {
+    o.classList.remove('selected','correct','wrong');
+    if (showResult) {
+      if (o.dataset.key === correctVal) o.classList.add('correct');
+      else if (o.dataset.key === ans && o.dataset.key !== correctVal) o.classList.add('wrong');
+    } else {
+      if (o.dataset.key === ans) o.classList.add('selected');
+    }
+  });
+  // T/F
+  document.querySelectorAll('.reviewer-tf-btn').forEach(b => {
+    b.classList.remove('selected','correct','wrong');
+    const bVal = b.dataset.val === 'true';
+    if (showResult) {
+      if (bVal === correctVal) b.classList.add('correct');
+      else if (bVal === ans && bVal !== correctVal) b.classList.add('wrong');
+    } else {
+      if (bVal === ans) b.classList.add('selected');
+    }
+  });
+  if (showResult) {
+    const expEl = document.getElementById('rev-explanation');
+    const btnEl = document.getElementById('rev-reveal-btn');
+    if (expEl) {
+      const isCorrect = (ans === correctVal) || (ans === correctVal);
+      expEl.classList.add('visible');
+      const lbl = expEl.querySelector('.reviewer-exp-label');
+      if (lbl) { lbl.textContent = isCorrect ? '✓ Correct' : '✗ Incorrect'; lbl.className = 'reviewer-exp-label ' + (isCorrect ? 'correct' : 'wrong'); }
+    }
+    if (btnEl) btnEl.style.display = 'none';
+  }
+}
+</script>
+
+</body>
+</html>

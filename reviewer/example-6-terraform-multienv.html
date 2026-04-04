@@ -1,0 +1,1266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>[Reviewer] Example 6 — Multi-Environment Terraform with Remote State</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Merriweather+Sans:wght@300;400;600;700&family=Source+Code+Pro:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:#eef2f7; --bg2:#ffffff; --bg3:#f0f4f9; --border:#d0dae8;
+    --text:#1a2332; --text-dim:#4a5568; --text-dimmer:#8fa3bc;
+    --blue:#1a6eb5; --blue-light:#e8f1fb; --blue-mid:#b8d0ed; --blue-dark:#0f4a7a;
+    --teal:#0e7a6b; --teal-light:#e6f4f2;
+    --coral:#c0392b; --coral-light:#fdf0ee; --coral-mid:#f0b8b2;
+    --green:#1a6b3a; --green-light:#e8f5ed;
+    --amber:#92600a; --amber-light:#fdf3e3;
+    --purple:#5b4fcf; --purple-light:#f0effe;
+    --code-bg:#1e2433; --code-text:#cdd6f4; --radius:12px;
+  }
+
+  html,body { min-height:100%; background:var(--bg); color:var(--text); font-family:'Merriweather Sans',sans-serif; font-size:15px; line-height:1.6; }
+
+  .topnav { background:var(--bg2); border-bottom:1px solid var(--border); padding:0 40px; height:52px; display:flex; align-items:center; gap:8px; font-size:12px; color:var(--text-dimmer); font-family:'Source Code Pro',monospace; position:sticky; top:0; z-index:100; }
+  .topnav a { color:var(--blue); text-decoration:none; }
+  .topnav a:hover { text-decoration:underline; }
+  .topnav .sep { margin:0 4px; color:var(--text-dimmer); }
+
+  .stepnav { background:var(--bg2); border-bottom:1px solid var(--border); padding:0 40px; display:flex; align-items:stretch; position:sticky; top:52px; z-index:99; overflow-x:auto; }
+  .stepnav-item { display:flex; align-items:center; gap:8px; padding:14px 20px; font-size:12px; font-family:'Source Code Pro',monospace; color:var(--text-dimmer); cursor:pointer; border-bottom:3px solid transparent; white-space:nowrap; transition:color 0.15s,border-color 0.15s; text-decoration:none; }
+  .stepnav-item:hover { color:var(--text-dim); }
+  .stepnav-item.active { color:var(--blue); border-bottom-color:var(--blue); font-weight:600; }
+  .stepnav-num { width:20px; height:20px; border-radius:50%; background:var(--bg3); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; flex-shrink:0; }
+  .stepnav-item.active .stepnav-num { background:var(--blue); border-color:var(--blue); color:white; }
+
+  .hero { background:var(--bg2); border-bottom:2px solid var(--border); padding:40px 40px 32px; }
+  .hero-inner { max-width:900px; margin:0 auto; }
+  .hero-eyebrow { font-size:10px; letter-spacing:0.2em; text-transform:uppercase; color:var(--blue); font-weight:600; margin-bottom:10px; font-family:'Source Code Pro',monospace; }
+  .hero h1 { font-size:clamp(18px,2.5vw,26px); font-weight:700; color:var(--text); line-height:1.25; }
+  .hero h1 span { color:var(--blue); }
+  .hero-meta { margin-top:14px; display:flex; flex-wrap:wrap; gap:8px; }
+  .meta-pill { font-size:10.5px; font-family:'Source Code Pro',monospace; padding:3px 10px; border-radius:20px; font-weight:600; }
+  .pill-tier  { background:var(--purple-light); color:var(--purple); border:1px solid #c4bdf0; }
+  .pill-topic { background:var(--teal-light); color:var(--teal); border:1px solid #a3d4ce; }
+  .pill-turns { background:var(--bg3); color:var(--text-dim); border:1px solid var(--border); font-weight:400; }
+
+  .main { max-width:900px; margin:0 auto; padding:40px 40px 80px; }
+
+  .step-section { margin-bottom:56px; scroll-margin-top:120px; }
+  .step-header { display:flex; align-items:center; gap:14px; margin-bottom:20px; padding-bottom:16px; border-bottom:2px solid var(--border); }
+  .step-number { width:40px; height:40px; border-radius:50%; background:var(--blue); color:white; display:flex; align-items:center; justify-content:center; font-size:16px; font-weight:700; font-family:'Source Code Pro',monospace; flex-shrink:0; }
+  .step-label { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:0.18em; text-transform:uppercase; color:var(--blue); font-weight:600; margin-bottom:3px; }
+  .step-title { font-size:18px; font-weight:700; color:var(--text); line-height:1.25; }
+
+  .prose { font-size:14.5px; color:var(--text-dim); line-height:1.8; margin-bottom:20px; }
+  .prose strong { color:var(--text); font-weight:600; }
+  .prose code { font-family:'Source Code Pro',monospace; font-size:13px; background:var(--bg3); border:1px solid var(--border); padding:1px 5px; border-radius:4px; color:var(--blue-dark); }
+
+  /* File map */
+  .file-map { background:var(--bg2); border:1px solid var(--border); border-top:3px solid var(--blue); border-radius:var(--radius); overflow:hidden; margin:20px 0; }
+  .file-map-header { padding:12px 18px; background:var(--blue-light); border-bottom:1px solid var(--border); font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:0.18em; text-transform:uppercase; color:var(--blue); font-weight:600; }
+  .file-map table { width:100%; border-collapse:collapse; }
+  .file-map th { padding:10px 16px; font-size:11px; font-family:'Source Code Pro',monospace; color:var(--text-dimmer); font-weight:600; text-align:left; border-bottom:1px solid var(--border); background:var(--bg3); }
+  .file-map td { padding:10px 16px; font-size:13px; color:var(--text-dim); border-bottom:1px solid var(--border); vertical-align:top; }
+  .file-map tr:last-child td { border-bottom:none; }
+  .file-map td:first-child { font-family:'Source Code Pro',monospace; font-size:12px; color:var(--blue-dark); font-weight:600; white-space:nowrap; }
+  .stage-pill { font-size:9.5px; font-family:'Source Code Pro',monospace; padding:2px 8px; border-radius:20px; font-weight:600; white-space:nowrap; }
+  .stage-plan   { background:var(--teal-light); color:var(--teal); border:1px solid #a3d4ce; }
+  .stage-state  { background:var(--amber-light); color:var(--amber); border:1px solid #f0d4a0; }
+  .stage-module { background:var(--blue-light); color:var(--blue); border:1px solid var(--blue-mid); }
+  .stage-env    { background:var(--purple-light); color:var(--purple); border:1px solid #c4bdf0; }
+
+  /* Callouts */
+  .callout { border-radius:var(--radius); padding:16px 18px; margin:20px 0; font-size:13.5px; line-height:1.7; }
+  .callout-label { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:0.15em; text-transform:uppercase; font-weight:700; margin-bottom:6px; }
+  .callout.info { background:var(--blue-light); border:1px solid var(--blue-mid); border-left:3px solid var(--blue); color:var(--text-dim); }
+  .callout.info .callout-label { color:var(--blue); }
+  .callout.warn { background:#fdf5f5; border:1px solid var(--coral-mid); border-left:3px solid var(--coral); color:var(--text-dim); }
+  .callout.warn .callout-label { color:var(--coral); }
+  .callout.good { background:var(--green-light); border:1px solid #a3d4b8; border-left:3px solid var(--green); color:var(--text-dim); }
+  .callout.good .callout-label { color:var(--green); }
+  .callout.tip  { background:var(--amber-light); border:1px solid #f0d4a0; border-left:3px solid var(--amber); color:var(--text-dim); }
+  .callout.tip  .callout-label { color:var(--amber); }
+  .callout strong { color:var(--text); font-weight:600; }
+  .callout code { font-family:'Source Code Pro',monospace; font-size:12.5px; background:rgba(0,0,0,0.06); padding:1px 5px; border-radius:4px; }
+
+  /* Code blocks */
+  .code-wrap { margin:20px 0; border-radius:0; overflow:hidden; border:1px solid #2a3144; background:#1e2433; }
+  .code-header { background:#252b3b; padding:10px 16px; display:flex; align-items:center; justify-content:space-between; }
+  .code-filename { font-size:11px; font-family:'Source Code Pro',monospace; color:#ffffff; letter-spacing:0.05em; }
+  .code-copy { font-size:10px; font-family:'Source Code Pro',monospace; color:#7a8ab0; background:none; border:1px solid #3a4155; border-radius:4px; padding:2px 8px; cursor:pointer; transition:color 0.15s,border-color 0.15s; }
+  .code-copy:hover { color:#cdd6f4; border-color:#6a7ab0; }
+  pre { background:#1e2433 !important; padding:20px; overflow-x:auto; margin:0; }
+  code.block { font-family:'Source Code Pro',monospace; font-size:13px; line-height:1.7; color:var(--code-text); background:none; border:none; padding:0; display:block; }
+  .kw{color:#cba6f7;} .cm{color:#6c7086;font-style:italic;} .st{color:#a6e3a1;}
+  .nm{color:#fab387;} .op{color:#89dceb;} .an{color:#f38ba8;}
+  .ty{color:#f9e2af;} .fn{color:#89b4fa;}
+
+  /* Diff */
+  .diff-wrap { margin:20px 0; border-radius:0; overflow:hidden; border:1px solid #2a3144; background:#1e2433; }
+  .diff-header { background:#252b3b; padding:10px 16px; font-size:11px; font-family:'Source Code Pro',monospace; color:#ffffff; }
+  .diff-body { background:#1e2433 !important; padding:16px 0; overflow-x:auto; }
+  .diff-line { padding:1px 20px; font-family:'Source Code Pro',monospace; font-size:13px; line-height:1.65; color:var(--code-text); display:block; }
+  .diff-line.add { background:rgba(166,227,161,0.12); color:#a6e3a1; }
+  .diff-line.add::before { content:'+  '; color:#a6e3a1; }
+  .diff-line.rem { background:rgba(243,139,168,0.12); color:#f38ba8; }
+  .diff-line.rem::before { content:'-  '; color:#f38ba8; }
+  .diff-line.neu::before { content:'   '; }
+
+  /* Annotations */
+  .annotation-list { list-style:none; display:flex; flex-direction:column; gap:12px; margin:20px 0; }
+  .annotation-list li { display:flex; gap:12px; align-items:flex-start; font-size:13.5px; color:var(--text-dim); line-height:1.7; }
+  .ann-badge { flex-shrink:0; font-size:10px; font-family:'Source Code Pro',monospace; font-weight:700; padding:2px 8px; border-radius:4px; margin-top:2px; }
+  .ann-good { background:var(--green-light); color:var(--green); border:1px solid #a3d4b8; }
+  .ann-warn { background:var(--coral-light); color:var(--coral); border:1px solid var(--coral-mid); }
+  .ann-info { background:var(--blue-light); color:var(--blue); border:1px solid var(--blue-mid); }
+  .annotation-list li strong { color:var(--text); font-weight:600; }
+  .annotation-list li code { font-family:'Source Code Pro',monospace; font-size:12.5px; background:var(--bg3); border:1px solid var(--border); padding:1px 5px; border-radius:4px; color:var(--blue-dark); }
+
+  /* Conversation */
+  .conversation { display:flex; flex-direction:column; gap:0; margin:16px 0; border:1px solid #2a3144; border-radius:var(--radius); overflow:hidden; }
+  .conv-turn { padding:18px 22px; }
+  .conv-turn + .conv-turn { border-top:1px solid #2a3144; }
+  .conv-turn.engineer { background:var(--bg3); }
+  .conv-turn.claude   { background:#1e2433; }
+  .conv-role { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:0.18em; text-transform:uppercase; font-weight:700; margin-bottom:8px; }
+  .conv-turn.engineer .conv-role { color:var(--teal); }
+  .conv-turn.claude   .conv-role { color:#7a8ab0; }
+  .conv-body { font-size:13.5px; line-height:1.75; }
+  .conv-turn.engineer .conv-body { color:var(--text-dim); }
+  .conv-turn.claude   .conv-body { color:#cdd6f4; }
+  .conv-turn.engineer .conv-body strong { color:var(--text); font-weight:600; }
+  .conv-turn.claude   .conv-body strong { color:#ffffff; font-weight:600; }
+  .conv-turn.engineer .conv-body code { font-family:'Source Code Pro',monospace; font-size:12.5px; background:var(--bg3); border:1px solid var(--border); padding:1px 5px; border-radius:4px; color:var(--blue-dark); }
+  .conv-turn.claude   .conv-body code { font-family:'Source Code Pro',monospace; font-size:12.5px; background:#252b3b; border:1px solid #3a4155; padding:1px 5px; border-radius:4px; color:#89dceb; }
+  .conv-turn.claude   .conv-body em { font-style:italic; color:#6c7086; }
+  .conv-turn.claude   .code-wrap { margin:12px 0; }
+
+  /* Turn navigator */
+  .turn-nav { display:flex; align-items:center; gap:6px; margin-bottom:16px; flex-wrap:wrap; }
+  .turn-nav-label { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:0.15em; text-transform:uppercase; color:var(--text-dimmer); font-weight:600; margin-right:4px; }
+  .turn-pip { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; font-family:'Source Code Pro',monospace; border:1px solid var(--border); background:var(--bg3); color:var(--text-dimmer); }
+  .turn-pip.active { background:var(--blue); border-color:var(--blue); color:#ffffff; }
+  .turn-pip.done   { background:var(--green-light); border-color:#a3d4b8; color:var(--green); }
+  .turn-connector  { width:20px; height:1px; background:var(--border); }
+
+  /* File connection diagram */
+  .file-connect { background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); padding:20px 24px; margin:24px 0; }
+  .file-connect-label { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:0.18em; text-transform:uppercase; color:var(--blue); font-weight:600; margin-bottom:14px; }
+  .fc-row { display:flex; align-items:flex-start; gap:12px; margin-bottom:12px; }
+  .fc-row:last-child { margin-bottom:0; }
+  .fc-file { font-family:'Source Code Pro',monospace; font-size:11.5px; font-weight:600; color:var(--blue-dark); background:var(--blue-light); border:1px solid var(--blue-mid); border-radius:6px; padding:4px 10px; white-space:nowrap; flex-shrink:0; }
+  .fc-arrow { color:var(--text-dimmer); font-size:14px; margin-top:3px; flex-shrink:0; }
+  .fc-desc { font-size:13px; color:var(--text-dim); line-height:1.6; padding-top:2px; }
+  .fc-desc strong { color:var(--text); font-weight:600; }
+
+  .turn-label { display:inline-flex; align-items:center; gap:6px; font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:0.12em; text-transform:uppercase; color:var(--text-dimmer); background:var(--bg3); border:1px solid var(--border); border-radius:20px; padding:3px 10px; margin-bottom:14px; font-weight:600; }
+  .section-divider { height:1px; background:var(--border); margin:40px 0; }
+
+  /* Bottom nav */
+  .bottom-nav { display:flex; justify-content:space-between; align-items:center; padding:20px 0 0; border-top:1px solid var(--border); margin-top:40px; }
+  .nav-btn { display:inline-flex; align-items:center; gap:8px; font-size:13px; font-family:'Source Code Pro',monospace; color:var(--blue); text-decoration:none; padding:10px 18px; border:1px solid var(--blue-mid); border-radius:8px; background:var(--blue-light); transition:background 0.15s,border-color 0.15s; font-weight:600; }
+  .nav-btn:hover { background:var(--blue-mid); border-color:var(--blue); }
+  .nav-btn.secondary { background:var(--bg2); color:var(--text-dim); border-color:var(--border); }
+  .nav-btn.secondary:hover { background:var(--bg3); }
+
+  footer { background:var(--bg2); border-top:1px solid var(--border); padding:14px 40px; font-size:11px; font-family:'Source Code Pro',monospace; color:var(--text-dimmer); display:flex; justify-content:space-between; align-items:center; }
+
+  @media (max-width:640px) { .topnav,.main,footer { padding-left:20px; padding-right:20px; } .hero { padding:28px 20px; } .stepnav { padding:0 20px; } }
+
+  /* ── Reviewer additions ──────────────────────────────────────────────────── */
+  .reviewer-bar {
+    background: #fff8e6;
+    border: 1px solid #f0d4a0;
+    border-left: 3px solid #92600a;
+    border-radius: 8px;
+    padding: 10px 16px;
+    margin-top: 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: #92600a;
+    font-family: 'Source Code Pro', monospace;
+  }
+  .reviewer-bar input[type="checkbox"] {
+    width: 16px; height: 16px; cursor: pointer; flex-shrink: 0;
+    accent-color: #1a6b3a;
+  }
+  .reviewer-bar label { cursor: pointer; font-weight: 600; user-select: none; }
+  .reviewer-bar.checked { background: #e8f5ed; border-color: #a3d4b8; border-left-color: #1a6b3a; color: #1a6b3a; }
+
+  .reviewer-panel {
+    background: #f5f0ff;
+    border: 1px solid #c4bdf0;
+    border-top: 3px solid #5b4fcf;
+    border-radius: 12px;
+    padding: 24px 28px;
+    margin: 32px 0;
+  }
+  .reviewer-panel-label {
+    font-size: 9px; font-family: 'Source Code Pro', monospace;
+    letter-spacing: .18em; text-transform: uppercase;
+    color: #5b4fcf; font-weight: 600; margin-bottom: 16px;
+  }
+  .reviewer-q-text {
+    font-size: 14px; font-weight: 600; color: #1a2332;
+    line-height: 1.65; margin-bottom: 14px;
+  }
+  .reviewer-options { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
+  .reviewer-option {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 10px 14px; border: 1px solid #d0dae8;
+    border-radius: 8px; cursor: pointer;
+    font-size: 13.5px; color: #4a5568; line-height: 1.5;
+    transition: background .12s, border-color .12s;
+    background: #ffffff;
+  }
+  .reviewer-option:hover { background: #f0f4f9; border-color: #b8d0ed; }
+  .reviewer-option.selected { background: #e8f1fb; border-color: #1a6eb5; color: #1a2332; }
+  .reviewer-option.correct  { background: #e8f5ed; border-color: #a3d4b8; color: #1a6b3a; }
+  .reviewer-option.wrong    { background: #fdf0ee; border-color: #f0b8b2; color: #c0392b; }
+  .reviewer-option-key { font-family: 'Source Code Pro', monospace; font-size: 11px; font-weight: 700; color: #8fa3bc; flex-shrink: 0; margin-top: 1px; }
+
+  .reviewer-tf { display: flex; gap: 10px; margin-bottom: 18px; }
+  .reviewer-tf-btn {
+    flex: 1; padding: 10px; border: 1px solid #d0dae8;
+    border-radius: 8px; cursor: pointer; text-align: center;
+    font-size: 13.5px; font-weight: 600;
+    font-family: 'Source Code Pro', monospace; color: #4a5568;
+    background: #ffffff; transition: background .12s;
+  }
+  .reviewer-tf-btn:hover { background: #f0f4f9; border-color: #b8d0ed; }
+  .reviewer-tf-btn.selected { background: #e8f1fb; border-color: #1a6eb5; color: #1a6eb5; }
+  .reviewer-tf-btn.correct  { background: #e8f5ed; border-color: #a3d4b8; color: #1a6b3a; }
+  .reviewer-tf-btn.wrong    { background: #fdf0ee; border-color: #f0b8b2; color: #c0392b; }
+
+  .reviewer-reveal {
+    font-size: 12px; font-family: 'Source Code Pro', monospace;
+    color: #5b4fcf; cursor: pointer; text-decoration: underline;
+    background: none; border: none; padding: 0; margin-bottom: 14px; display: block;
+  }
+  .reviewer-explanation {
+    font-size: 13px; color: #4a5568; line-height: 1.7;
+    padding: 12px 14px; background: #eef2f7; border-radius: 8px;
+    margin-bottom: 16px; display: none;
+  }
+  .reviewer-explanation.visible { display: block; }
+  .reviewer-exp-label { font-size: 9px; font-family: 'Source Code Pro', monospace; letter-spacing: .15em; text-transform: uppercase; font-weight: 700; margin-bottom: 4px; }
+  .reviewer-exp-label.correct { color: #1a6b3a; }
+  .reviewer-exp-label.wrong   { color: #c0392b; }
+
+  .reviewer-comment-label {
+    font-size: 11px; font-family: 'Source Code Pro', monospace;
+    letter-spacing: .12em; text-transform: uppercase;
+    color: #8fa3bc; font-weight: 600; margin-bottom: 6px;
+  }
+  .reviewer-comment {
+    width: 100%; min-height: 80px; padding: 10px 12px;
+    border: 1px solid #c4bdf0; border-radius: 8px;
+    font-family: 'Merriweather Sans', sans-serif; font-size: 13.5px;
+    color: #1a2332; background: #ffffff; resize: vertical;
+    line-height: 1.6; transition: border-color .15s;
+  }
+  .reviewer-comment:focus { outline: none; border-color: #5b4fcf; }
+  .reviewer-save-note {
+    font-size: 11px; font-family: 'Source Code Pro', monospace;
+    color: #8fa3bc; margin-top: 6px;
+  }
+
+  .reviewer-topbanner {
+    background: #f5f0ff; border-bottom: 2px solid #c4bdf0;
+    padding: 10px 40px; font-size: 12px;
+    font-family: 'Source Code Pro', monospace; color: #5b4fcf;
+    display: flex; align-items: center; gap: 8px;
+  }
+
+</style>
+</head>
+<body>
+<div class="reviewer-topbanner">
+  <span>👁</span>
+  <span><strong>Reviewer mode</strong> — checkboxes, question answers, and notes are saved in your browser.</span>
+</div>
+
+
+<nav class="topnav">
+  <a href="../course-map.html">Course map</a>
+  <span class="sep">/</span>
+  <a href="../course-map.html">Tier 2 examples</a>
+  <span class="sep">/</span>
+  <span>Example 6 — Multi-environment Terraform</span>
+</nav>
+
+<nav class="stepnav" id="stepnav">
+  <a class="stepnav-item active" href="#step-1"><span class="stepnav-num">1</span>Problem</a>
+  <a class="stepnav-item" href="#step-2"><span class="stepnav-num">2</span>Naive approach</a>
+  <a class="stepnav-item" href="#step-3"><span class="stepnav-num">3</span>Claude Code interaction</a>
+  <a class="stepnav-item" href="#step-4"><span class="stepnav-num">4</span>Refined output</a>
+  <a class="stepnav-item" href="#step-5"><span class="stepnav-num">5</span>Watch out</a>
+</nav>
+
+<div class="hero">
+  <div class="hero-inner">
+    <div class="hero-eyebrow">Example 6 of 13 · Tier 2 · Multi-step workflow</div>
+    <h1>Multi-environment Terraform with <span>remote state</span></h1>
+    <div class="hero-meta">
+      <span class="meta-pill pill-tier">Tier 2 — Multi-step workflow</span>
+      <span class="meta-pill pill-topic">Infrastructure as Code</span>
+      <span class="meta-pill pill-turns">5-turn interaction</span>
+      <span class="meta-pill pill-turns">5 files · 3 environments</span>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- ══ STEP 1 ══ -->
+  <section class="step-section" id="step-1">
+    <div class="step-header">
+      <div class="step-number">1</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 1 of 5</div>
+        <div class="step-title">The problem</div>
+      </div>
+<div class="reviewer-bar" id="rev-bar-1">
+  <input type="checkbox" class="rev-checkbox" id="rev-cb-1" data-step="1">
+  <label for="rev-cb-1">Mark step as reviewed</label>
+</div>
+
+    </div>
+
+    <p class="prose">
+      The <code>payment-api</code> infrastructure needs to be provisioned across three environments — dev, staging, and prod — each with different resource sizes, different retention policies, and different access controls. The team currently runs Terraform locally with a single <code>terraform.tfvars</code> file that gets manually edited before each apply. State is stored locally. Two engineers have already applied conflicting changes by running Terraform simultaneously.
+    </p>
+
+    <p class="prose">
+      The task is to restructure the Terraform project to support multi-environment deployment safely: remote state with locking, per-environment variable files, and a module structure that enforces the separation between shared infrastructure logic and environment-specific configuration.
+    </p>
+
+    <div class="callout info">
+      <div class="callout-label">Requirements</div>
+      — <strong>Remote state:</strong> S3 backend per environment, DynamoDB table for state locking<br>
+      — <strong>Environment separation:</strong> dev, staging, prod each get their own state file and variable set<br>
+      — <strong>Module structure:</strong> reusable module in <code>/modules/rds</code> — the variables.tf from Example 2 is its interface<br>
+      — <strong>Environment configs:</strong> per-environment <code>.tfvars</code> files, no manual editing before apply<br>
+      — <strong>Backend bootstrap:</strong> a one-time script to create the S3 bucket and DynamoDB table before Terraform can run<br>
+      — <strong>State isolation:</strong> destroying dev must not be possible to accidentally affect prod state<br>
+      — <strong>CI integration:</strong> the pipeline from Example 5 will run <code>terraform plan</code> on PRs and <code>terraform apply</code> on merge to main
+    </div>
+
+    <div class="file-map">
+      <div class="file-map-header">Files involved in this example</div>
+      <table>
+        <thead><tr><th>File</th><th>Purpose</th><th>Layer</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>backend.tf</td>
+            <td>S3 backend configuration with per-environment key paths and DynamoDB locking</td>
+            <td><span class="stage-pill stage-state">State</span></td>
+          </tr>
+          <tr>
+            <td>modules/rds/main.tf</td>
+            <td>Reusable RDS module — consumes the variables.tf interface from Example 2</td>
+            <td><span class="stage-pill stage-module">Module</span></td>
+          </tr>
+          <tr>
+            <td>environments/dev.tfvars</td>
+            <td>Dev environment variable values — small instance, short retention, no multi-AZ</td>
+            <td><span class="stage-pill stage-env">Environment</span></td>
+          </tr>
+          <tr>
+            <td>environments/staging.tfvars</td>
+            <td>Staging environment variable values — medium instance, matches prod retention</td>
+            <td><span class="stage-pill stage-env">Environment</span></td>
+          </tr>
+          <tr>
+            <td>environments/prod.tfvars</td>
+            <td>Prod environment variable values — large instance, multi-AZ, maximum retention</td>
+            <td><span class="stage-pill stage-env">Environment</span></td>
+          </tr>
+          <tr>
+            <td>scripts/bootstrap-state.sh</td>
+            <td>One-time script to create S3 bucket and DynamoDB table before first Terraform run</td>
+            <td><span class="stage-pill stage-state">State</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ══ STEP 2 ══ -->
+  <section class="step-section" id="step-2">
+    <div class="step-header">
+      <div class="step-number">2</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 2 of 5</div>
+        <div class="step-title">The naive approach</div>
+      </div>
+<div class="reviewer-bar" id="rev-bar-2">
+  <input type="checkbox" class="rev-checkbox" id="rev-cb-2" data-step="2">
+  <label for="rev-cb-2">Mark step as reviewed</label>
+</div>
+
+    </div>
+
+    <p class="prose">
+      The naive multi-environment approach is a single Terraform directory with a single state file, different <code>.tfvars</code> files manually selected at apply time, and no locking. It works until it doesn't — and when it fails, it fails in ways that are difficult to recover from.
+    </p>
+
+    <div class="code-wrap">
+      <div class="code-header"><span class="code-filename">Project structure (naive)</span></div>
+      <pre><code class="block"><span class="cm"># Everything in one flat directory, one state file</span>
+infra/
+├── main.tf
+├── variables.tf
+├── terraform.tfstate          <span class="an"># Local state — lost if machine dies</span>
+├── terraform.tfstate.backup
+├── dev.tfvars                 <span class="an"># Manually selected at apply time</span>
+├── staging.tfvars
+└── prod.tfvars                <span class="an"># One wrong command applies prod config to dev state</span></code></pre>
+    </div>
+
+    <div class="code-wrap">
+      <div class="code-header"><span class="code-filename">main.tf (naive) — no backend, hardcoded values leaking through</span></div>
+      <pre><code class="block"><span class="cm"># No backend block — state is local</span>
+<span class="kw">resource</span> <span class="st">"aws_db_instance"</span> <span class="st">"main"</span> {
+  <span class="kw">identifier</span>        = <span class="st">"payment-api-db"</span>         <span class="cm"># Hardcoded — same in every env</span>
+  <span class="kw">engine</span>            = <span class="st">"postgres"</span>
+  <span class="kw">engine_version</span>    = <span class="st">"15.4"</span>
+  <span class="kw">instance_class</span>    = <span class="kw">var</span>.<span class="st">instance_class</span>
+  <span class="kw">allocated_storage</span> = <span class="kw">var</span>.<span class="st">allocated_storage</span>
+  <span class="kw">db_name</span>           = <span class="st">"paymentdb"</span>              <span class="cm"># Hardcoded — not parameterised</span>
+  <span class="kw">username</span>          = <span class="st">"admin"</span>                  <span class="cm"># Hardcoded credential</span>
+  <span class="kw">password</span>          = <span class="kw">var</span>.<span class="st">db_password</span>
+
+  <span class="cm"># No tags — impossible to identify which env this belongs to</span>
+  <span class="cm"># No lifecycle rules — accidental destroy is not prevented</span>
+}</code></pre>
+    </div>
+
+    <p class="prose">Five distinct failure modes — each one a real incident waiting to happen:</p>
+
+    <ul class="annotation-list">
+      <li>
+        <span class="ann-badge ann-warn">Safety</span>
+        <div><strong>Local state with no locking.</strong> Two engineers running <code>terraform apply</code> simultaneously against the same state file will corrupt it. Recovery requires manual state surgery — a high-stakes operation that often causes more damage than the original conflict. The team has already experienced this; it is the reason this restructure is happening.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Safety</span>
+        <div><strong>One state file for all environments.</strong> Running <code>terraform apply -var-file=prod.tfvars</code> against a state file that was last used with dev config causes Terraform to attempt to reconcile the state — potentially destroying dev resources and creating prod resources in the wrong account or region. There is no structural barrier between environments.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Correctness</span>
+        <div><strong>Hardcoded <code>identifier</code> and <code>db_name</code>.</strong> Every environment creates an RDS instance with the same name. In a shared AWS account, the second apply fails with a "DB instance already exists" error. In separate accounts, the naming gives no indication of which environment an instance belongs to, making cost allocation and incident response harder.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Safety</span>
+        <div><strong>No <code>prevent_destroy</code> lifecycle rule on prod.</strong> A <code>terraform destroy</code> or a plan that removes the RDS resource will execute without any additional confirmation. For a stateful resource holding production data, this is an unacceptable risk. Lifecycle rules are the Terraform-native mechanism to guard against this.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Correctness</span>
+        <div><strong>No environment-aware tagging.</strong> Every resource has the same tags regardless of which <code>.tfvars</code> file was used. Cost allocation by environment is impossible. When an incident occurs, identifying which environment a resource belongs to requires checking the AWS console manually.</div>
+      </li>
+    </ul>
+
+    <div class="callout warn">
+      <div class="callout-label">The core problem</div>
+      The naive structure treats multi-environment as a configuration problem — just use different <code>.tfvars</code> files. It is actually an isolation problem. Without separate state files, separate backends, and structural barriers between environments, the configuration difference between dev and prod is the only thing preventing a prod outage from a mistyped command. That is not a system; it is a hope.
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ══ STEP 3 ══ -->
+  <section class="step-section" id="step-3">
+    <div class="step-header">
+      <div class="step-number">3</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 3 of 5</div>
+        <div class="step-title">The Claude Code interaction</div>
+      </div>
+<div class="reviewer-bar" id="rev-bar-3">
+  <input type="checkbox" class="rev-checkbox" id="rev-cb-3" data-step="3">
+  <label for="rev-cb-3">Mark step as reviewed</label>
+</div>
+
+    </div>
+
+    <p class="prose">Five turns. Turn 1 generates the backend configuration and directory structure. Turn 2 generates the RDS module wired to the Example 2 interface. Turn 3 generates the three environment variable files. Turn 4 pastes a real state lock error and produces the bootstrap script. Turn 5 adds the <code>prevent_destroy</code> lifecycle rule and environment-aware tagging after a security review.</p>
+
+    <!-- Turn 1 -->
+    <div class="turn-nav">
+      <span class="turn-nav-label">Turns</span>
+      <span class="turn-pip active">1</span><span class="turn-connector"></span>
+      <span class="turn-pip">2</span><span class="turn-connector"></span>
+      <span class="turn-pip">3</span><span class="turn-connector"></span>
+      <span class="turn-pip">4</span><span class="turn-connector"></span>
+      <span class="turn-pip">5</span>
+    </div>
+
+    <div class="turn-label">Turn 1 of 5 — Backend configuration and project structure</div>
+    <div class="conversation">
+      <div class="conv-turn engineer">
+        <div class="conv-role">Engineer → Claude Code</div>
+        <div class="conv-body">
+          <p>Generate a Terraform backend configuration for multi-environment state management. Requirements:</p>
+          <p style="margin-top:10px;">
+          — S3 backend, bucket name: <code>sourcefuse-tf-state</code>, region: <code>ap-south-1</code><br>
+          — State key path pattern: <code>payment-api/{environment}/terraform.tfstate</code><br>
+          — DynamoDB table for locking: <code>terraform-state-lock</code><br>
+          — Server-side encryption enabled<br>
+          — The environment value is injected at init time via <code>-backend-config</code>, not hardcoded<br>
+          — Show the recommended directory structure alongside the backend config
+          </p>
+        </div>
+      </div>
+      <div class="conv-turn claude">
+        <div class="conv-role">Claude Code</div>
+        <div class="conv-body">
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">backend.tf (turn 1)</span><button class="code-copy" onclick="copyCode(this)">copy</button></div>
+            <pre><code class="block"><span class="cm"># backend.tf — Remote state configuration
+# The 'key' value is injected at init time:
+# terraform init -backend-config="key=payment-api/dev/terraform.tfstate"
+# This file is committed to the repo; the key is NOT hardcoded here.</span>
+
+<span class="kw">terraform</span> {
+  <span class="kw">backend</span> <span class="st">"s3"</span> {
+    <span class="kw">bucket</span>         = <span class="st">"sourcefuse-tf-state"</span>
+    <span class="kw">region</span>         = <span class="st">"ap-south-1"</span>
+    <span class="kw">dynamodb_table</span> = <span class="st">"terraform-state-lock"</span>
+    <span class="kw">encrypt</span>        = <span class="nm">true</span>
+
+    <span class="cm"># key is intentionally omitted — injected via -backend-config at init
+    # This prevents the environment from being hardcoded in a committed file.</span>
+  }
+}
+
+<span class="kw">terraform</span> {
+  <span class="kw">required_version</span> = <span class="st">"~> 1.6"</span>
+  <span class="kw">required_providers</span> {
+    <span class="kw">aws</span> = {
+      <span class="kw">source</span>  = <span class="st">"hashicorp/aws"</span>
+      <span class="kw">version</span> = <span class="st">"~> 5.0"</span>
+    }
+  }
+}</code></pre>
+          </div>
+          <div class="code-wrap" style="margin-top:14px;">
+            <div class="code-header"><span class="code-filename">Recommended directory structure</span></div>
+            <pre><code class="block">infra/
+├── backend.tf                       <span class="cm"># Backend config — key injected at init</span>
+├── main.tf                          <span class="cm"># Root module — calls /modules/rds</span>
+├── variables.tf                     <span class="cm"># Root variables — passed to module</span>
+├── outputs.tf                       <span class="cm"># Root outputs — exposes module outputs</span>
+├── versions.tf                      <span class="cm"># Provider version pins</span>
+├── environments/
+│   ├── dev.tfvars                   <span class="cm"># Dev-specific values</span>
+│   ├── staging.tfvars               <span class="cm"># Staging-specific values</span>
+│   └── prod.tfvars                  <span class="cm"># Prod-specific values</span>
+├── modules/
+│   └── rds/
+│       ├── main.tf                  <span class="cm"># RDS resource definitions</span>
+│       ├── variables.tf             <span class="cm"># Module interface (from Example 2)</span>
+│       └── outputs.tf               <span class="cm"># Module outputs</span>
+└── scripts/
+    └── bootstrap-state.sh           <span class="cm"># One-time S3 + DynamoDB creation</span></code></pre>
+          </div>
+          <p style="margin-top:10px;">The key design decision: the backend <code>key</code> is omitted from <code>backend.tf</code> and injected at init time via <code>-backend-config="key=payment-api/dev/terraform.tfstate"</code>. This means the same committed <code>backend.tf</code> is used for all environments — the environment is never hardcoded in a file that gets committed. The CI pipeline (Example 5) injects the correct key based on the target environment as a pipeline variable.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Turn 2 -->
+    <div class="turn-nav" style="margin-top:28px;">
+      <span class="turn-nav-label">Turns</span>
+      <span class="turn-pip done">1</span><span class="turn-connector"></span>
+      <span class="turn-pip active">2</span><span class="turn-connector"></span>
+      <span class="turn-pip">3</span><span class="turn-connector"></span>
+      <span class="turn-pip">4</span><span class="turn-connector"></span>
+      <span class="turn-pip">5</span>
+    </div>
+
+    <div class="turn-label">Turn 2 of 5 — RDS module wired to the Example 2 interface</div>
+    <div class="conversation">
+      <div class="conv-turn engineer">
+        <div class="conv-role">Engineer → Claude Code</div>
+        <div class="conv-body">
+          <p>Generate <code>modules/rds/main.tf</code>. The module's variable interface is the <code>variables.tf</code> from Example 2 — use all those variables exactly as defined. Additional requirements for the module body:</p>
+          <p style="margin-top:10px;">
+          — RDS instance identifier must include the environment name to avoid cross-environment naming collisions<br>
+          — DB subnet group and security group also created in this module<br>
+          — All resources tagged with <code>var.tags</code> merged with <code>{ Environment = var.identifier }</code><br>
+          — Outputs: endpoint, port, db_name, security_group_id
+          </p>
+        </div>
+      </div>
+      <div class="conv-turn claude">
+        <div class="conv-role">Claude Code</div>
+        <div class="conv-body">
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">modules/rds/main.tf (turn 2)</span><button class="code-copy" onclick="copyCode(this)">copy</button></div>
+            <pre><code class="block"><span class="cm"># modules/rds/main.tf
+# Variable interface: modules/rds/variables.tf (from Example 2)
+# All 14 variables are consumed here — none are hardcoded.</span>
+
+<span class="cm"># ── Security group ───────────────────────────────────────────────────────────</span>
+<span class="kw">resource</span> <span class="st">"aws_security_group"</span> <span class="st">"rds"</span> {
+  <span class="kw">name_prefix</span> = <span class="st">"${var.identifier}-rds-"</span>
+  <span class="kw">vpc_id</span>      = <span class="kw">var</span>.<span class="st">vpc_id</span>
+  <span class="kw">description</span> = <span class="st">"RDS access for ${var.identifier}"</span>
+
+  <span class="kw">dynamic</span> <span class="st">"ingress"</span> {
+    <span class="kw">for_each</span> = <span class="kw">var</span>.<span class="st">allowed_cidr_blocks</span>
+    <span class="kw">content</span> {
+      <span class="kw">from_port</span>   = <span class="nm">5432</span>
+      <span class="kw">to_port</span>     = <span class="nm">5432</span>
+      <span class="kw">protocol</span>    = <span class="st">"tcp"</span>
+      <span class="kw">cidr_blocks</span> = [ingress.value]
+    }
+  }
+
+  <span class="kw">egress</span> {
+    <span class="kw">from_port</span>   = <span class="nm">0</span>
+    <span class="kw">to_port</span>     = <span class="nm">0</span>
+    <span class="kw">protocol</span>    = <span class="st">"-1"</span>
+    <span class="kw">cidr_blocks</span> = [<span class="st">"0.0.0.0/0"</span>]
+  }
+
+  <span class="kw">tags</span> = <span class="fn">merge</span>(<span class="kw">var</span>.<span class="st">tags</span>, { <span class="kw">Name</span> = <span class="st">"${var.identifier}-rds-sg"</span> })
+
+  <span class="kw">lifecycle</span> {
+    <span class="kw">create_before_destroy</span> = <span class="nm">true</span>
+  }
+}
+
+<span class="cm"># ── DB subnet group ───────────────────────────────────────────────────────────</span>
+<span class="kw">resource</span> <span class="st">"aws_db_subnet_group"</span> <span class="st">"main"</span> {
+  <span class="kw">name</span>       = <span class="st">"${var.identifier}-subnet-group"</span>
+  <span class="kw">subnet_ids</span> = <span class="kw">var</span>.<span class="st">subnet_ids</span>
+  <span class="kw">tags</span>       = <span class="fn">merge</span>(<span class="kw">var</span>.<span class="st">tags</span>, { <span class="kw">Name</span> = <span class="st">"${var.identifier}-subnet-group"</span> })
+}
+
+<span class="cm"># ── RDS instance ─────────────────────────────────────────────────────────────</span>
+<span class="kw">resource</span> <span class="st">"aws_db_instance"</span> <span class="st">"main"</span> {
+  <span class="kw">identifier</span>             = <span class="kw">var</span>.<span class="st">identifier</span>   <span class="cm"># e.g. "payment-api-dev", "payment-api-prod"</span>
+  <span class="kw">engine</span>                 = <span class="st">"postgres"</span>
+  <span class="kw">engine_version</span>         = <span class="kw">var</span>.<span class="st">engine_version</span>
+  <span class="kw">instance_class</span>         = <span class="kw">var</span>.<span class="st">instance_class</span>
+  <span class="kw">allocated_storage</span>      = <span class="kw">var</span>.<span class="st">allocated_storage</span>
+  <span class="kw">max_allocated_storage</span>  = <span class="kw">var</span>.<span class="st">max_allocated_storage</span>
+  <span class="kw">db_name</span>                = <span class="kw">var</span>.<span class="st">db_name</span>
+  <span class="kw">username</span>               = <span class="kw">var</span>.<span class="st">username</span>
+  <span class="kw">password</span>               = <span class="kw">var</span>.<span class="st">password</span>
+  <span class="kw">multi_az</span>               = <span class="kw">var</span>.<span class="st">multi_az</span>
+  <span class="kw">backup_retention_period</span> = <span class="kw">var</span>.<span class="st">backup_retention_period</span>
+  <span class="kw">db_subnet_group_name</span>   = <span class="st">aws_db_subnet_group.main.name</span>
+  <span class="kw">vpc_security_group_ids</span> = [<span class="st">aws_security_group.rds.id</span>]
+  <span class="kw">storage_encrypted</span>      = <span class="nm">true</span>
+  <span class="kw">deletion_protection</span>    = <span class="nm">true</span>
+  <span class="kw">skip_final_snapshot</span>    = <span class="nm">false</span>
+  <span class="kw">final_snapshot_identifier</span> = <span class="st">"${var.identifier}-final-snapshot"</span>
+
+  <span class="kw">tags</span> = <span class="fn">merge</span>(<span class="kw">var</span>.<span class="st">tags</span>, {
+    <span class="kw">Name</span>        = <span class="kw">var</span>.<span class="st">identifier</span>
+    <span class="kw">Environment</span> = <span class="fn">split</span>(<span class="st">"-"</span>, <span class="kw">var</span>.<span class="st">identifier</span>)[<span class="fn">length</span>(<span class="fn">split</span>(<span class="st">"-"</span>, <span class="kw">var</span>.<span class="st">identifier</span>)) - <span class="nm">1</span>]
+  })
+}
+
+<span class="cm"># ── Outputs ───────────────────────────────────────────────────────────────────</span>
+<span class="kw">output</span> <span class="st">"endpoint"</span>          { <span class="kw">value</span> = <span class="st">aws_db_instance.main.endpoint</span> }
+<span class="kw">output</span> <span class="st">"port"</span>              { <span class="kw">value</span> = <span class="st">aws_db_instance.main.port</span> }
+<span class="kw">output</span> <span class="st">"db_name"</span>           { <span class="kw">value</span> = <span class="st">aws_db_instance.main.db_name</span> }
+<span class="kw">output</span> <span class="st">"security_group_id"</span> { <span class="kw">value</span> = <span class="st">aws_security_group.rds.id</span> }</code></pre>
+          </div>
+          <p style="margin-top:10px;">Note on the <code>Environment</code> tag: rather than adding a separate <code>environment</code> variable to the module interface, the environment is derived from the last segment of the <code>identifier</code> (e.g. <code>payment-api-dev</code> → <code>dev</code>). This avoids duplicating information — the identifier already encodes the environment. If your naming convention differs, add an explicit <code>environment</code> variable to the module interface instead.</p>
+          <p style="margin-top:8px;"><code>deletion_protection = true</code> and <code>skip_final_snapshot = false</code> are set unconditionally for all environments. These are not prod-only — a deleted dev database with no snapshot can still cause hours of recovery work if a developer was testing against real data.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Turn 3 -->
+    <div class="turn-nav" style="margin-top:28px;">
+      <span class="turn-nav-label">Turns</span>
+      <span class="turn-pip done">1</span><span class="turn-connector"></span>
+      <span class="turn-pip done">2</span><span class="turn-connector"></span>
+      <span class="turn-pip active">3</span><span class="turn-connector"></span>
+      <span class="turn-pip">4</span><span class="turn-connector"></span>
+      <span class="turn-pip">5</span>
+    </div>
+
+    <div class="turn-label">Turn 3 of 5 — Three environment variable files</div>
+    <div class="conversation">
+      <div class="conv-turn engineer">
+        <div class="conv-role">Engineer → Claude Code</div>
+        <div class="conv-body">
+          <p>Generate all three environment <code>.tfvars</code> files. Use the variable interface from Example 2 (all 14 variables must be present in each file). Environment specifications:</p>
+          <p style="margin-top:10px;">
+          <strong>dev:</strong> identifier=payment-api-dev, db.t3.small, 20GB storage, no multi-AZ, 1-day backup retention, engine 15.4<br>
+          <strong>staging:</strong> identifier=payment-api-staging, db.t3.medium, 50GB storage, no multi-AZ, 7-day backup retention<br>
+          <strong>prod:</strong> identifier=payment-api-prod, db.r6g.large, 100GB storage, multi-AZ enabled, 35-day backup retention, max_allocated_storage 500GB<br>
+          VPC, subnet, and CIDR values use placeholder references — they will be populated from data sources or Terraform Cloud workspace variables in practice.
+          </p>
+        </div>
+      </div>
+      <div class="conv-turn claude">
+        <div class="conv-role">Claude Code</div>
+        <div class="conv-body">
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">environments/dev.tfvars (turn 3)</span><button class="code-copy" onclick="copyCode(this)">copy</button></div>
+            <pre><code class="block"><span class="cm"># environments/dev.tfvars
+# Apply: terraform apply -var-file=environments/dev.tfvars
+# Init:  terraform init -backend-config="key=payment-api/dev/terraform.tfstate"</span>
+
+<span class="kw">identifier</span>              = <span class="st">"payment-api-dev"</span>
+<span class="kw">engine_version</span>          = <span class="st">"15.4"</span>
+<span class="kw">instance_class</span>          = <span class="st">"db.t3.small"</span>
+<span class="kw">allocated_storage</span>       = <span class="nm">20</span>
+<span class="kw">max_allocated_storage</span>   = <span class="nm">null</span>   <span class="cm"># Autoscaling disabled in dev</span>
+<span class="kw">db_name</span>                 = <span class="st">"paymentdb"</span>
+<span class="kw">username</span>                = <span class="st">"paymentadmin"</span>
+<span class="kw">password</span>                = <span class="st">"REPLACE_WITH_SECRET_MANAGER_VALUE"</span>
+<span class="kw">vpc_id</span>                  = <span class="st">"REPLACE_WITH_DEV_VPC_ID"</span>
+<span class="kw">subnet_ids</span>              = [<span class="st">"REPLACE_WITH_DEV_SUBNET_IDS"</span>]
+<span class="kw">allowed_cidr_blocks</span>     = [<span class="st">"10.0.0.0/8"</span>]
+<span class="kw">multi_az</span>                = <span class="nm">false</span>
+<span class="kw">backup_retention_period</span> = <span class="nm">1</span>
+<span class="kw">tags</span> = {
+  <span class="kw">Project</span>     = <span class="st">"payment-api"</span>
+  <span class="kw">Environment</span> = <span class="st">"dev"</span>
+  <span class="kw">ManagedBy</span>   = <span class="st">"terraform"</span>
+}</code></pre>
+          </div>
+          <div class="code-wrap" style="margin-top:14px;">
+            <div class="code-header"><span class="code-filename">environments/staging.tfvars (turn 3)</span><button class="code-copy" onclick="copyCode(this)">copy</button></div>
+            <pre><code class="block"><span class="cm"># environments/staging.tfvars</span>
+<span class="kw">identifier</span>              = <span class="st">"payment-api-staging"</span>
+<span class="kw">engine_version</span>          = <span class="st">"15.4"</span>
+<span class="kw">instance_class</span>          = <span class="st">"db.t3.medium"</span>
+<span class="kw">allocated_storage</span>       = <span class="nm">50</span>
+<span class="kw">max_allocated_storage</span>   = <span class="nm">null</span>
+<span class="kw">db_name</span>                 = <span class="st">"paymentdb"</span>
+<span class="kw">username</span>                = <span class="st">"paymentadmin"</span>
+<span class="kw">password</span>                = <span class="st">"REPLACE_WITH_SECRET_MANAGER_VALUE"</span>
+<span class="kw">vpc_id</span>                  = <span class="st">"REPLACE_WITH_STAGING_VPC_ID"</span>
+<span class="kw">subnet_ids</span>              = [<span class="st">"REPLACE_WITH_STAGING_SUBNET_IDS"</span>]
+<span class="kw">allowed_cidr_blocks</span>     = [<span class="st">"10.0.0.0/8"</span>]
+<span class="kw">multi_az</span>                = <span class="nm">false</span>
+<span class="kw">backup_retention_period</span> = <span class="nm">7</span>
+<span class="kw">tags</span> = {
+  <span class="kw">Project</span>     = <span class="st">"payment-api"</span>
+  <span class="kw">Environment</span> = <span class="st">"staging"</span>
+  <span class="kw">ManagedBy</span>   = <span class="st">"terraform"</span>
+}</code></pre>
+          </div>
+          <div class="code-wrap" style="margin-top:14px;">
+            <div class="code-header"><span class="code-filename">environments/prod.tfvars (turn 3)</span><button class="code-copy" onclick="copyCode(this)">copy</button></div>
+            <pre><code class="block"><span class="cm"># environments/prod.tfvars</span>
+<span class="kw">identifier</span>              = <span class="st">"payment-api-prod"</span>
+<span class="kw">engine_version</span>          = <span class="st">"15.4"</span>
+<span class="kw">instance_class</span>          = <span class="st">"db.r6g.large"</span>
+<span class="kw">allocated_storage</span>       = <span class="nm">100</span>
+<span class="kw">max_allocated_storage</span>   = <span class="nm">500</span>   <span class="cm"># Autoscaling enabled — prod only</span>
+<span class="kw">db_name</span>                 = <span class="st">"paymentdb"</span>
+<span class="kw">username</span>                = <span class="st">"paymentadmin"</span>
+<span class="kw">password</span>                = <span class="st">"REPLACE_WITH_SECRET_MANAGER_VALUE"</span>
+<span class="kw">vpc_id</span>                  = <span class="st">"REPLACE_WITH_PROD_VPC_ID"</span>
+<span class="kw">subnet_ids</span>              = [<span class="st">"REPLACE_WITH_PROD_SUBNET_IDS"</span>]
+<span class="kw">allowed_cidr_blocks</span>     = [<span class="st">"10.0.0.0/8"</span>]
+<span class="kw">multi_az</span>                = <span class="nm">true</span>    <span class="cm"># Prod only</span>
+<span class="kw">backup_retention_period</span> = <span class="nm">35</span>     <span class="cm"># Maximum retention</span>
+<span class="kw">tags</span> = {
+  <span class="kw">Project</span>     = <span class="st">"payment-api"</span>
+  <span class="kw">Environment</span> = <span class="st">"prod"</span>
+  <span class="kw">ManagedBy</span>   = <span class="st">"terraform"</span>
+  <span class="kw">CostCentre</span>  = <span class="st">"payment-platform"</span>   <span class="cm"># Prod-only cost allocation tag</span>
+}</code></pre>
+          </div>
+          <p style="margin-top:10px;">All three files include every variable defined in the Example 2 interface — no variable is left to its default without an explicit value. This is intentional: in a multi-environment setup, implicit defaults are dangerous because they may apply different values than intended across environments. Every environment explicitly states every value it intends to use.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Turn 4 -->
+    <div class="turn-nav" style="margin-top:28px;">
+      <span class="turn-nav-label">Turns</span>
+      <span class="turn-pip done">1</span><span class="turn-connector"></span>
+      <span class="turn-pip done">2</span><span class="turn-connector"></span>
+      <span class="turn-pip done">3</span><span class="turn-connector"></span>
+      <span class="turn-pip active">4</span><span class="turn-connector"></span>
+      <span class="turn-pip">5</span>
+    </div>
+
+    <div class="turn-label">Turn 4 of 5 — Real state lock error pasted back, bootstrap script produced</div>
+    <p class="prose">The engineer tries to run <code>terraform init</code> on the dev environment for the first time. It fails because the S3 bucket and DynamoDB table do not yet exist. The error is pasted back verbatim.</p>
+    <div class="conversation">
+      <div class="conv-turn engineer">
+        <div class="conv-role">Engineer → Claude Code</div>
+        <div class="conv-body">
+          <p>First <code>terraform init</code> on dev failed. Exact error:</p>
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">terraform init — exact output</span></div>
+            <pre><code class="block">Initializing the backend...
+╷
+│ Error: Failed to get existing workspaces: S3 bucket "sourcefuse-tf-state" does not exist.
+│
+│ The referenced S3 object storage does not exist. Please create the S3 bucket
+│ "sourcefuse-tf-state" in "ap-south-1" before attempting to reinitialize.
+╵</code></pre>
+          </div>
+          <p style="margin-top:10px;">Generate <code>scripts/bootstrap-state.sh</code> — the one-time script to create the S3 bucket and DynamoDB table. Requirements: versioning enabled on the bucket, server-side encryption, public access blocked, DynamoDB table with <code>LockID</code> as the partition key, idempotent (safe to run if resources already exist), and output a clear summary of what was created.</p>
+        </div>
+      </div>
+      <div class="conv-turn claude">
+        <div class="conv-role">Claude Code</div>
+        <div class="conv-body">
+          <p>This is the expected chicken-and-egg problem with remote state backends: Terraform cannot initialise the backend until the backend resources exist, but you cannot use Terraform to create those resources because the backend is not yet initialised. The bootstrap script solves this by creating the prerequisites with the AWS CLI directly.</p>
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">scripts/bootstrap-state.sh (turn 4)</span><button class="code-copy" onclick="copyCode(this)">copy</button></div>
+            <pre><code class="block"><span class="cm">#!/usr/bin/env bash
+# scripts/bootstrap-state.sh
+# One-time setup: creates the S3 bucket and DynamoDB table required
+# for Terraform remote state. Run once per AWS account before first terraform init.
+# Idempotent — safe to re-run if resources already exist.</span>
+<span class="kw">set</span> -euo pipefail
+
+<span class="kw">readonly</span> <span class="va">BUCKET</span>=<span class="st">"sourcefuse-tf-state"</span>
+<span class="kw">readonly</span> <span class="va">REGION</span>=<span class="st">"ap-south-1"</span>
+<span class="kw">readonly</span> <span class="va">LOCK_TABLE</span>=<span class="st">"terraform-state-lock"</span>
+
+<span class="fn">log</span>() { <span class="fn">echo</span> <span class="st">"[$(date -u +%H:%M:%S)] $*"</span>; }
+
+<span class="cm"># ── S3 Bucket ─────────────────────────────────────────────────────────────</span>
+<span class="kw">if</span> <span class="fn">aws</span> s3api head-bucket --bucket <span class="st">"$BUCKET"</span> --region <span class="st">"$REGION"</span> <span class="nm">2>/dev/null</span>; <span class="kw">then</span>
+  <span class="fn">log</span> <span class="st">"S3 bucket '$BUCKET' already exists — skipping creation"</span>
+<span class="kw">else</span>
+  <span class="fn">log</span> <span class="st">"Creating S3 bucket '$BUCKET' in $REGION..."</span>
+  <span class="fn">aws</span> s3api create-bucket \
+    --bucket <span class="st">"$BUCKET"</span> \
+    --region <span class="st">"$REGION"</span> \
+    --create-bucket-configuration LocationConstraint=<span class="st">"$REGION"</span>
+
+  <span class="fn">aws</span> s3api put-bucket-versioning \
+    --bucket <span class="st">"$BUCKET"</span> \
+    --versioning-configuration Status=Enabled
+
+  <span class="fn">aws</span> s3api put-bucket-encryption \
+    --bucket <span class="st">"$BUCKET"</span> \
+    --server-side-encryption-configuration \
+    <span class="st">'{"Rules":[{"ApplyServerSideEncryptionByDefault":{"SSEAlgorithm":"AES256"}}]}'</span>
+
+  <span class="fn">aws</span> s3api put-public-access-block \
+    --bucket <span class="st">"$BUCKET"</span> \
+    --public-access-block-configuration \
+    <span class="st">"BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true"</span>
+
+  <span class="fn">log</span> <span class="st">"S3 bucket created with versioning, encryption, and public access blocked"</span>
+<span class="kw">fi</span>
+
+<span class="cm"># ── DynamoDB Table ────────────────────────────────────────────────────────</span>
+<span class="kw">if</span> <span class="fn">aws</span> dynamodb describe-table --table-name <span class="st">"$LOCK_TABLE"</span> --region <span class="st">"$REGION"</span> <span class="nm">2>/dev/null</span>; <span class="kw">then</span>
+  <span class="fn">log</span> <span class="st">"DynamoDB table '$LOCK_TABLE' already exists — skipping creation"</span>
+<span class="kw">else</span>
+  <span class="fn">log</span> <span class="st">"Creating DynamoDB table '$LOCK_TABLE'..."</span>
+  <span class="fn">aws</span> dynamodb create-table \
+    --table-name <span class="st">"$LOCK_TABLE"</span> \
+    --region <span class="st">"$REGION"</span> \
+    --attribute-definitions AttributeName=LockID,AttributeType=S \
+    --key-schema AttributeName=LockID,KeyType=HASH \
+    --billing-mode PAY_PER_REQUEST
+
+  <span class="fn">aws</span> dynamodb wait table-exists \
+    --table-name <span class="st">"$LOCK_TABLE"</span> \
+    --region <span class="st">"$REGION"</span>
+
+  <span class="fn">log</span> <span class="st">"DynamoDB table created with PAY_PER_REQUEST billing"</span>
+<span class="kw">fi</span>
+
+<span class="cm"># ── Summary ────────────────────────────────────────────────────────────────</span>
+<span class="fn">echo</span> <span class="st">""</span>
+<span class="fn">echo</span> <span class="st">"Bootstrap complete. Next steps:"</span>
+<span class="fn">echo</span> <span class="st">"  terraform init -backend-config=\"key=payment-api/dev/terraform.tfstate\""</span>
+<span class="fn">echo</span> <span class="st">"  terraform plan -var-file=environments/dev.tfvars"</span>
+<span class="fn">echo</span> <span class="st">"  terraform apply -var-file=environments/dev.tfvars"</span></code></pre>
+          </div>
+          <p style="margin-top:10px;"><strong>On <code>PAY_PER_REQUEST</code> billing for the lock table:</strong> state lock operations are infrequent — one acquire and one release per Terraform run. Provisioned capacity would require setting a read/write capacity unit estimate that is always too high for this workload. PAY_PER_REQUEST costs fractions of a cent per month for a typical team's apply frequency.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Turn 5 -->
+    <div class="turn-nav" style="margin-top:28px;">
+      <span class="turn-nav-label">Turns</span>
+      <span class="turn-pip done">1</span><span class="turn-connector"></span>
+      <span class="turn-pip done">2</span><span class="turn-connector"></span>
+      <span class="turn-pip done">3</span><span class="turn-connector"></span>
+      <span class="turn-pip done">4</span><span class="turn-connector"></span>
+      <span class="turn-pip active">5</span>
+    </div>
+
+    <div class="turn-label">Turn 5 of 5 — Security review: prevent_destroy and prod-specific lifecycle</div>
+    <div class="conversation">
+      <div class="conv-turn engineer">
+        <div class="conv-role">Engineer → Claude Code</div>
+        <div class="conv-body">
+          <p>Security review flagged two gaps in the module:</p>
+          <p style="margin-top:10px;">1. No <code>prevent_destroy</code> lifecycle rule — a <code>terraform destroy</code> on prod would execute without any barrier.<br>
+          2. The module applies the same lifecycle rules to dev and prod. Dev should allow destroy freely; prod must prevent it.<br><br>
+          The module cannot conditionally apply lifecycle rules based on a variable — Terraform does not allow dynamic lifecycle blocks. How do you handle this correctly? Show only the changes needed.</p>
+        </div>
+      </div>
+      <div class="conv-turn claude">
+        <div class="conv-role">Claude Code</div>
+        <div class="conv-body">
+          <p>You're right that <strong>Terraform does not support dynamic lifecycle blocks</strong> — the <code>lifecycle</code> meta-argument cannot reference variables or locals. This is a known constraint. The correct pattern for environment-differentiated lifecycle rules is to use <strong>two separate resource definitions</strong> with a <code>count</code> or module-level conditional — but for RDS, the cleanest solution is to expose a boolean variable and use it to control <code>deletion_protection</code>, which achieves the same effect through an AWS-level guard rather than a Terraform-level one.</p>
+          <p style="margin-top:10px;">Add to <code>modules/rds/variables.tf</code>:</p>
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">modules/rds/variables.tf — add this variable</span><button class="code-copy" onclick="copyCode(this)">copy</button></div>
+            <pre><code class="block"><span class="kw">variable</span> <span class="st">"enable_deletion_protection"</span> {
+  <span class="kw">type</span>        = <span class="ty">bool</span>
+  <span class="kw">description</span> = <span class="st">"Whether to enable RDS deletion protection. Set true for prod, false for dev/staging."</span>
+  <span class="kw">default</span>     = <span class="nm">true</span>   <span class="cm"># Defaults to protected — must explicitly opt out</span>
+}</code></pre>
+          </div>
+          <p style="margin-top:10px;">Update in <code>modules/rds/main.tf</code> — the <code>aws_db_instance</code> resource:</p>
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">modules/rds/main.tf — update deletion_protection line</span><button class="code-copy" onclick="copyCode(this)">copy</button></div>
+            <pre><code class="block"><span class="cm"># Change from hardcoded:</span>
+<span class="an">  deletion_protection = true</span>
+<span class="cm"># To variable-controlled:</span>
+  <span class="kw">deletion_protection</span> = <span class="kw">var</span>.<span class="st">enable_deletion_protection</span></code></pre>
+          </div>
+          <p style="margin-top:10px;">Add to each environment file:</p>
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">environments/dev.tfvars and staging.tfvars — add this line</span><button class="code-copy" onclick="copyCode(this)">copy</button></div>
+            <pre><code class="block"><span class="kw">enable_deletion_protection</span> = <span class="nm">false</span>   <span class="cm"># Allow destroy in non-prod environments</span></code></pre>
+          </div>
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">environments/prod.tfvars — add this line</span><button class="code-copy" onclick="copyCode(this)">copy</button></div>
+            <pre><code class="block"><span class="kw">enable_deletion_protection</span> = <span class="nm">true</span>    <span class="cm"># Prod: RDS API rejects deletion requests</span></code></pre>
+          </div>
+          <p style="margin-top:10px;"><strong>Why this is better than <code>prevent_destroy</code>:</strong> <code>prevent_destroy</code> is a Terraform client-side guard — it stops <code>terraform destroy</code> from running, but only if it is present in the configuration at the time of the destroy. If someone removes the lifecycle block and then runs destroy, there is no barrier. <code>deletion_protection = true</code> is an AWS API-level guard — RDS will reject the deletion request regardless of what the Terraform configuration says. It requires a separate API call to disable, which is an intentional friction point that makes accidental deletion harder.</p>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ══ STEP 4 ══ -->
+  <section class="step-section" id="step-4">
+    <div class="step-header">
+      <div class="step-number">4</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 4 of 5</div>
+        <div class="step-title">The refined output</div>
+      </div>
+<div class="reviewer-bar" id="rev-bar-4">
+  <input type="checkbox" class="rev-checkbox" id="rev-cb-4" data-step="4">
+  <label for="rev-cb-4">Mark step as reviewed</label>
+</div>
+
+    </div>
+
+    <p class="prose">Six files working as a system. The diff below shows the key structural changes from the naive flat layout to the refined multi-environment structure.</p>
+
+    <div class="diff-wrap">
+      <div class="diff-header">Naive → final: key structural changes</div>
+      <div class="diff-body">
+        <span class="diff-line rem"># No backend block — local state</span>
+        <span class="diff-line add">terraform { backend "s3" {</span>
+        <span class="diff-line add">  bucket = "sourcefuse-tf-state"</span>
+        <span class="diff-line add">  dynamodb_table = "terraform-state-lock"</span>
+        <span class="diff-line add">  encrypt = true</span>
+        <span class="diff-line add">  # key injected at init — never hardcoded</span>
+        <span class="diff-line add">}}</span>
+        <span class="diff-line neu"> </span>
+        <span class="diff-line rem">identifier = "payment-api-db"      # Hardcoded — same in every env</span>
+        <span class="diff-line add">identifier = var.identifier         # e.g. payment-api-dev / payment-api-prod</span>
+        <span class="diff-line neu"> </span>
+        <span class="diff-line rem">username = "admin"                  # Hardcoded credential</span>
+        <span class="diff-line add">username = var.username             # Per-environment, from .tfvars</span>
+        <span class="diff-line neu"> </span>
+        <span class="diff-line rem"># No lifecycle rules</span>
+        <span class="diff-line add">deletion_protection = var.enable_deletion_protection</span>
+        <span class="diff-line add">skip_final_snapshot = false         # All environments retain a snapshot</span>
+        <span class="diff-line neu"> </span>
+        <span class="diff-line rem"># No tags</span>
+        <span class="diff-line add">tags = merge(var.tags, { Environment = "...", Name = var.identifier })</span>
+        <span class="diff-line neu"> </span>
+        <span class="diff-line rem"># One .tfvars file, manually edited</span>
+        <span class="diff-line add">environments/dev.tfvars             # All 15 variables explicit</span>
+        <span class="diff-line add">environments/staging.tfvars</span>
+        <span class="diff-line add">environments/prod.tfvars</span>
+      </div>
+    </div>
+
+    <!-- How the files connect -->
+    <div class="file-connect">
+      <div class="file-connect-label">How the six files connect</div>
+
+      <div class="fc-row">
+        <span class="fc-file">scripts/bootstrap-state.sh</span>
+        <span class="fc-arrow">→</span>
+        <div class="fc-desc"><strong>Must run once before anything else.</strong> Creates the S3 bucket and DynamoDB table that <code>backend.tf</code> references. Without this, <code>terraform init</code> fails with the bucket-not-found error from Turn 4. Run once per AWS account — idempotent on subsequent runs.</div>
+      </div>
+
+      <div class="fc-row">
+        <span class="fc-file">backend.tf</span>
+        <span class="fc-arrow">→</span>
+        <div class="fc-desc"><strong>Initialised with environment-specific key at <code>terraform init</code> time.</strong> The same <code>backend.tf</code> is used for all three environments — the key (<code>payment-api/dev/terraform.tfstate</code>) is injected via <code>-backend-config</code>. State isolation between environments is enforced at the S3 key level, not by having separate backend files.</div>
+      </div>
+
+      <div class="fc-row">
+        <span class="fc-file">environments/*.tfvars</span>
+        <span class="fc-arrow">→</span>
+        <div class="fc-desc"><strong>Consumed by <code>terraform plan/apply</code> via <code>-var-file</code>.</strong> Each file provides all 15 variable values (14 from Example 2 + <code>enable_deletion_protection</code>) explicitly. No value is left to a default — every environment states its intent completely. The CI pipeline selects the correct <code>.tfvars</code> file based on the deployment target.</div>
+      </div>
+
+      <div class="fc-row">
+        <span class="fc-file">modules/rds/variables.tf</span>
+        <span class="fc-arrow">→</span>
+        <div class="fc-desc"><strong>The contract between environment config and module implementation.</strong> This is the Example 2 interface, extended with <code>enable_deletion_protection</code>. Every variable in this file must have a corresponding value in each <code>.tfvars</code> file. A missing value either uses its default (for optional variables) or causes a plan-time error (for required variables).</div>
+      </div>
+
+      <div class="fc-row">
+        <span class="fc-file">modules/rds/main.tf</span>
+        <span class="fc-arrow">→</span>
+        <div class="fc-desc"><strong>Consumes all variables — no hardcoded environment-specific values.</strong> The <code>identifier</code> variable encodes the environment (<code>payment-api-dev</code>, <code>payment-api-prod</code>). This flows into resource names, tags, and the final snapshot identifier, ensuring every created resource is identifiable by environment without an additional <code>environment</code> variable.</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ══ STEP 5 ══ -->
+  <section class="step-section" id="step-5">
+    <div class="step-header">
+      <div class="step-number">5</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 5 of 5</div>
+        <div class="step-title">Watch out</div>
+      </div>
+<div class="reviewer-bar" id="rev-bar-5">
+  <input type="checkbox" class="rev-checkbox" id="rev-cb-5" data-step="5">
+  <label for="rev-cb-5">Mark step as reviewed</label>
+</div>
+
+    </div>
+
+    <p class="prose">Claude Code produced a correct multi-environment structure across five turns, including a nuanced answer on Terraform lifecycle limitations. Here is what still requires environment-specific verification.</p>
+
+    <div class="callout good">
+      <div class="callout-label">What Claude Code handled well</div>
+      Backend key injected at init time rather than hardcoded, idempotent bootstrap script with AWS CLI existence checks, <code>PAY_PER_REQUEST</code> billing rationale for the lock table, all 15 variables explicitly set in every <code>.tfvars</code> file (no implicit defaults), correct explanation of why dynamic lifecycle blocks are not possible in Terraform and the API-level alternative (<code>deletion_protection</code>) that is more robust than <code>prevent_destroy</code>, environment identifier encoded in resource names for cost allocation.
+    </div>
+
+    <ul class="annotation-list" style="margin-top:24px;">
+      <li>
+        <span class="ann-badge ann-warn">Verify</span>
+        <div><strong>S3 bucket name must be globally unique.</strong> <code>sourcefuse-tf-state</code> is used throughout this example. S3 bucket names are globally unique across all AWS accounts. If this name is already taken, the bootstrap script will fail at the <code>create-bucket</code> step. Use a name that incorporates your AWS account ID or organisation prefix to guarantee uniqueness: e.g. <code>sourcefuse-tf-state-{account-id}</code>.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Verify</span>
+        <div><strong>The CI pipeline needs environment selection logic.</strong> The Example 5 pipeline deploys to EKS but does not yet select a Terraform environment. The pipeline's deploy job will need to inject the correct <code>-backend-config</code> key and <code>-var-file</code> path based on the target environment — typically derived from the branch name or a pipeline variable. This is a pipeline extension, not a Terraform change.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Verify</span>
+        <div><strong>Passwords must not be in <code>.tfvars</code> files in version control.</strong> The <code>password</code> values in all three <code>.tfvars</code> files use <code>REPLACE_WITH_SECRET_MANAGER_VALUE</code> placeholders. In practice, passwords should be injected at plan time from AWS Secrets Manager or SSM Parameter Store via a <code>data</code> source — not stored in the <code>.tfvars</code> file and not passed as a <code>-var</code> flag (which appears in shell history). If your <code>.tfvars</code> files are committed to version control, the password field must reference a data source, not a literal value.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Verify</span>
+        <div><strong>Disabling <code>deletion_protection</code> before destroy requires a separate apply.</strong> If you need to destroy a non-prod environment, you cannot run <code>terraform destroy</code> directly if <code>deletion_protection = true</code> is still in the state. First apply with <code>enable_deletion_protection = false</code>, wait for the RDS instance to update, then run <code>terraform destroy</code>. This two-step requirement is a feature, not a bug — it prevents accidental single-command destruction.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-info">Note</span>
+        <div><strong>The environment tag is derived from the identifier, not a separate variable.</strong> The module extracts the environment from the last segment of <code>var.identifier</code> using <code>split("-", var.identifier)</code>. This works for the naming convention <code>payment-api-{env}</code> but will produce incorrect tags if the identifier format changes. If your team uses a different naming convention, add an explicit <code>environment</code> variable to the module interface rather than deriving it.</div>
+      </li>
+    </ul>
+
+    <div class="callout tip">
+      <div class="callout-label">Prompting tip for multi-environment IaC</div>
+      The most important prompt addition for Terraform multi-environment work is <strong>explicitly naming the interface contract between files</strong> — in Turn 2, specifying "the module's variable interface is the variables.tf from Example 2 — use all those variables exactly as defined" produced a correctly wired module on the first pass. Without that constraint, Claude Code would have generated a plausible-but-different interface that would not accept the <code>.tfvars</code> values without modification. In multi-file Terraform, the variable interface is the integration contract — name it explicitly in every relevant prompt.
+    </div>
+  </section>
+
+  
+<div class="reviewer-panel">
+  <div class="reviewer-panel-label">🔍 Reviewer question — E6-1</div>
+  <div class="reviewer-q-text">In Example 6, the `backend.tf` file is committed to the repository without a `key` value. How is the correct state key provided at runtime?</div>
+  <div class="reviewer-options">
+    <div class="reviewer-option" data-key="A" onclick="selectRevOption('A',this)"><span class="reviewer-option-key">A</span><span>Via a `TF_VAR_key` environment variable set in the CI pipeline</span></div>
+    <div class="reviewer-option" data-key="B" onclick="selectRevOption('B',this)"><span class="reviewer-option-key">B</span><span>Via `-backend-config="key=payment-api/dev/terraform.tfstate"` at `terraform init` time</span></div>
+    <div class="reviewer-option" data-key="C" onclick="selectRevOption('C',this)"><span class="reviewer-option-key">C</span><span>Via a separate `backend-override.tf` file that is generated by the CI pipeline</span></div>
+    <div class="reviewer-option" data-key="D" onclick="selectRevOption('D',this)"><span class="reviewer-option-key">D</span><span>Via the `terraform.tfvars` file in the environments directory</span></div>
+  </div>
+  <button class="reviewer-reveal" id="rev-reveal-btn" onclick="revealRevAnswer()">Check answer</button>
+  <div class="reviewer-explanation" id="rev-explanation">
+    <div class="reviewer-exp-label"></div>
+    The backend key is injected via `-backend-config` at `terraform init` time. This means the same committed `backend.tf` serves all three environments — the environment is never hardcoded in version control. The CI pipeline injects the correct key based on the target environment.
+  </div>
+  <div class="reviewer-comment-label">Reviewer notes</div>
+  <textarea class="reviewer-comment" id="rev-comment" placeholder="Add your review notes for this example…"></textarea>
+  <div class="reviewer-save-note">Notes are auto-saved in your browser.</div>
+</div>
+<script>window.REV_CORRECT = "B";</script>
+
+<div class="bottom-nav">
+    <a class="nav-btn secondary" href="../example-5-cicd-pipeline.html">← Example 5 — CI/CD pipeline</a>
+    <a class="nav-btn" href="../example-7-kubernetes-deployment.html">Example 7 — Kubernetes deployment →</a>
+  </div>
+
+</div>
+
+<footer>
+  <span>AIOps &amp; DevOps Learning Path · SourceFuse L&amp;D</span>
+  <span>Example 6 of 13 · Tier 2 · Multi-environment Terraform</span>
+</footer>
+
+<script>
+  const sections = document.querySelectorAll('.step-section');
+  const navItems = document.querySelectorAll('.stepnav-item');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const id = entry.target.id;
+        navItems.forEach(item => {
+          item.classList.toggle('active', item.getAttribute('href') === '#' + id);
+        });
+      }
+    });
+  }, { rootMargin:'-30% 0px -60% 0px', threshold:0 });
+  sections.forEach(s => observer.observe(s));
+
+  function copyCode(btn) {
+    const pre = btn.closest('.code-wrap').querySelector('pre');
+    navigator.clipboard.writeText(pre.innerText).then(() => {
+      btn.textContent = 'copied!';
+      setTimeout(() => btn.textContent = 'copy', 2000);
+    });
+  }
+</script>
+
+<script>
+// ── Reviewer persistence ─────────────────────────────────────────────────────
+const REV_KEY = 'reviewer_example-6';
+
+function revLoad() {
+  try { return JSON.parse(localStorage.getItem(REV_KEY)) || {}; } catch(e) { return {}; }
+}
+
+function revSave(state) {
+  localStorage.setItem(REV_KEY, JSON.stringify(state));
+}
+
+// Restore checkboxes
+document.querySelectorAll('.rev-checkbox').forEach(cb => {
+  const state = revLoad();
+  if (state['cb_' + cb.dataset.step]) {
+    cb.checked = true;
+    cb.closest('.reviewer-bar').classList.add('checked');
+    cb.closest('.reviewer-bar').querySelector('label').textContent = '✓ Step reviewed';
+  }
+  cb.addEventListener('change', () => {
+    const s = revLoad();
+    s['cb_' + cb.dataset.step] = cb.checked;
+    revSave(s);
+    const bar = cb.closest('.reviewer-bar');
+    bar.classList.toggle('checked', cb.checked);
+    bar.querySelector('label').textContent = cb.checked ? '✓ Step reviewed' : 'Mark step as reviewed';
+  });
+});
+
+// Restore comment
+const commentEl = document.getElementById('rev-comment');
+if (commentEl) {
+  const state = revLoad();
+  if (state.comment) commentEl.value = state.comment;
+  commentEl.addEventListener('input', () => {
+    const s = revLoad();
+    s.comment = commentEl.value;
+    revSave(s);
+  });
+}
+
+// Reviewer question logic
+let revAnswer = null;
+let revSubmitted = false;
+
+(function restoreRevQ() {
+  const state = revLoad();
+  if (state.revAnswer !== undefined) {
+    revAnswer = state.revAnswer;
+    revSubmitted = state.revSubmitted || false;
+    if (revAnswer !== null) applyRevAnswer(revAnswer, revSubmitted);
+  }
+})();
+
+function selectRevOption(key, el) {
+  if (revSubmitted) return;
+  revAnswer = key;
+  document.querySelectorAll('.reviewer-option').forEach(o => o.classList.toggle('selected', o.dataset.key === key));
+  const s = revLoad(); s.revAnswer = key; revSave(s);
+}
+
+function selectRevTF(val, el) {
+  if (revSubmitted) return;
+  revAnswer = val;
+  document.querySelectorAll('.reviewer-tf-btn').forEach(b => {
+    b.classList.toggle('selected', (b.dataset.val === 'true') === val);
+  });
+  const s = revLoad(); s.revAnswer = val; revSave(s);
+}
+
+function revealRevAnswer() {
+  if (revAnswer === null) { alert('Please select an answer first.'); return; }
+  revSubmitted = true;
+  const s = revLoad(); s.revSubmitted = true; revSave(s);
+  applyRevAnswer(revAnswer, true);
+}
+
+function applyRevAnswer(ans, showResult) {
+  const correctVal = window.REV_CORRECT;
+  // MCQ
+  document.querySelectorAll('.reviewer-option').forEach(o => {
+    o.classList.remove('selected','correct','wrong');
+    if (showResult) {
+      if (o.dataset.key === correctVal) o.classList.add('correct');
+      else if (o.dataset.key === ans && o.dataset.key !== correctVal) o.classList.add('wrong');
+    } else {
+      if (o.dataset.key === ans) o.classList.add('selected');
+    }
+  });
+  // T/F
+  document.querySelectorAll('.reviewer-tf-btn').forEach(b => {
+    b.classList.remove('selected','correct','wrong');
+    const bVal = b.dataset.val === 'true';
+    if (showResult) {
+      if (bVal === correctVal) b.classList.add('correct');
+      else if (bVal === ans && bVal !== correctVal) b.classList.add('wrong');
+    } else {
+      if (bVal === ans) b.classList.add('selected');
+    }
+  });
+  if (showResult) {
+    const expEl = document.getElementById('rev-explanation');
+    const btnEl = document.getElementById('rev-reveal-btn');
+    if (expEl) {
+      const isCorrect = (ans === correctVal) || (ans === correctVal);
+      expEl.classList.add('visible');
+      const lbl = expEl.querySelector('.reviewer-exp-label');
+      if (lbl) { lbl.textContent = isCorrect ? '✓ Correct' : '✗ Incorrect'; lbl.className = 'reviewer-exp-label ' + (isCorrect ? 'correct' : 'wrong'); }
+    }
+    if (btnEl) btnEl.style.display = 'none';
+  }
+}
+</script>
+
+</body>
+</html>

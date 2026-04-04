@@ -1,0 +1,1023 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>[Reviewer] Example 11 — CI Pipeline Performance Triage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Merriweather+Sans:wght@300;400;600;700&family=Source+Code+Pro:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+  :root {
+    --bg:#eef2f7; --bg2:#ffffff; --bg3:#f0f4f9; --border:#d0dae8;
+    --text:#1a2332; --text-dim:#4a5568; --text-dimmer:#8fa3bc;
+    --blue:#1a6eb5; --blue-light:#e8f1fb; --blue-mid:#b8d0ed; --blue-dark:#0f4a7a;
+    --teal:#0e7a6b; --teal-light:#e6f4f2;
+    --coral:#c0392b; --coral-light:#fdf0ee; --coral-mid:#f0b8b2;
+    --green:#1a6b3a; --green-light:#e8f5ed;
+    --amber:#92600a; --amber-light:#fdf3e3;
+    --purple:#5b4fcf; --purple-light:#f0effe;
+    --code-bg:#1e2433; --code-text:#cdd6f4; --radius:12px;
+  }
+  html,body { min-height:100%; background:var(--bg); color:var(--text); font-family:'Merriweather Sans',sans-serif; font-size:15px; line-height:1.6; }
+  .topnav { background:var(--bg2); border-bottom:1px solid var(--border); padding:0 40px; height:52px; display:flex; align-items:center; gap:8px; font-size:12px; color:var(--text-dimmer); font-family:'Source Code Pro',monospace; position:sticky; top:0; z-index:100; }
+  .topnav a { color:var(--blue); text-decoration:none; } .topnav a:hover { text-decoration:underline; }
+  .topnav .sep { margin:0 4px; color:var(--text-dimmer); }
+  .stepnav { background:var(--bg2); border-bottom:1px solid var(--border); padding:0 40px; display:flex; align-items:stretch; position:sticky; top:52px; z-index:99; overflow-x:auto; }
+  .stepnav-item { display:flex; align-items:center; gap:8px; padding:14px 20px; font-size:12px; font-family:'Source Code Pro',monospace; color:var(--text-dimmer); cursor:pointer; border-bottom:3px solid transparent; white-space:nowrap; transition:color .15s,border-color .15s; text-decoration:none; }
+  .stepnav-item:hover { color:var(--text-dim); }
+  .stepnav-item.active { color:var(--blue); border-bottom-color:var(--blue); font-weight:600; }
+  .stepnav-num { width:20px; height:20px; border-radius:50%; background:var(--bg3); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; flex-shrink:0; }
+  .stepnav-item.active .stepnav-num { background:var(--blue); border-color:var(--blue); color:white; }
+  .hero { background:var(--bg2); border-bottom:2px solid var(--border); padding:40px 40px 32px; }
+  .hero-inner { max-width:900px; margin:0 auto; }
+  .hero-eyebrow { font-size:10px; letter-spacing:.2em; text-transform:uppercase; color:var(--blue); font-weight:600; margin-bottom:10px; font-family:'Source Code Pro',monospace; }
+  .hero h1 { font-size:clamp(18px,2.5vw,26px); font-weight:700; color:var(--text); line-height:1.25; }
+  .hero h1 span { color:var(--blue); }
+  .hero-meta { margin-top:14px; display:flex; flex-wrap:wrap; gap:8px; }
+  .meta-pill { font-size:10.5px; font-family:'Source Code Pro',monospace; padding:3px 10px; border-radius:20px; font-weight:600; }
+  .pill-tier { background:var(--coral-light); color:var(--coral); border:1px solid var(--coral-mid); }
+  .pill-topic { background:var(--teal-light); color:var(--teal); border:1px solid #a3d4ce; }
+  .pill-turns { background:var(--bg3); color:var(--text-dim); border:1px solid var(--border); font-weight:400; }
+  .main { max-width:900px; margin:0 auto; padding:40px 40px 80px; }
+  .step-section { margin-bottom:56px; scroll-margin-top:120px; }
+  .step-header { display:flex; align-items:center; gap:14px; margin-bottom:20px; padding-bottom:16px; border-bottom:2px solid var(--border); }
+  .step-number { width:40px; height:40px; border-radius:50%; background:var(--blue); color:white; display:flex; align-items:center; justify-content:center; font-size:16px; font-weight:700; font-family:'Source Code Pro',monospace; flex-shrink:0; }
+  .step-label { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:.18em; text-transform:uppercase; color:var(--blue); font-weight:600; margin-bottom:3px; }
+  .step-title { font-size:18px; font-weight:700; color:var(--text); line-height:1.25; }
+  .prose { font-size:14.5px; color:var(--text-dim); line-height:1.8; margin-bottom:20px; }
+  .prose strong { color:var(--text); font-weight:600; }
+  .prose code { font-family:'Source Code Pro',monospace; font-size:13px; background:var(--bg3); border:1px solid var(--border); padding:1px 5px; border-radius:4px; color:var(--blue-dark); }
+  .evidence-map { background:var(--bg2); border:1px solid var(--border); border-top:3px solid var(--coral); border-radius:var(--radius); overflow:hidden; margin:20px 0; }
+  .evidence-map-header { padding:12px 18px; background:var(--coral-light); border-bottom:1px solid var(--border); font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:.18em; text-transform:uppercase; color:var(--coral); font-weight:600; }
+  .evidence-map table { width:100%; border-collapse:collapse; }
+  .evidence-map th { padding:10px 16px; font-size:11px; font-family:'Source Code Pro',monospace; color:var(--text-dimmer); font-weight:600; text-align:left; border-bottom:1px solid var(--border); background:var(--bg3); }
+  .evidence-map td { padding:10px 16px; font-size:13px; color:var(--text-dim); border-bottom:1px solid var(--border); vertical-align:top; }
+  .evidence-map tr:last-child td { border-bottom:none; }
+  .evidence-map td:first-child { font-family:'Source Code Pro',monospace; font-size:12px; color:var(--blue-dark); font-weight:600; white-space:nowrap; }
+  .layer-pill { font-size:9.5px; font-family:'Source Code Pro',monospace; padding:2px 8px; border-radius:20px; font-weight:600; white-space:nowrap; }
+  .layer-timing { background:var(--blue-light); color:var(--blue); border:1px solid var(--blue-mid); }
+  .layer-config { background:var(--teal-light); color:var(--teal); border:1px solid #a3d4ce; }
+  .layer-deps   { background:var(--amber-light); color:var(--amber); border:1px solid #f0d4a0; }
+  .layer-cache  { background:var(--purple-light); color:var(--purple); border:1px solid #c4bdf0; }
+  .callout { border-radius:var(--radius); padding:16px 18px; margin:20px 0; font-size:13.5px; line-height:1.7; }
+  .callout-label { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:.15em; text-transform:uppercase; font-weight:700; margin-bottom:6px; }
+  .callout.info { background:var(--blue-light); border:1px solid var(--blue-mid); border-left:3px solid var(--blue); color:var(--text-dim); }
+  .callout.info .callout-label { color:var(--blue); }
+  .callout.warn { background:#fdf5f5; border:1px solid var(--coral-mid); border-left:3px solid var(--coral); color:var(--text-dim); }
+  .callout.warn .callout-label { color:var(--coral); }
+  .callout.good { background:var(--green-light); border:1px solid #a3d4b8; border-left:3px solid var(--green); color:var(--text-dim); }
+  .callout.good .callout-label { color:var(--green); }
+  .callout.tip  { background:var(--amber-light); border:1px solid #f0d4a0; border-left:3px solid var(--amber); color:var(--text-dim); }
+  .callout.tip  .callout-label { color:var(--amber); }
+  .callout strong { color:var(--text); font-weight:600; }
+  .callout code { font-family:'Source Code Pro',monospace; font-size:12.5px; background:rgba(0,0,0,.06); padding:1px 5px; border-radius:4px; }
+  .code-wrap { margin:20px 0; border-radius:0; overflow:hidden; border:1px solid #2a3144; background:#1e2433; }
+  .code-header { background:#252b3b; padding:10px 16px; display:flex; align-items:center; justify-content:space-between; }
+  .code-filename { font-size:11px; font-family:'Source Code Pro',monospace; color:#ffffff; letter-spacing:.05em; }
+  .code-copy { font-size:10px; font-family:'Source Code Pro',monospace; color:#7a8ab0; background:none; border:1px solid #3a4155; border-radius:4px; padding:2px 8px; cursor:pointer; transition:color .15s,border-color .15s; }
+  .code-copy:hover { color:#cdd6f4; border-color:#6a7ab0; }
+  pre { background:#1e2433 !important; padding:20px; overflow-x:auto; margin:0; }
+  code.block { font-family:'Source Code Pro',monospace; font-size:13px; line-height:1.7; color:var(--code-text); background:none; border:none; padding:0; display:block; }
+  .kw{color:#cba6f7;} .cm{color:#6c7086;font-style:italic;} .st{color:#a6e3a1;}
+  .nm{color:#fab387;} .op{color:#89dceb;} .an{color:#f38ba8;} .fn{color:#89b4fa;}
+  .diff-wrap { margin:20px 0; border-radius:0; overflow:hidden; border:1px solid #2a3144; background:#1e2433; }
+  .diff-header { background:#252b3b; padding:10px 16px; font-size:11px; font-family:'Source Code Pro',monospace; color:#ffffff; }
+  .diff-body { background:#1e2433 !important; padding:16px 0; overflow-x:auto; }
+  .diff-line { padding:1px 20px; font-family:'Source Code Pro',monospace; font-size:13px; line-height:1.65; color:var(--code-text); display:block; }
+  .diff-line.add { background:rgba(166,227,161,.12); color:#a6e3a1; }
+  .diff-line.add::before { content:'+  '; color:#a6e3a1; }
+  .diff-line.rem { background:rgba(243,139,168,.12); color:#f38ba8; }
+  .diff-line.rem::before { content:'-  '; color:#f38ba8; }
+  .diff-line.neu::before { content:'   '; }
+  .annotation-list { list-style:none; display:flex; flex-direction:column; gap:12px; margin:20px 0; }
+  .annotation-list li { display:flex; gap:12px; align-items:flex-start; font-size:13.5px; color:var(--text-dim); line-height:1.7; }
+  .ann-badge { flex-shrink:0; font-size:10px; font-family:'Source Code Pro',monospace; font-weight:700; padding:2px 8px; border-radius:4px; margin-top:2px; }
+  .ann-good { background:var(--green-light); color:var(--green); border:1px solid #a3d4b8; }
+  .ann-warn { background:var(--coral-light); color:var(--coral); border:1px solid var(--coral-mid); }
+  .ann-info { background:var(--blue-light); color:var(--blue); border:1px solid var(--blue-mid); }
+  .annotation-list li strong { color:var(--text); font-weight:600; }
+  .annotation-list li code { font-family:'Source Code Pro',monospace; font-size:12.5px; background:var(--bg3); border:1px solid var(--border); padding:1px 5px; border-radius:4px; color:var(--blue-dark); }
+  .conversation { display:flex; flex-direction:column; gap:0; margin:16px 0; border:1px solid #2a3144; border-radius:var(--radius); overflow:hidden; }
+  .conv-turn { padding:18px 22px; }
+  .conv-turn + .conv-turn { border-top:1px solid #2a3144; }
+  .conv-turn.engineer { background:var(--bg3); }
+  .conv-turn.claude   { background:#1e2433; }
+  .conv-role { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:.18em; text-transform:uppercase; font-weight:700; margin-bottom:8px; }
+  .conv-turn.engineer .conv-role { color:var(--teal); }
+  .conv-turn.claude   .conv-role { color:#7a8ab0; }
+  .conv-body { font-size:13.5px; line-height:1.75; }
+  .conv-turn.engineer .conv-body { color:var(--text-dim); }
+  .conv-turn.claude   .conv-body { color:#cdd6f4; }
+  .conv-turn.engineer .conv-body strong { color:var(--text); font-weight:600; }
+  .conv-turn.claude   .conv-body strong { color:#ffffff; font-weight:600; }
+  .conv-turn.engineer .conv-body code { font-family:'Source Code Pro',monospace; font-size:12.5px; background:var(--bg3); border:1px solid var(--border); padding:1px 5px; border-radius:4px; color:var(--blue-dark); }
+  .conv-turn.claude   .conv-body code { font-family:'Source Code Pro',monospace; font-size:12.5px; background:#252b3b; border:1px solid #3a4155; padding:1px 5px; border-radius:4px; color:#89dceb; }
+  .conv-turn.claude   .conv-body em { font-style:italic; color:#6c7086; }
+  .conv-turn.claude   .code-wrap { margin:12px 0; }
+  .turn-nav { display:flex; align-items:center; gap:6px; margin-bottom:16px; flex-wrap:wrap; }
+  .turn-nav-label { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:.15em; text-transform:uppercase; color:var(--text-dimmer); font-weight:600; margin-right:4px; }
+  .turn-pip { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; font-family:'Source Code Pro',monospace; border:1px solid var(--border); background:var(--bg3); color:var(--text-dimmer); }
+  .turn-pip.active { background:var(--blue); border-color:var(--blue); color:#fff; }
+  .turn-pip.done   { background:var(--green-light); border-color:#a3d4b8; color:var(--green); }
+  .turn-connector  { width:20px; height:1px; background:var(--border); }
+  .finding-chain { background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); padding:20px 24px; margin:24px 0; }
+  .finding-chain-label { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:.18em; text-transform:uppercase; color:var(--coral); font-weight:600; margin-bottom:14px; }
+  .fc-row { display:flex; align-items:flex-start; gap:12px; margin-bottom:12px; }
+  .fc-row:last-child { margin-bottom:0; }
+  .fc-layer { font-family:'Source Code Pro',monospace; font-size:11.5px; font-weight:600; color:var(--blue-dark); background:var(--blue-light); border:1px solid var(--blue-mid); border-radius:6px; padding:4px 10px; white-space:nowrap; flex-shrink:0; }
+  .fc-arrow { color:var(--text-dimmer); font-size:14px; margin-top:3px; flex-shrink:0; }
+  .fc-desc { font-size:13px; color:var(--text-dim); line-height:1.6; padding-top:2px; }
+  .fc-desc strong { color:var(--text); font-weight:600; }
+  .turn-label { display:inline-flex; align-items:center; gap:6px; font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:.12em; text-transform:uppercase; color:var(--text-dimmer); background:var(--bg3); border:1px solid var(--border); border-radius:20px; padding:3px 10px; margin-bottom:14px; font-weight:600; }
+  .section-divider { height:1px; background:var(--border); margin:40px 0; }
+  .bottom-nav { display:flex; justify-content:space-between; align-items:center; padding:20px 0 0; border-top:1px solid var(--border); margin-top:40px; }
+  .nav-btn { display:inline-flex; align-items:center; gap:8px; font-size:13px; font-family:'Source Code Pro',monospace; color:var(--blue); text-decoration:none; padding:10px 18px; border:1px solid var(--blue-mid); border-radius:8px; background:var(--blue-light); transition:background .15s,border-color .15s; font-weight:600; }
+  .nav-btn:hover { background:var(--blue-mid); border-color:var(--blue); }
+  .nav-btn.secondary { background:var(--bg2); color:var(--text-dim); border-color:var(--border); }
+  .nav-btn.secondary:hover { background:var(--bg3); }
+  footer { background:var(--bg2); border-top:1px solid var(--border); padding:14px 40px; font-size:11px; font-family:'Source Code Pro',monospace; color:var(--text-dimmer); display:flex; justify-content:space-between; align-items:center; }
+  @media(max-width:640px){.topnav,.main,footer{padding-left:20px;padding-right:20px;}.hero{padding:28px 20px;}.stepnav{padding:0 20px;}}
+
+  /* ── Reviewer additions ──────────────────────────────────────────────────── */
+  .reviewer-bar {
+    background: #fff8e6;
+    border: 1px solid #f0d4a0;
+    border-left: 3px solid #92600a;
+    border-radius: 8px;
+    padding: 10px 16px;
+    margin-top: 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: #92600a;
+    font-family: 'Source Code Pro', monospace;
+  }
+  .reviewer-bar input[type="checkbox"] {
+    width: 16px; height: 16px; cursor: pointer; flex-shrink: 0;
+    accent-color: #1a6b3a;
+  }
+  .reviewer-bar label { cursor: pointer; font-weight: 600; user-select: none; }
+  .reviewer-bar.checked { background: #e8f5ed; border-color: #a3d4b8; border-left-color: #1a6b3a; color: #1a6b3a; }
+
+  .reviewer-panel {
+    background: #f5f0ff;
+    border: 1px solid #c4bdf0;
+    border-top: 3px solid #5b4fcf;
+    border-radius: 12px;
+    padding: 24px 28px;
+    margin: 32px 0;
+  }
+  .reviewer-panel-label {
+    font-size: 9px; font-family: 'Source Code Pro', monospace;
+    letter-spacing: .18em; text-transform: uppercase;
+    color: #5b4fcf; font-weight: 600; margin-bottom: 16px;
+  }
+  .reviewer-q-text {
+    font-size: 14px; font-weight: 600; color: #1a2332;
+    line-height: 1.65; margin-bottom: 14px;
+  }
+  .reviewer-options { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
+  .reviewer-option {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 10px 14px; border: 1px solid #d0dae8;
+    border-radius: 8px; cursor: pointer;
+    font-size: 13.5px; color: #4a5568; line-height: 1.5;
+    transition: background .12s, border-color .12s;
+    background: #ffffff;
+  }
+  .reviewer-option:hover { background: #f0f4f9; border-color: #b8d0ed; }
+  .reviewer-option.selected { background: #e8f1fb; border-color: #1a6eb5; color: #1a2332; }
+  .reviewer-option.correct  { background: #e8f5ed; border-color: #a3d4b8; color: #1a6b3a; }
+  .reviewer-option.wrong    { background: #fdf0ee; border-color: #f0b8b2; color: #c0392b; }
+  .reviewer-option-key { font-family: 'Source Code Pro', monospace; font-size: 11px; font-weight: 700; color: #8fa3bc; flex-shrink: 0; margin-top: 1px; }
+
+  .reviewer-tf { display: flex; gap: 10px; margin-bottom: 18px; }
+  .reviewer-tf-btn {
+    flex: 1; padding: 10px; border: 1px solid #d0dae8;
+    border-radius: 8px; cursor: pointer; text-align: center;
+    font-size: 13.5px; font-weight: 600;
+    font-family: 'Source Code Pro', monospace; color: #4a5568;
+    background: #ffffff; transition: background .12s;
+  }
+  .reviewer-tf-btn:hover { background: #f0f4f9; border-color: #b8d0ed; }
+  .reviewer-tf-btn.selected { background: #e8f1fb; border-color: #1a6eb5; color: #1a6eb5; }
+  .reviewer-tf-btn.correct  { background: #e8f5ed; border-color: #a3d4b8; color: #1a6b3a; }
+  .reviewer-tf-btn.wrong    { background: #fdf0ee; border-color: #f0b8b2; color: #c0392b; }
+
+  .reviewer-reveal {
+    font-size: 12px; font-family: 'Source Code Pro', monospace;
+    color: #5b4fcf; cursor: pointer; text-decoration: underline;
+    background: none; border: none; padding: 0; margin-bottom: 14px; display: block;
+  }
+  .reviewer-explanation {
+    font-size: 13px; color: #4a5568; line-height: 1.7;
+    padding: 12px 14px; background: #eef2f7; border-radius: 8px;
+    margin-bottom: 16px; display: none;
+  }
+  .reviewer-explanation.visible { display: block; }
+  .reviewer-exp-label { font-size: 9px; font-family: 'Source Code Pro', monospace; letter-spacing: .15em; text-transform: uppercase; font-weight: 700; margin-bottom: 4px; }
+  .reviewer-exp-label.correct { color: #1a6b3a; }
+  .reviewer-exp-label.wrong   { color: #c0392b; }
+
+  .reviewer-comment-label {
+    font-size: 11px; font-family: 'Source Code Pro', monospace;
+    letter-spacing: .12em; text-transform: uppercase;
+    color: #8fa3bc; font-weight: 600; margin-bottom: 6px;
+  }
+  .reviewer-comment {
+    width: 100%; min-height: 80px; padding: 10px 12px;
+    border: 1px solid #c4bdf0; border-radius: 8px;
+    font-family: 'Merriweather Sans', sans-serif; font-size: 13.5px;
+    color: #1a2332; background: #ffffff; resize: vertical;
+    line-height: 1.6; transition: border-color .15s;
+  }
+  .reviewer-comment:focus { outline: none; border-color: #5b4fcf; }
+  .reviewer-save-note {
+    font-size: 11px; font-family: 'Source Code Pro', monospace;
+    color: #8fa3bc; margin-top: 6px;
+  }
+
+  .reviewer-topbanner {
+    background: #f5f0ff; border-bottom: 2px solid #c4bdf0;
+    padding: 10px 40px; font-size: 12px;
+    font-family: 'Source Code Pro', monospace; color: #5b4fcf;
+    display: flex; align-items: center; gap: 8px;
+  }
+
+</style>
+</head>
+<body>
+<div class="reviewer-topbanner">
+  <span>👁</span>
+  <span><strong>Reviewer mode</strong> — checkboxes, question answers, and notes are saved in your browser.</span>
+</div>
+
+
+<nav class="topnav">
+  <a href="../course-map.html">Course map</a>
+  <span class="sep">/</span>
+  <a href="../course-map.html">Tier 3 examples</a>
+  <span class="sep">/</span>
+  <span>Example 11 — CI pipeline performance triage</span>
+</nav>
+
+<nav class="stepnav" id="stepnav">
+  <a class="stepnav-item active" href="#step-1"><span class="stepnav-num">1</span>Problem</a>
+  <a class="stepnav-item" href="#step-2"><span class="stepnav-num">2</span>Naive approach</a>
+  <a class="stepnav-item" href="#step-3"><span class="stepnav-num">3</span>Claude Code interaction</a>
+  <a class="stepnav-item" href="#step-4"><span class="stepnav-num">4</span>Refined output</a>
+  <a class="stepnav-item" href="#step-5"><span class="stepnav-num">5</span>Watch out</a>
+</nav>
+
+<div class="hero">
+  <div class="hero-inner">
+    <div class="hero-eyebrow">Example 11 of 13 · Tier 3 · Context-heavy scenario</div>
+    <h1>CI pipeline <span>performance triage</span></h1>
+    <div class="hero-meta">
+      <span class="meta-pill pill-tier">Tier 3 — Context-heavy scenario</span>
+      <span class="meta-pill pill-topic">CI/CD · Performance analysis</span>
+      <span class="meta-pill pill-turns">5-turn interaction</span>
+      <span class="meta-pill pill-turns">4 evidence sources · gradual degradation</span>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- ══ STEP 1 ══ -->
+  <section class="step-section" id="step-1">
+    <div class="step-header">
+      <div class="step-number">1</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 1 of 5</div>
+        <div class="step-title">The problem</div>
+      </div>
+<div class="reviewer-bar" id="rev-bar-1">
+  <input type="checkbox" class="rev-checkbox" id="rev-cb-1" data-step="1">
+  <label for="rev-cb-1">Mark step as reviewed</label>
+</div>
+
+    </div>
+
+    <p class="prose">
+      The CI/CD pipeline from Example 5 has been running in production for six months. When it was introduced, it completed in approximately 8 minutes. It now regularly takes 22–26 minutes. No single change caused this — it is the accumulated result of six months of normal engineering activity: dependency updates, new test files, workflow additions, and caching configuration that was correct at the start but has not kept pace with the project's growth.
+    </p>
+
+    <p class="prose">
+      This is the Tier 3 scenario where the failure mode is <strong>gradual degradation</strong> rather than a discrete incident. There is no PagerDuty alert, no error log, no obvious signal. The pipeline still passes. It is simply getting slower in a way that is costing the team 15–18 minutes of developer wait time per PR — which at 40 PRs per week is roughly 10 hours of accumulated idle time per week.
+    </p>
+
+    <div class="callout info">
+      <div class="callout-label">What makes gradual degradation harder to diagnose</div>
+      A discrete incident has a timestamp — "it broke at 14:00." Gradual degradation has a trend — "it has been getting slower since September." Sequential investigation of a single run's job log will not reveal a trend. The triage requires reading job timing data across multiple runs, correlating it with dependency growth and cache configuration, and identifying which specific changes in a six-month window contributed the most to the slowdown.
+    </div>
+
+    <div class="evidence-map">
+      <div class="evidence-map-header">Evidence sources in this scenario</div>
+      <table>
+        <thead><tr><th>Source</th><th>What it shows</th><th>Type</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>Job timing history</td>
+            <td>Per-job durations across the last 90 days — test, scan, push, deploy job walls</td>
+            <td><span class="layer-pill layer-timing">Timing</span></td>
+          </tr>
+          <tr>
+            <td>Workflow YAML (current)</td>
+            <td>The pipeline as it stands today — six months of additions including new jobs and step changes</td>
+            <td><span class="layer-pill layer-config">Config</span></td>
+          </tr>
+          <tr>
+            <td>package-lock.json diff</td>
+            <td>Dependency count and size growth over six months — direct and transitive packages</td>
+            <td><span class="layer-pill layer-deps">Dependencies</span></td>
+          </tr>
+          <tr>
+            <td>Cache hit rate log</td>
+            <td>GitHub Actions cache hit/miss rate per week — shows when caching stopped being effective</td>
+            <td><span class="layer-pill layer-cache">Cache</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ══ STEP 2 ══ -->
+  <section class="step-section" id="step-2">
+    <div class="step-header">
+      <div class="step-number">2</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 2 of 5</div>
+        <div class="step-title">The naive approach</div>
+      </div>
+<div class="reviewer-bar" id="rev-bar-2">
+  <input type="checkbox" class="rev-checkbox" id="rev-cb-2" data-step="2">
+  <label for="rev-cb-2">Mark step as reviewed</label>
+</div>
+
+    </div>
+
+    <p class="prose">
+      The naive approach to a slow pipeline is to look at the most recent run's job log and identify the longest step. This finds the current bottleneck — but not why it became a bottleneck, or whether there are multiple contributing factors that together produce the degradation.
+    </p>
+
+    <div class="callout warn">
+      <div class="callout-label">The naive investigation</div>
+      Engineer opens the most recent failed run log → identifies <code>npm ci</code> as the longest step at 11 minutes → adds a comment to the PR: "npm install is slow, maybe we need to update our node version" → closes the tab. Next PR is equally slow. The real causes — cache invalidation due to lock file churn, a 3x dependency count increase, a sequential job structure that was efficient at 8 minutes but is wasteful at 24, and a Trivy scan that rescans the same base image layers every run — are not visible from a single run log.
+    </div>
+
+    <ul class="annotation-list">
+      <li>
+        <span class="ann-badge ann-warn">Methodology</span>
+        <div><strong>Single-run analysis finds the current symptom, not the trend's causes.</strong> Looking at one job log identifies that <code>npm ci</code> takes 11 minutes today. It does not reveal that 4 months ago it took 3 minutes, that the growth correlates with three major dependency updates, or that the cache is now missing 78% of the time because the lock file is modified on nearly every PR.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Methodology</span>
+        <div><strong>Sequential job structure was an acceptable tradeoff at 8 minutes, not at 24.</strong> The original pipeline design ran test, scan, and some setup steps sequentially because the total time was short enough that parallelisation overhead was not worthwhile. At 24 minutes, the sequential design is the primary structural bottleneck — but this is only visible when job timing history shows which jobs grew and which stayed flat.</div>
+      </li>
+    </ul>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ══ STEP 3 ══ -->
+  <section class="step-section" id="step-3">
+    <div class="step-header">
+      <div class="step-number">3</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 3 of 5</div>
+        <div class="step-title">The Claude Code interaction</div>
+      </div>
+<div class="reviewer-bar" id="rev-bar-3">
+  <input type="checkbox" class="rev-checkbox" id="rev-cb-3" data-step="3">
+  <label for="rev-cb-3">Mark step as reviewed</label>
+</div>
+
+    </div>
+
+    <p class="prose">Five turns. Turn 1 is the evidence dump — all four sources simultaneously. Turn 2 asks for a ranked list of optimisations by expected impact. Turn 3 asks for the specific YAML changes to parallelise jobs. Turn 4 asks for a cache key fix that will restore the cache hit rate. Turn 5 asks for a Trivy scan optimisation that avoids rescanning unchanged base layers.</p>
+
+    <!-- Turn 1 -->
+    <div class="turn-nav">
+      <span class="turn-nav-label">Turns</span>
+      <span class="turn-pip active">1</span><span class="turn-connector"></span>
+      <span class="turn-pip">2</span><span class="turn-connector"></span>
+      <span class="turn-pip">3</span><span class="turn-connector"></span>
+      <span class="turn-pip">4</span><span class="turn-connector"></span>
+      <span class="turn-pip">5</span>
+    </div>
+
+    <div class="turn-label">Turn 1 of 5 — Evidence dump: four sources simultaneously</div>
+    <div class="conversation">
+      <div class="conv-turn engineer">
+        <div class="conv-role">Engineer → Claude Code</div>
+        <div class="conv-body">
+          <p>Our CI pipeline started at ~8 minutes and is now running 22–26 minutes. No single change caused it. Here is everything I have:</p>
+
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">Job timing history — last 90 days (median duration per job, minutes)</span></div>
+            <pre><code class="block">Date        test-18x  test-20x  scan   push   deploy  TOTAL
+2025-09-01   2.1       2.0      1.8    2.2    1.5      8.1
+2025-10-01   3.4       3.3      2.1    2.3    1.6     10.2
+2025-11-01   5.1       5.0      2.4    2.4    1.7     14.1
+2025-12-01   7.2       7.1      3.8    2.5    1.8     20.3
+2026-01-01   8.9       8.8      4.6    2.6    1.9     24.7
+2026-02-01  11.1      11.0      5.2    2.7    1.9     26.6
+
+Note: test jobs run sequentially (test-18x then test-20x), not in parallel.
+scan runs after both test jobs complete.</code></pre>
+          </div>
+
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">Current workflow YAML (key sections)</span></div>
+            <pre><code class="block"><span class="kw">jobs:</span>
+  <span class="kw">test:</span>
+    <span class="kw">strategy:</span>
+      <span class="kw">matrix:</span>
+        <span class="kw">node-version:</span> <span class="st">['18.x', '20.x']</span>
+      <span class="kw">max-parallel:</span> <span class="nm">1</span>   <span class="cm"># Added in October to reduce runner costs — serialises matrix</span>
+    <span class="kw">steps:</span>
+      - <span class="kw">uses:</span> <span class="ty">actions/setup-node@v4</span>
+        <span class="kw">with:</span>
+          <span class="kw">cache:</span> <span class="st">'npm'</span>
+          <span class="kw">cache-dependency-path:</span> <span class="st">'**/package-lock.json'</span>  <span class="cm"># Changed from package-lock.json in November</span>
+      - <span class="kw">run:</span> <span class="st">npm ci</span>
+
+  <span class="kw">scan:</span>
+    <span class="kw">needs:</span> <span class="st">test</span>
+    <span class="kw">steps:</span>
+      - <span class="kw">name:</span> <span class="st">Rebuild image for scanning</span>
+        <span class="kw">uses:</span> <span class="ty">docker/build-push-action@v5</span>
+        <span class="kw">with:</span>
+          <span class="kw">cache-from:</span> <span class="st">type=gha</span>
+      - <span class="kw">uses:</span> <span class="ty">aquasecurity/trivy-action@0.28.0</span>
+        <span class="kw">with:</span>
+          <span class="kw">scan-type:</span> <span class="st">'image'</span>   <span class="cm"># Rescans full image every run including unchanged base layers</span></code></pre>
+          </div>
+
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">package-lock.json — dependency count over time</span></div>
+            <pre><code class="block">2025-09-01:  312 packages (124 direct, 188 transitive)  — lockfile size: 0.8 MB
+2025-11-01:  489 packages (198 direct, 291 transitive)  — lockfile size: 1.3 MB
+2026-01-01:  641 packages (267 direct, 374 transitive)  — lockfile size: 1.8 MB
+2026-02-01:  847 packages (341 direct, 506 transitive)  — lockfile size: 2.4 MB
+
+Three major dependency additions:
+  October:  added @aws-sdk/client-* (full SDK v3, 89 packages)
+  December: added @opentelemetry/* (observability, 74 packages)
+  January:  added vite + vitest (replaced jest, 118 packages)</code></pre>
+          </div>
+
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">Cache hit rate — weekly average</span></div>
+            <pre><code class="block">Week of 2025-09-01:  npm cache hit rate: 89%
+Week of 2025-10-01:  npm cache hit rate: 82%
+Week of 2025-11-01:  npm cache hit rate: 31%   ← glob pattern change
+Week of 2025-12-01:  npm cache hit rate: 28%
+Week of 2026-01-01:  npm cache hit rate: 24%
+Week of 2026-02-01:  npm cache hit rate: 19%</code></pre>
+          </div>
+
+          <p style="margin-top:10px;">What is causing the slowdown and in what order should I fix it?</p>
+        </div>
+      </div>
+
+      <div class="conv-turn claude">
+        <div class="conv-role">Claude Code</div>
+        <div class="conv-body">
+          <p>Three distinct causes, each with a clear signal in the evidence. In descending order of impact:</p>
+
+          <p style="margin-top:10px;"><strong>Cause 1 — Cache hit rate collapse (November) is the primary driver.</strong> The cache hit rate dropped from 82% to 31% in the week of November 1st — correlating exactly with the <code>cache-dependency-path</code> change from <code>package-lock.json</code> to <code>**/package-lock.json</code>. The glob pattern matches <em>any</em> <code>package-lock.json</code> anywhere in the repo, including in <code>node_modules</code> subdirectories that change on every install. This means the cache key is computed from a lockfile that mutates during the install itself — invalidating the cache on the next run. With 19% hit rate today, the team is running full <code>npm ci</code> from scratch on 81% of runs. At 847 packages and 2.4 MB of lock data, a cold install takes 10–12 minutes.</p>
+
+          <p style="margin-top:10px;"><strong>Cause 2 — <code>max-parallel: 1</code> serialises the matrix (October).</strong> Setting <code>max-parallel: 1</code> was intended to reduce runner costs. The effect is that Node 18 tests run first (11 minutes), then Node 20 tests run (11 minutes) — 22 minutes total for the test stage alone. Before this change, both ran in parallel — 11 minutes total. This change doubled the test stage wall time. The job timing table shows test-18x and test-20x both growing in lockstep, which confirms they are running sequentially rather than in parallel.</p>
+
+          <p style="margin-top:10px;"><strong>Cause 3 — Trivy rescans the full image including unchanged base layers.</strong> The scan job duration grew from 1.8 minutes to 5.2 minutes. The <code>scan-type: 'image'</code> setting causes Trivy to download and scan all layers including the base Node.js image on every run, even when only application code changed. Switching to filesystem scan on the application layer alone — or using Trivy's layer caching — reduces scan time by 60–70% for runs where the base image has not changed.</p>
+
+          <p style="margin-top:10px;"><strong>The dependency growth is a contributing factor but not a primary cause.</strong> Dependency count grew 2.7x (312 → 847 packages). Without the cache regression, this growth would have increased cold install time proportionally — but with a 89% cache hit rate, it would affect only 11% of runs. The dependency growth only became a pipeline problem when the cache stopped working. Fixing the cache key recovers the majority of the lost time independently of dependency count.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Turn 2 -->
+    <div class="turn-nav" style="margin-top:28px;">
+      <span class="turn-nav-label">Turns</span>
+      <span class="turn-pip done">1</span><span class="turn-connector"></span>
+      <span class="turn-pip active">2</span><span class="turn-connector"></span>
+      <span class="turn-pip">3</span><span class="turn-connector"></span>
+      <span class="turn-pip">4</span><span class="turn-connector"></span>
+      <span class="turn-pip">5</span>
+    </div>
+
+    <div class="turn-label">Turn 2 of 5 — Ranked optimisations by expected recovery</div>
+    <div class="conversation">
+      <div class="conv-turn engineer">
+        <div class="conv-role">Engineer → Claude Code</div>
+        <div class="conv-body">
+          <p>Give me the optimisations ranked by expected time recovery, with realistic estimates for each.</p>
+        </div>
+      </div>
+      <div class="conv-turn claude">
+        <div class="conv-role">Claude Code</div>
+        <div class="conv-body">
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">Optimisations ranked by expected pipeline time recovery</span></div>
+            <pre><code class="block"><span class="cm"># Current median: 26.6 minutes
+# Target after all three fixes: 7–9 minutes</span>
+
+<span class="cm"># Rank 1: Fix cache key glob pattern</span>
+<span class="cm"># Expected recovery: 8–10 minutes</span>
+<span class="cm"># Effort: 1 line change</span>
+<span class="cm"># Confidence: HIGH — cache hit rate collapse has a single identifiable cause</span>
+Restoring 80%+ hit rate on npm cache eliminates cold installs on 4/5 runs.
+At 847 packages, cold install = ~11 min, warm install = ~45 seconds.
+Recovery = (0.81 × 11 min) saved per run ≈ 8.9 minutes.
+
+<span class="cm"># Rank 2: Remove max-parallel: 1 from matrix</span>
+<span class="cm"># Expected recovery: 10–11 minutes (test stage wall time halved)</span>
+<span class="cm"># Effort: 1 line deletion</span>
+<span class="cm"># Confidence: HIGH — direct read from job timing table</span>
+test-18x and test-20x both run in ~11 min. Parallel = 11 min total.
+Sequential (current) = 22 min total. Recovery = 11 minutes.
+Note: this increases runner cost — 2 concurrent runners instead of 1.
+At GitHub Actions pricing, the cost increase is ~$0.004 per PR run.
+
+<span class="cm"># Rank 3: Switch Trivy to filesystem scan on app layer</span>
+<span class="cm"># Expected recovery: 3–3.5 minutes</span>
+<span class="cm"># Effort: 3 line changes in workflow YAML</span>
+<span class="cm"># Confidence: MEDIUM — depends on base image change frequency</span>
+Scan duration: 5.2 min → ~1.5 min for app-layer-only scan.
+Base image scans still run when Dockerfile's FROM line changes (rare).
+Recovery = ~3.5 minutes on runs where base image is unchanged.
+
+<span class="cm"># Total expected recovery: 8.9 + 11 + 3.5 = 23.4 minutes</span>
+<span class="cm"># Projected median after all three: 26.6 - 23.4 = ~3.2 minutes</span>
+<span class="cm"># Realistic target accounting for variance: 6–9 minutes</span></code></pre>
+          </div>
+          <p style="margin-top:10px;">Implement in rank order — each fix is independent and measurable. The cache fix alone should show a 30–40% reduction in median pipeline time within the first 10 runs after deployment. Measure before adding the parallelisation change so the impact of each is separately observable.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Turn 3 -->
+    <div class="turn-nav" style="margin-top:28px;">
+      <span class="turn-nav-label">Turns</span>
+      <span class="turn-pip done">1</span><span class="turn-connector"></span>
+      <span class="turn-pip done">2</span><span class="turn-connector"></span>
+      <span class="turn-pip active">3</span><span class="turn-connector"></span>
+      <span class="turn-pip">4</span><span class="turn-connector"></span>
+      <span class="turn-pip">5</span>
+    </div>
+
+    <div class="turn-label">Turn 3 of 5 — YAML changes to restore parallelism</div>
+    <div class="conversation">
+      <div class="conv-turn engineer">
+        <div class="conv-role">Engineer → Claude Code</div>
+        <div class="conv-body">
+          <p>Show me the exact YAML changes to remove <code>max-parallel: 1</code> and restore parallel matrix execution. Also — if we are running two parallel runners anyway, is there any way to share the npm install between the two matrix jobs instead of running it twice?</p>
+        </div>
+      </div>
+      <div class="conv-turn claude">
+        <div class="conv-role">Claude Code</div>
+        <div class="conv-body">
+          <p><strong>Fix 1: Remove <code>max-parallel: 1</code></strong> — one line deletion:</p>
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">.github/workflows/cicd.yml — restore parallel matrix</span><button class="code-copy" onclick="copyCode(this)">copy</button></div>
+            <pre><code class="block"><span class="kw">test:</span>
+  <span class="kw">strategy:</span>
+    <span class="kw">matrix:</span>
+      <span class="kw">node-version:</span> <span class="st">['18.x', '20.x']</span>
+    <span class="cm"># Remove: max-parallel: 1</span>
+    <span class="kw">fail-fast:</span> <span class="nm">false</span>   <span class="cm"># Both versions complete even if one fails</span></code></pre>
+          </div>
+          <p style="margin-top:10px;"><strong>On sharing npm install between matrix jobs:</strong> GitHub Actions does not support sharing a working directory between jobs — each job runs on a fresh runner with a clean filesystem. The only sharing mechanism is the cache. With a correctly keyed cache, each matrix job will hit the cache independently and restore in ~45 seconds rather than running a full install. This is the correct model — the cache key fix from Turn 4 is what makes parallel matrix efficient.</p>
+          <p style="margin-top:8px;">There is a pattern where a <code>setup</code> job runs install once and uploads <code>node_modules</code> as an artifact for the matrix jobs to download. This works but is generally slower than a cache hit — artifact upload/download has more overhead than cache restore for large <code>node_modules</code> directories. With a working cache, the standard pattern is better. Do not add a setup job — fix the cache key first.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Turn 4 -->
+    <div class="turn-nav" style="margin-top:28px;">
+      <span class="turn-nav-label">Turns</span>
+      <span class="turn-pip done">1</span><span class="turn-connector"></span>
+      <span class="turn-pip done">2</span><span class="turn-connector"></span>
+      <span class="turn-pip done">3</span><span class="turn-connector"></span>
+      <span class="turn-pip active">4</span><span class="turn-connector"></span>
+      <span class="turn-pip">5</span>
+    </div>
+
+    <div class="turn-label">Turn 4 of 5 — Cache key fix</div>
+    <div class="conversation">
+      <div class="conv-turn engineer">
+        <div class="conv-role">Engineer → Claude Code</div>
+        <div class="conv-body">
+          <p>Show the exact cache key fix. Also explain why the glob pattern causes the cache to invalidate — I want to understand this well enough to explain it to the team.</p>
+        </div>
+      </div>
+      <div class="conv-turn claude">
+        <div class="conv-role">Claude Code</div>
+        <div class="conv-body">
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">.github/workflows/cicd.yml — cache key fix</span><button class="code-copy" onclick="copyCode(this)">copy</button></div>
+            <pre><code class="block"><span class="kw">- uses:</span> <span class="ty">actions/setup-node@v4</span>
+  <span class="kw">with:</span>
+    <span class="kw">node-version:</span> <span class="st">${{ matrix.node-version }}</span>
+    <span class="kw">cache:</span> <span class="st">'npm'</span>
+    <span class="cm"># Before (broken): '**/package-lock.json'</span>
+    <span class="cm"># After (correct):  'package-lock.json'</span>
+    <span class="kw">cache-dependency-path:</span> <span class="st">'package-lock.json'</span></code></pre>
+          </div>
+          <p style="margin-top:10px;"><strong>Why the glob caused the problem — for the team explanation:</strong></p>
+          <p style="margin-top:8px;">GitHub Actions computes the npm cache key by hashing the file(s) matched by <code>cache-dependency-path</code>. The key is something like <code>node-${{ runner.os }}-${{ hashFiles('**/package-lock.json') }}</code>.</p>
+          <p style="margin-top:8px;"><code>**/package-lock.json</code> matches every <code>package-lock.json</code> file in the entire repository tree — including the ones inside <code>node_modules/</code> subdirectories that have their own nested lock files. When <code>npm ci</code> runs, it modifies files inside <code>node_modules/</code>. On the next run, the glob matches the modified files inside <code>node_modules/</code>, computes a different hash, gets a cache miss, runs <code>npm ci</code> again, modifies the files again — the cycle repeats on every run.</p>
+          <p style="margin-top:8px;"><code>package-lock.json</code> (no glob) matches only the single lock file in the project root. This file changes only when dependencies are explicitly updated — which is the correct cache invalidation condition. Cache hit rate should recover to 85–90%+ within a week of this change.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Turn 5 -->
+    <div class="turn-nav" style="margin-top:28px;">
+      <span class="turn-nav-label">Turns</span>
+      <span class="turn-pip done">1</span><span class="turn-connector"></span>
+      <span class="turn-pip done">2</span><span class="turn-connector"></span>
+      <span class="turn-pip done">3</span><span class="turn-connector"></span>
+      <span class="turn-pip done">4</span><span class="turn-connector"></span>
+      <span class="turn-pip active">5</span>
+    </div>
+
+    <div class="turn-label">Turn 5 of 5 — Trivy scan optimisation</div>
+    <div class="conversation">
+      <div class="conv-turn engineer">
+        <div class="conv-role">Engineer → Claude Code</div>
+        <div class="conv-body">
+          <p>Show the Trivy scan changes to avoid rescanning unchanged base layers. We still need to scan the full image for the first run after a base image update, but for all other runs we only need to scan the application layer changes.</p>
+        </div>
+      </div>
+      <div class="conv-turn claude">
+        <div class="conv-role">Claude Code</div>
+        <div class="conv-body">
+          <p>Two changes: switch from image scan to filesystem scan for the application layer, and add a separate scheduled job that scans the full image weekly for base layer vulnerabilities.</p>
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">.github/workflows/cicd.yml — Trivy scan optimisation</span><button class="code-copy" onclick="copyCode(this)">copy</button></div>
+            <pre><code class="block">  <span class="kw">scan:</span>
+    <span class="kw">needs:</span> <span class="st">test</span>
+    <span class="kw">steps:</span>
+      - <span class="kw">uses:</span> <span class="ty">actions/checkout@v4</span>
+
+      <span class="cm"># Build app layer only (not push) — reuses GHA cache</span>
+      - <span class="kw">name:</span> <span class="st">Build image</span>
+        <span class="kw">uses:</span> <span class="ty">docker/build-push-action@v5</span>
+        <span class="kw">with:</span>
+          <span class="kw">context:</span> <span class="st">.</span>
+          <span class="kw">push:</span> <span class="nm">false</span>
+          <span class="kw">load:</span> <span class="nm">true</span>
+          <span class="kw">tags:</span> <span class="st">payment-api:scan</span>
+          <span class="kw">cache-from:</span> <span class="st">type=gha</span>
+
+      <span class="cm"># Extract application filesystem from image for scanning</span>
+      - <span class="kw">name:</span> <span class="st">Export app filesystem</span>
+        <span class="kw">run:</span> |
+          docker create --name scan-container payment-api:scan
+          docker cp scan-container:/app ./app-fs
+          docker rm scan-container
+
+      <span class="cm"># Scan only the application layer — not base OS packages</span>
+      - <span class="kw">name:</span> <span class="st">Scan application layer</span>
+        <span class="kw">uses:</span> <span class="ty">aquasecurity/trivy-action@0.28.0</span>
+        <span class="kw">with:</span>
+          <span class="kw">scan-type:</span> <span class="st">'fs'</span>        <span class="cm"># Filesystem scan — no base layer download</span>
+          <span class="kw">scan-ref:</span> <span class="st">'./app-fs'</span>  <span class="cm"># Only scan extracted app directory</span>
+          <span class="kw">trivy-config:</span> <span class="st">.trivy.yaml</span>
+          <span class="kw">output:</span> <span class="st">trivy-report.json</span>
+
+      - <span class="kw">name:</span> <span class="st">Upload scan report</span>
+        <span class="kw">if:</span> <span class="fn">always()</span>
+        <span class="kw">uses:</span> <span class="ty">actions/upload-artifact@v4</span>
+        <span class="kw">with:</span>
+          <span class="kw">name:</span> <span class="st">trivy-report-${{ github.sha }}</span>
+          <span class="kw">path:</span> <span class="st">trivy-report.json</span>
+          <span class="kw">retention-days:</span> <span class="nm">30</span></code></pre>
+          </div>
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">.github/workflows/base-image-scan.yml — weekly full image scan</span><button class="code-copy" onclick="copyCode(this)">copy</button></div>
+            <pre><code class="block"><span class="kw">name:</span> <span class="st">Weekly base image vulnerability scan</span>
+<span class="kw">on:</span>
+  <span class="kw">schedule:</span>
+    - <span class="kw">cron:</span> <span class="st">'0 6 * * 1'</span>   <span class="cm"># Every Monday at 06:00 UTC</span>
+  <span class="kw">workflow_dispatch:</span>    <span class="cm"># Also triggerable manually</span>
+
+<span class="kw">jobs:</span>
+  <span class="kw">full-image-scan:</span>
+    <span class="kw">runs-on:</span> <span class="st">ubuntu-latest</span>
+    <span class="kw">steps:</span>
+      - <span class="kw">uses:</span> <span class="ty">actions/checkout@v4</span>
+      - <span class="kw">name:</span> <span class="st">Build full image</span>
+        <span class="kw">uses:</span> <span class="ty">docker/build-push-action@v5</span>
+        <span class="kw">with:</span>
+          <span class="kw">context:</span> <span class="st">.</span>
+          <span class="kw">push:</span> <span class="nm">false</span>
+          <span class="kw">load:</span> <span class="nm">true</span>
+          <span class="kw">tags:</span> <span class="st">payment-api:weekly-scan</span>
+      - <span class="kw">name:</span> <span class="st">Full image scan including base layers</span>
+        <span class="kw">uses:</span> <span class="ty">aquasecurity/trivy-action@0.28.0</span>
+        <span class="kw">with:</span>
+          <span class="kw">scan-type:</span> <span class="st">'image'</span>
+          <span class="kw">image-ref:</span> <span class="st">payment-api:weekly-scan</span>
+          <span class="kw">trivy-config:</span> <span class="st">.trivy.yaml</span>
+          <span class="kw">output:</span> <span class="st">trivy-base-report.json</span></code></pre>
+          </div>
+          <p style="margin-top:10px;">The tradeoff: PR scans now cover only application-layer vulnerabilities (npm packages, application code). Base OS package vulnerabilities are covered by the weekly scan. For a payment service, this is an acceptable split — base image CVEs are typically discovered on a weekly cycle by security teams, not on a per-PR cycle. If your security policy requires full image scanning on every PR, keep <code>scan-type: 'image'</code> and accept the 5-minute scan time.</p>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ══ STEP 4 ══ -->
+  <section class="step-section" id="step-4">
+    <div class="step-header">
+      <div class="step-number">4</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 4 of 5</div>
+        <div class="step-title">The refined output</div>
+      </div>
+<div class="reviewer-bar" id="rev-bar-4">
+  <input type="checkbox" class="rev-checkbox" id="rev-cb-4" data-step="4">
+  <label for="rev-cb-4">Mark step as reviewed</label>
+</div>
+
+    </div>
+
+    <p class="prose">Three targeted YAML changes and one new workflow file — each addressing a separately identifiable cause of the degradation.</p>
+
+    <div class="finding-chain">
+      <div class="finding-chain-label">Degradation causes and their fixes</div>
+
+      <div class="fc-row">
+        <span class="fc-layer">Cache key (Nov)</span>
+        <span class="fc-arrow">→</span>
+        <div class="fc-desc"><strong>Glob pattern <code>**/package-lock.json</code> → <code>package-lock.json</code>.</strong> One character change. Restores cache hit rate from 19% to ~87%. Eliminates cold <code>npm ci</code> installs on 4/5 runs. Projected recovery: 8–10 minutes. Impact is visible within 10 pipeline runs after deployment.</div>
+      </div>
+
+      <div class="fc-row">
+        <span class="fc-layer">Matrix parallelism (Oct)</span>
+        <span class="fc-arrow">→</span>
+        <div class="fc-desc"><strong>Remove <code>max-parallel: 1</code>.</strong> One line deletion. Restores parallel matrix execution — test-18x and test-20x run simultaneously rather than sequentially. Projected recovery: 11 minutes. Increases runner cost by approximately 1 concurrent runner per PR run — at GitHub Actions pricing, this is negligible compared to developer wait time saved.</div>
+      </div>
+
+      <div class="fc-row">
+        <span class="fc-layer">Trivy scan scope</span>
+        <span class="fc-arrow">→</span>
+        <div class="fc-desc"><strong>Switch PR scans to filesystem scan on application layer only.</strong> Three line changes. Reduces scan from 5.2 minutes to ~1.5 minutes for runs where the base image is unchanged. Adds a weekly scheduled workflow for full base image scanning. Projected recovery: 3.5 minutes per PR run.</div>
+      </div>
+
+      <div class="fc-row">
+        <span class="fc-layer">Dependency growth</span>
+        <span class="fc-arrow">→</span>
+        <div class="fc-desc"><strong>Not fixed — but context provided.</strong> The 2.7x growth in package count is a natural consequence of the project's scope expanding. With the cache working, this growth costs ~45 seconds on cache hits (npm ci with warm cache is faster than install from scratch). The dependency growth is not a problem to fix — it is context that explains why the cold install time grew, making the cache fix even more valuable.</div>
+      </div>
+    </div>
+
+    <div class="diff-wrap">
+      <div class="diff-header">Net YAML changes — three fixes, two lines removed, three changed</div>
+      <div class="diff-body">
+        <span class="diff-line rem">    max-parallel: 1              # Removed — restores parallel matrix</span>
+        <span class="diff-line neu"> </span>
+        <span class="diff-line rem">    cache-dependency-path: '**/package-lock.json'</span>
+        <span class="diff-line add">    cache-dependency-path: 'package-lock.json'    # Root lockfile only</span>
+        <span class="diff-line neu"> </span>
+        <span class="diff-line rem">      scan-type: 'image'          # Full image including base layers</span>
+        <span class="diff-line add">      scan-type: 'fs'             # Application layer only</span>
+        <span class="diff-line add">      scan-ref: './app-fs'        # Extracted from built image</span>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ══ STEP 5 ══ -->
+  <section class="step-section" id="step-5">
+    <div class="step-header">
+      <div class="step-number">5</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 5 of 5</div>
+        <div class="step-title">Watch out</div>
+      </div>
+<div class="reviewer-bar" id="rev-bar-5">
+  <input type="checkbox" class="rev-checkbox" id="rev-cb-5" data-step="5">
+  <label for="rev-cb-5">Mark step as reviewed</label>
+</div>
+
+    </div>
+
+    <p class="prose">Claude Code correctly identified three independent causes of the degradation from simultaneous evidence, ranked them by impact, and produced targeted fixes. Here is what requires verification in your specific pipeline and security context.</p>
+
+    <div class="callout good">
+      <div class="callout-label">What Claude Code handled well</div>
+      Cache hit rate collapse traced to the glob pattern change in the exact week it appeared in the evidence, <code>max-parallel: 1</code> identified as the serialisation cause from the job timing table, impact arithmetic correct (both test jobs equal duration, sequential → twice the wall time), dependency growth correctly framed as contributing context rather than a primary cause, correct rejection of the "shared install via artifact" pattern in favour of cache-based sharing, Trivy scan tradeoff articulated honestly (PR scan covers app layer; base OS requires weekly job or accept longer PR scan time).
+    </div>
+
+    <ul class="annotation-list" style="margin-top:24px;">
+      <li>
+        <span class="ann-badge ann-warn">Verify</span>
+        <div><strong>The cache hit rate projections assume the root lockfile changes infrequently.</strong> The projection of 87%+ cache hit rate assumes <code>package-lock.json</code> in the project root changes on roughly 10–15% of PRs. If your team updates dependencies on most PRs (e.g. via automated Dependabot PRs that land multiple times per week), the hit rate will be lower. Check how frequently <code>package-lock.json</code> appears in your merged PR history before committing to the projected recovery.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Verify</span>
+        <div><strong>The filesystem scan misses OS package vulnerabilities in the base image.</strong> The Turn 5 optimisation deliberately trades full coverage for speed on PR runs, relying on the weekly scan for base image coverage. If your security policy or compliance requirements mandate full image scanning on every commit — particularly for a payment service — this tradeoff is not available to you. Confirm the policy before deploying the filesystem scan configuration.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Verify</span>
+        <div><strong>Removing <code>max-parallel: 1</code> doubles concurrent runner usage.</strong> If the pipeline runs on self-hosted runners with a fixed pool, removing the concurrency limit may cause queuing rather than true parallelism if the runner pool is already at capacity. On GitHub-hosted runners, this is not an issue — runners are provisioned on demand. Verify your runner type before removing the limit.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-info">Note</span>
+        <div><strong>Implement fixes one at a time and measure.</strong> The Turn 2 ranking recommends deploying in rank order with measurement between each fix. This is not just good practice — it is the only way to validate the projections. The cache hit rate recovery is visible in the GitHub Actions cache tab within 10 runs. Measure it before deploying the parallelisation change, so the contribution of each fix is independently attributable. Combined deployment makes it impossible to know which fix had which effect.</div>
+      </li>
+    </ul>
+
+    <div class="callout tip">
+      <div class="callout-label">Prompting tip for gradual degradation triage</div>
+      <strong>Provide timing history, not just the current state.</strong> The current job log showed that <code>npm ci</code> takes 11 minutes. The timing history showed it took 2 minutes six months ago and grew gradually. The history is what makes the cache miss rate the primary cause — without it, the obvious hypothesis is "the install is slow because we have more packages," which is a symptom, not the cause. For any performance regression that occurred gradually rather than discretely, a time-series view of the metric is as important as the current value.
+    </div>
+  </section>
+
+  
+<div class="reviewer-panel">
+  <div class="reviewer-panel-label">🔍 Reviewer question — E11-1</div>
+  <div class="reviewer-q-text">In Example 11, the cache hit rate dropped from 82% to 31% in the week of November 1st. What change caused this?</div>
+  <div class="reviewer-options">
+    <div class="reviewer-option" data-key="A" onclick="selectRevOption('A',this)"><span class="reviewer-option-key">A</span><span>The addition of the AWS SDK v3 dependency, which increased `package-lock.json` size and caused hash collisions</span></div>
+    <div class="reviewer-option" data-key="B" onclick="selectRevOption('B',this)"><span class="reviewer-option-key">B</span><span>The `cache-dependency-path` was changed from `package-lock.json` to `**/package-lock.json`, which matched files inside `node_modules/` that mutate during install, invalidating the cache on every run</span></div>
+    <div class="reviewer-option" data-key="C" onclick="selectRevOption('C',this)"><span class="reviewer-option-key">C</span><span>The Node.js version was upgraded, which invalidated the existing cache entries</span></div>
+    <div class="reviewer-option" data-key="D" onclick="selectRevOption('D',this)"><span class="reviewer-option-key">D</span><span>GitHub Actions changed its cache eviction policy, reducing cache retention from 7 days to 1 day</span></div>
+  </div>
+  <button class="reviewer-reveal" id="rev-reveal-btn" onclick="revealRevAnswer()">Check answer</button>
+  <div class="reviewer-explanation" id="rev-explanation">
+    <div class="reviewer-exp-label"></div>
+    The glob pattern `**/package-lock.json` matches every lock file in the repository tree, including those inside `node_modules/` that are modified during `npm ci`. This means the cache key changes on every run after an install, producing a permanent cache miss cycle. The fix is reverting to `package-lock.json` which matches only the root lock file.
+  </div>
+  <div class="reviewer-comment-label">Reviewer notes</div>
+  <textarea class="reviewer-comment" id="rev-comment" placeholder="Add your review notes for this example…"></textarea>
+  <div class="reviewer-save-note">Notes are auto-saved in your browser.</div>
+</div>
+<script>window.REV_CORRECT = "B";</script>
+
+<div class="bottom-nav">
+    <a class="nav-btn secondary" href="../example-10-cross-layer-rca.html">← Example 10 — Cross-layer RCA</a>
+    <a class="nav-btn" href="../example-12-incident-rca-aiops.html">Example 12 — Incident RCA with AIOps handoff →</a>
+  </div>
+
+</div>
+
+<footer>
+  <span>AIOps &amp; DevOps Learning Path · SourceFuse L&amp;D</span>
+  <span>Example 11 of 13 · Tier 3 · CI pipeline performance triage</span>
+</footer>
+
+<script>
+  const sections = document.querySelectorAll('.step-section');
+  const navItems = document.querySelectorAll('.stepnav-item');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const id = entry.target.id;
+        navItems.forEach(item => {
+          item.classList.toggle('active', item.getAttribute('href') === '#' + id);
+        });
+      }
+    });
+  }, { rootMargin:'-30% 0px -60% 0px', threshold:0 });
+  sections.forEach(s => observer.observe(s));
+
+  function copyCode(btn) {
+    const pre = btn.closest('.code-wrap').querySelector('pre');
+    navigator.clipboard.writeText(pre.innerText).then(() => {
+      btn.textContent = 'copied!';
+      setTimeout(() => btn.textContent = 'copy', 2000);
+    });
+  }
+</script>
+
+<script>
+// ── Reviewer persistence ─────────────────────────────────────────────────────
+const REV_KEY = 'reviewer_example-11';
+
+function revLoad() {
+  try { return JSON.parse(localStorage.getItem(REV_KEY)) || {}; } catch(e) { return {}; }
+}
+
+function revSave(state) {
+  localStorage.setItem(REV_KEY, JSON.stringify(state));
+}
+
+// Restore checkboxes
+document.querySelectorAll('.rev-checkbox').forEach(cb => {
+  const state = revLoad();
+  if (state['cb_' + cb.dataset.step]) {
+    cb.checked = true;
+    cb.closest('.reviewer-bar').classList.add('checked');
+    cb.closest('.reviewer-bar').querySelector('label').textContent = '✓ Step reviewed';
+  }
+  cb.addEventListener('change', () => {
+    const s = revLoad();
+    s['cb_' + cb.dataset.step] = cb.checked;
+    revSave(s);
+    const bar = cb.closest('.reviewer-bar');
+    bar.classList.toggle('checked', cb.checked);
+    bar.querySelector('label').textContent = cb.checked ? '✓ Step reviewed' : 'Mark step as reviewed';
+  });
+});
+
+// Restore comment
+const commentEl = document.getElementById('rev-comment');
+if (commentEl) {
+  const state = revLoad();
+  if (state.comment) commentEl.value = state.comment;
+  commentEl.addEventListener('input', () => {
+    const s = revLoad();
+    s.comment = commentEl.value;
+    revSave(s);
+  });
+}
+
+// Reviewer question logic
+let revAnswer = null;
+let revSubmitted = false;
+
+(function restoreRevQ() {
+  const state = revLoad();
+  if (state.revAnswer !== undefined) {
+    revAnswer = state.revAnswer;
+    revSubmitted = state.revSubmitted || false;
+    if (revAnswer !== null) applyRevAnswer(revAnswer, revSubmitted);
+  }
+})();
+
+function selectRevOption(key, el) {
+  if (revSubmitted) return;
+  revAnswer = key;
+  document.querySelectorAll('.reviewer-option').forEach(o => o.classList.toggle('selected', o.dataset.key === key));
+  const s = revLoad(); s.revAnswer = key; revSave(s);
+}
+
+function selectRevTF(val, el) {
+  if (revSubmitted) return;
+  revAnswer = val;
+  document.querySelectorAll('.reviewer-tf-btn').forEach(b => {
+    b.classList.toggle('selected', (b.dataset.val === 'true') === val);
+  });
+  const s = revLoad(); s.revAnswer = val; revSave(s);
+}
+
+function revealRevAnswer() {
+  if (revAnswer === null) { alert('Please select an answer first.'); return; }
+  revSubmitted = true;
+  const s = revLoad(); s.revSubmitted = true; revSave(s);
+  applyRevAnswer(revAnswer, true);
+}
+
+function applyRevAnswer(ans, showResult) {
+  const correctVal = window.REV_CORRECT;
+  // MCQ
+  document.querySelectorAll('.reviewer-option').forEach(o => {
+    o.classList.remove('selected','correct','wrong');
+    if (showResult) {
+      if (o.dataset.key === correctVal) o.classList.add('correct');
+      else if (o.dataset.key === ans && o.dataset.key !== correctVal) o.classList.add('wrong');
+    } else {
+      if (o.dataset.key === ans) o.classList.add('selected');
+    }
+  });
+  // T/F
+  document.querySelectorAll('.reviewer-tf-btn').forEach(b => {
+    b.classList.remove('selected','correct','wrong');
+    const bVal = b.dataset.val === 'true';
+    if (showResult) {
+      if (bVal === correctVal) b.classList.add('correct');
+      else if (bVal === ans && bVal !== correctVal) b.classList.add('wrong');
+    } else {
+      if (bVal === ans) b.classList.add('selected');
+    }
+  });
+  if (showResult) {
+    const expEl = document.getElementById('rev-explanation');
+    const btnEl = document.getElementById('rev-reveal-btn');
+    if (expEl) {
+      const isCorrect = (ans === correctVal) || (ans === correctVal);
+      expEl.classList.add('visible');
+      const lbl = expEl.querySelector('.reviewer-exp-label');
+      if (lbl) { lbl.textContent = isCorrect ? '✓ Correct' : '✗ Incorrect'; lbl.className = 'reviewer-exp-label ' + (isCorrect ? 'correct' : 'wrong'); }
+    }
+    if (btnEl) btnEl.style.display = 'none';
+  }
+}
+</script>
+
+</body>
+</html>

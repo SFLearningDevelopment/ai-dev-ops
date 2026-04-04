@@ -1,0 +1,1143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>[Reviewer] Example 12 — Incident RCA with AIOps Handoff</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Merriweather+Sans:wght@300;400;600;700&family=Source+Code+Pro:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+  :root {
+    --bg:#eef2f7; --bg2:#ffffff; --bg3:#f0f4f9; --border:#d0dae8;
+    --text:#1a2332; --text-dim:#4a5568; --text-dimmer:#8fa3bc;
+    --blue:#1a6eb5; --blue-light:#e8f1fb; --blue-mid:#b8d0ed; --blue-dark:#0f4a7a;
+    --teal:#0e7a6b; --teal-light:#e6f4f2;
+    --coral:#c0392b; --coral-light:#fdf0ee; --coral-mid:#f0b8b2;
+    --green:#1a6b3a; --green-light:#e8f5ed;
+    --amber:#92600a; --amber-light:#fdf3e3;
+    --purple:#5b4fcf; --purple-light:#f0effe;
+    --code-bg:#1e2433; --code-text:#cdd6f4; --radius:12px;
+  }
+  html,body { min-height:100%; background:var(--bg); color:var(--text); font-family:'Merriweather Sans',sans-serif; font-size:15px; line-height:1.6; }
+  .topnav { background:var(--bg2); border-bottom:1px solid var(--border); padding:0 40px; height:52px; display:flex; align-items:center; gap:8px; font-size:12px; color:var(--text-dimmer); font-family:'Source Code Pro',monospace; position:sticky; top:0; z-index:100; }
+  .topnav a { color:var(--blue); text-decoration:none; } .topnav a:hover { text-decoration:underline; }
+  .topnav .sep { margin:0 4px; color:var(--text-dimmer); }
+  .stepnav { background:var(--bg2); border-bottom:1px solid var(--border); padding:0 40px; display:flex; align-items:stretch; position:sticky; top:52px; z-index:99; overflow-x:auto; }
+  .stepnav-item { display:flex; align-items:center; gap:8px; padding:14px 20px; font-size:12px; font-family:'Source Code Pro',monospace; color:var(--text-dimmer); cursor:pointer; border-bottom:3px solid transparent; white-space:nowrap; transition:color .15s,border-color .15s; text-decoration:none; }
+  .stepnav-item:hover { color:var(--text-dim); }
+  .stepnav-item.active { color:var(--blue); border-bottom-color:var(--blue); font-weight:600; }
+  .stepnav-num { width:20px; height:20px; border-radius:50%; background:var(--bg3); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; flex-shrink:0; }
+  .stepnav-item.active .stepnav-num { background:var(--blue); border-color:var(--blue); color:white; }
+  .hero { background:var(--bg2); border-bottom:2px solid var(--border); padding:40px 40px 32px; }
+  .hero-inner { max-width:900px; margin:0 auto; }
+  .hero-eyebrow { font-size:10px; letter-spacing:.2em; text-transform:uppercase; color:var(--blue); font-weight:600; margin-bottom:10px; font-family:'Source Code Pro',monospace; }
+  .hero h1 { font-size:clamp(18px,2.5vw,26px); font-weight:700; color:var(--text); line-height:1.25; }
+  .hero h1 span { color:var(--blue); }
+  .hero-meta { margin-top:14px; display:flex; flex-wrap:wrap; gap:8px; }
+  .meta-pill { font-size:10.5px; font-family:'Source Code Pro',monospace; padding:3px 10px; border-radius:20px; font-weight:600; }
+  .pill-tier { background:var(--coral-light); color:var(--coral); border:1px solid var(--coral-mid); }
+  .pill-topic { background:var(--teal-light); color:var(--teal); border:1px solid #a3d4ce; }
+  .pill-turns { background:var(--bg3); color:var(--text-dim); border:1px solid var(--border); font-weight:400; }
+  .pill-bridge { background:var(--amber-light); color:var(--amber); border:1px solid #f0d4a0; font-weight:600; }
+  .main { max-width:900px; margin:0 auto; padding:40px 40px 80px; }
+  .step-section { margin-bottom:56px; scroll-margin-top:120px; }
+  .step-header { display:flex; align-items:center; gap:14px; margin-bottom:20px; padding-bottom:16px; border-bottom:2px solid var(--border); }
+  .step-number { width:40px; height:40px; border-radius:50%; background:var(--blue); color:white; display:flex; align-items:center; justify-content:center; font-size:16px; font-weight:700; font-family:'Source Code Pro',monospace; flex-shrink:0; }
+  .step-label { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:.18em; text-transform:uppercase; color:var(--blue); font-weight:600; margin-bottom:3px; }
+  .step-title { font-size:18px; font-weight:700; color:var(--text); line-height:1.25; }
+  .prose { font-size:14.5px; color:var(--text-dim); line-height:1.8; margin-bottom:20px; }
+  .prose strong { color:var(--text); font-weight:600; }
+  .prose code { font-family:'Source Code Pro',monospace; font-size:13px; background:var(--bg3); border:1px solid var(--border); padding:1px 5px; border-radius:4px; color:var(--blue-dark); }
+  .evidence-map { background:var(--bg2); border:1px solid var(--border); border-top:3px solid var(--coral); border-radius:var(--radius); overflow:hidden; margin:20px 0; }
+  .evidence-map-header { padding:12px 18px; background:var(--coral-light); border-bottom:1px solid var(--border); font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:.18em; text-transform:uppercase; color:var(--coral); font-weight:600; }
+  .evidence-map table { width:100%; border-collapse:collapse; }
+  .evidence-map th { padding:10px 16px; font-size:11px; font-family:'Source Code Pro',monospace; color:var(--text-dimmer); font-weight:600; text-align:left; border-bottom:1px solid var(--border); background:var(--bg3); }
+  .evidence-map td { padding:10px 16px; font-size:13px; color:var(--text-dim); border-bottom:1px solid var(--border); vertical-align:top; }
+  .evidence-map tr:last-child td { border-bottom:none; }
+  .evidence-map td:first-child { font-family:'Source Code Pro',monospace; font-size:12px; color:var(--blue-dark); font-weight:600; white-space:nowrap; }
+  .layer-pill { font-size:9.5px; font-family:'Source Code Pro',monospace; padding:2px 8px; border-radius:20px; font-weight:600; white-space:nowrap; }
+  .layer-app   { background:var(--blue-light); color:var(--blue); border:1px solid var(--blue-mid); }
+  .layer-k8s   { background:var(--teal-light); color:var(--teal); border:1px solid #a3d4ce; }
+  .layer-net   { background:var(--purple-light); color:var(--purple); border:1px solid #c4bdf0; }
+  .layer-alert { background:var(--amber-light); color:var(--amber); border:1px solid #f0d4a0; }
+  .callout { border-radius:var(--radius); padding:16px 18px; margin:20px 0; font-size:13.5px; line-height:1.7; }
+  .callout-label { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:.15em; text-transform:uppercase; font-weight:700; margin-bottom:6px; }
+  .callout.info { background:var(--blue-light); border:1px solid var(--blue-mid); border-left:3px solid var(--blue); color:var(--text-dim); }
+  .callout.info .callout-label { color:var(--blue); }
+  .callout.warn { background:#fdf5f5; border:1px solid var(--coral-mid); border-left:3px solid var(--coral); color:var(--text-dim); }
+  .callout.warn .callout-label { color:var(--coral); }
+  .callout.good { background:var(--green-light); border:1px solid #a3d4b8; border-left:3px solid var(--green); color:var(--text-dim); }
+  .callout.good .callout-label { color:var(--green); }
+  .callout.tip  { background:var(--amber-light); border:1px solid #f0d4a0; border-left:3px solid var(--amber); color:var(--text-dim); }
+  .callout.tip  .callout-label { color:var(--amber); }
+  .callout.bridge { background:#f5f0ff; border:1px solid #c4bdf0; border-left:3px solid var(--purple); color:var(--text-dim); }
+  .callout.bridge .callout-label { color:var(--purple); }
+  .callout strong { color:var(--text); font-weight:600; }
+  .callout code { font-family:'Source Code Pro',monospace; font-size:12.5px; background:rgba(0,0,0,.06); padding:1px 5px; border-radius:4px; }
+  .code-wrap { margin:20px 0; border-radius:0; overflow:hidden; border:1px solid #2a3144; background:#1e2433; }
+  .code-header { background:#252b3b; padding:10px 16px; display:flex; align-items:center; justify-content:space-between; }
+  .code-filename { font-size:11px; font-family:'Source Code Pro',monospace; color:#ffffff; letter-spacing:.05em; }
+  .code-copy { font-size:10px; font-family:'Source Code Pro',monospace; color:#7a8ab0; background:none; border:1px solid #3a4155; border-radius:4px; padding:2px 8px; cursor:pointer; transition:color .15s,border-color .15s; }
+  .code-copy:hover { color:#cdd6f4; border-color:#6a7ab0; }
+  pre { background:#1e2433 !important; padding:20px; overflow-x:auto; margin:0; }
+  code.block { font-family:'Source Code Pro',monospace; font-size:13px; line-height:1.7; color:var(--code-text); background:none; border:none; padding:0; display:block; }
+  .kw{color:#cba6f7;} .cm{color:#6c7086;font-style:italic;} .st{color:#a6e3a1;}
+  .nm{color:#fab387;} .op{color:#89dceb;} .an{color:#f38ba8;} .fn{color:#89b4fa;}
+  .annotation-list { list-style:none; display:flex; flex-direction:column; gap:12px; margin:20px 0; }
+  .annotation-list li { display:flex; gap:12px; align-items:flex-start; font-size:13.5px; color:var(--text-dim); line-height:1.7; }
+  .ann-badge { flex-shrink:0; font-size:10px; font-family:'Source Code Pro',monospace; font-weight:700; padding:2px 8px; border-radius:4px; margin-top:2px; }
+  .ann-good { background:var(--green-light); color:var(--green); border:1px solid #a3d4b8; }
+  .ann-warn { background:var(--coral-light); color:var(--coral); border:1px solid var(--coral-mid); }
+  .ann-info { background:var(--blue-light); color:var(--blue); border:1px solid var(--blue-mid); }
+  .annotation-list li strong { color:var(--text); font-weight:600; }
+  .annotation-list li code { font-family:'Source Code Pro',monospace; font-size:12.5px; background:var(--bg3); border:1px solid var(--border); padding:1px 5px; border-radius:4px; color:var(--blue-dark); }
+  .conversation { display:flex; flex-direction:column; gap:0; margin:16px 0; border:1px solid #2a3144; border-radius:var(--radius); overflow:hidden; }
+  .conv-turn { padding:18px 22px; }
+  .conv-turn + .conv-turn { border-top:1px solid #2a3144; }
+  .conv-turn.engineer { background:var(--bg3); }
+  .conv-turn.claude   { background:#1e2433; }
+  .conv-role { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:.18em; text-transform:uppercase; font-weight:700; margin-bottom:8px; }
+  .conv-turn.engineer .conv-role { color:var(--teal); }
+  .conv-turn.claude   .conv-role { color:#7a8ab0; }
+  .conv-body { font-size:13.5px; line-height:1.75; }
+  .conv-turn.engineer .conv-body { color:var(--text-dim); }
+  .conv-turn.claude   .conv-body { color:#cdd6f4; }
+  .conv-turn.engineer .conv-body strong { color:var(--text); font-weight:600; }
+  .conv-turn.claude   .conv-body strong { color:#ffffff; font-weight:600; }
+  .conv-turn.engineer .conv-body code { font-family:'Source Code Pro',monospace; font-size:12.5px; background:var(--bg3); border:1px solid var(--border); padding:1px 5px; border-radius:4px; color:var(--blue-dark); }
+  .conv-turn.claude   .conv-body code { font-family:'Source Code Pro',monospace; font-size:12.5px; background:#252b3b; border:1px solid #3a4155; padding:1px 5px; border-radius:4px; color:#89dceb; }
+  .conv-turn.claude   .conv-body em { font-style:italic; color:#6c7086; }
+  .conv-turn.claude   .code-wrap { margin:12px 0; }
+  .turn-nav { display:flex; align-items:center; gap:6px; margin-bottom:16px; flex-wrap:wrap; }
+  .turn-nav-label { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:.15em; text-transform:uppercase; color:var(--text-dimmer); font-weight:600; margin-right:4px; }
+  .turn-pip { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; font-family:'Source Code Pro',monospace; border:1px solid var(--border); background:var(--bg3); color:var(--text-dimmer); }
+  .turn-pip.active { background:var(--blue); border-color:var(--blue); color:#fff; }
+  .turn-pip.done   { background:var(--green-light); border-color:#a3d4b8; color:var(--green); }
+  .turn-connector  { width:20px; height:1px; background:var(--border); }
+  .finding-chain { background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); padding:20px 24px; margin:24px 0; }
+  .finding-chain-label { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:.18em; text-transform:uppercase; color:var(--coral); font-weight:600; margin-bottom:14px; }
+  .fc-row { display:flex; align-items:flex-start; gap:12px; margin-bottom:12px; }
+  .fc-row:last-child { margin-bottom:0; }
+  .fc-layer { font-family:'Source Code Pro',monospace; font-size:11.5px; font-weight:600; color:var(--blue-dark); background:var(--blue-light); border:1px solid var(--blue-mid); border-radius:6px; padding:4px 10px; white-space:nowrap; flex-shrink:0; }
+  .fc-arrow { color:var(--text-dimmer); font-size:14px; margin-top:3px; flex-shrink:0; }
+  .fc-desc { font-size:13px; color:var(--text-dim); line-height:1.6; padding-top:2px; }
+  .fc-desc strong { color:var(--text); font-weight:600; }
+  .handoff-box { background:#f5f0ff; border:1px solid #c4bdf0; border-top:3px solid var(--purple); border-radius:var(--radius); padding:20px 24px; margin:24px 0; }
+  .handoff-label { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:.18em; text-transform:uppercase; color:var(--purple); font-weight:600; margin-bottom:14px; }
+  .handoff-field { margin-bottom:12px; }
+  .handoff-field:last-child { margin-bottom:0; }
+  .handoff-key { font-size:10px; font-family:'Source Code Pro',monospace; letter-spacing:.1em; text-transform:uppercase; color:var(--text-dimmer); font-weight:600; margin-bottom:4px; }
+  .handoff-val { font-size:13.5px; color:var(--text-dim); line-height:1.6; }
+  .handoff-val strong { color:var(--text); font-weight:600; }
+  .handoff-val code { font-family:'Source Code Pro',monospace; font-size:12.5px; background:rgba(91,79,207,.08); border:1px solid #c4bdf0; padding:1px 5px; border-radius:4px; color:var(--purple); }
+  .turn-label { display:inline-flex; align-items:center; gap:6px; font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:.12em; text-transform:uppercase; color:var(--text-dimmer); background:var(--bg3); border:1px solid var(--border); border-radius:20px; padding:3px 10px; margin-bottom:14px; font-weight:600; }
+  .section-divider { height:1px; background:var(--border); margin:40px 0; }
+  .bottom-nav { display:flex; justify-content:space-between; align-items:center; padding:20px 0 0; border-top:1px solid var(--border); margin-top:40px; }
+  .nav-btn { display:inline-flex; align-items:center; gap:8px; font-size:13px; font-family:'Source Code Pro',monospace; color:var(--blue); text-decoration:none; padding:10px 18px; border:1px solid var(--blue-mid); border-radius:8px; background:var(--blue-light); transition:background .15s,border-color .15s; font-weight:600; }
+  .nav-btn:hover { background:var(--blue-mid); border-color:var(--blue); }
+  .nav-btn.secondary { background:var(--bg2); color:var(--text-dim); border-color:var(--border); }
+  .nav-btn.secondary:hover { background:var(--bg3); }
+  footer { background:var(--bg2); border-top:1px solid var(--border); padding:14px 40px; font-size:11px; font-family:'Source Code Pro',monospace; color:var(--text-dimmer); display:flex; justify-content:space-between; align-items:center; }
+  @media(max-width:640px){.topnav,.main,footer{padding-left:20px;padding-right:20px;}.hero{padding:28px 20px;}.stepnav{padding:0 20px;}}
+
+  /* ── Reviewer additions ──────────────────────────────────────────────────── */
+  .reviewer-bar {
+    background: #fff8e6;
+    border: 1px solid #f0d4a0;
+    border-left: 3px solid #92600a;
+    border-radius: 8px;
+    padding: 10px 16px;
+    margin-top: 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: #92600a;
+    font-family: 'Source Code Pro', monospace;
+  }
+  .reviewer-bar input[type="checkbox"] {
+    width: 16px; height: 16px; cursor: pointer; flex-shrink: 0;
+    accent-color: #1a6b3a;
+  }
+  .reviewer-bar label { cursor: pointer; font-weight: 600; user-select: none; }
+  .reviewer-bar.checked { background: #e8f5ed; border-color: #a3d4b8; border-left-color: #1a6b3a; color: #1a6b3a; }
+
+  .reviewer-panel {
+    background: #f5f0ff;
+    border: 1px solid #c4bdf0;
+    border-top: 3px solid #5b4fcf;
+    border-radius: 12px;
+    padding: 24px 28px;
+    margin: 32px 0;
+  }
+  .reviewer-panel-label {
+    font-size: 9px; font-family: 'Source Code Pro', monospace;
+    letter-spacing: .18em; text-transform: uppercase;
+    color: #5b4fcf; font-weight: 600; margin-bottom: 16px;
+  }
+  .reviewer-q-text {
+    font-size: 14px; font-weight: 600; color: #1a2332;
+    line-height: 1.65; margin-bottom: 14px;
+  }
+  .reviewer-options { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
+  .reviewer-option {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 10px 14px; border: 1px solid #d0dae8;
+    border-radius: 8px; cursor: pointer;
+    font-size: 13.5px; color: #4a5568; line-height: 1.5;
+    transition: background .12s, border-color .12s;
+    background: #ffffff;
+  }
+  .reviewer-option:hover { background: #f0f4f9; border-color: #b8d0ed; }
+  .reviewer-option.selected { background: #e8f1fb; border-color: #1a6eb5; color: #1a2332; }
+  .reviewer-option.correct  { background: #e8f5ed; border-color: #a3d4b8; color: #1a6b3a; }
+  .reviewer-option.wrong    { background: #fdf0ee; border-color: #f0b8b2; color: #c0392b; }
+  .reviewer-option-key { font-family: 'Source Code Pro', monospace; font-size: 11px; font-weight: 700; color: #8fa3bc; flex-shrink: 0; margin-top: 1px; }
+
+  .reviewer-tf { display: flex; gap: 10px; margin-bottom: 18px; }
+  .reviewer-tf-btn {
+    flex: 1; padding: 10px; border: 1px solid #d0dae8;
+    border-radius: 8px; cursor: pointer; text-align: center;
+    font-size: 13.5px; font-weight: 600;
+    font-family: 'Source Code Pro', monospace; color: #4a5568;
+    background: #ffffff; transition: background .12s;
+  }
+  .reviewer-tf-btn:hover { background: #f0f4f9; border-color: #b8d0ed; }
+  .reviewer-tf-btn.selected { background: #e8f1fb; border-color: #1a6eb5; color: #1a6eb5; }
+  .reviewer-tf-btn.correct  { background: #e8f5ed; border-color: #a3d4b8; color: #1a6b3a; }
+  .reviewer-tf-btn.wrong    { background: #fdf0ee; border-color: #f0b8b2; color: #c0392b; }
+
+  .reviewer-reveal {
+    font-size: 12px; font-family: 'Source Code Pro', monospace;
+    color: #5b4fcf; cursor: pointer; text-decoration: underline;
+    background: none; border: none; padding: 0; margin-bottom: 14px; display: block;
+  }
+  .reviewer-explanation {
+    font-size: 13px; color: #4a5568; line-height: 1.7;
+    padding: 12px 14px; background: #eef2f7; border-radius: 8px;
+    margin-bottom: 16px; display: none;
+  }
+  .reviewer-explanation.visible { display: block; }
+  .reviewer-exp-label { font-size: 9px; font-family: 'Source Code Pro', monospace; letter-spacing: .15em; text-transform: uppercase; font-weight: 700; margin-bottom: 4px; }
+  .reviewer-exp-label.correct { color: #1a6b3a; }
+  .reviewer-exp-label.wrong   { color: #c0392b; }
+
+  .reviewer-comment-label {
+    font-size: 11px; font-family: 'Source Code Pro', monospace;
+    letter-spacing: .12em; text-transform: uppercase;
+    color: #8fa3bc; font-weight: 600; margin-bottom: 6px;
+  }
+  .reviewer-comment {
+    width: 100%; min-height: 80px; padding: 10px 12px;
+    border: 1px solid #c4bdf0; border-radius: 8px;
+    font-family: 'Merriweather Sans', sans-serif; font-size: 13.5px;
+    color: #1a2332; background: #ffffff; resize: vertical;
+    line-height: 1.6; transition: border-color .15s;
+  }
+  .reviewer-comment:focus { outline: none; border-color: #5b4fcf; }
+  .reviewer-save-note {
+    font-size: 11px; font-family: 'Source Code Pro', monospace;
+    color: #8fa3bc; margin-top: 6px;
+  }
+
+  .reviewer-topbanner {
+    background: #f5f0ff; border-bottom: 2px solid #c4bdf0;
+    padding: 10px 40px; font-size: 12px;
+    font-family: 'Source Code Pro', monospace; color: #5b4fcf;
+    display: flex; align-items: center; gap: 8px;
+  }
+
+</style>
+</head>
+<body>
+<div class="reviewer-topbanner">
+  <span>👁</span>
+  <span><strong>Reviewer mode</strong> — checkboxes, question answers, and notes are saved in your browser.</span>
+</div>
+
+
+<nav class="topnav">
+  <a href="../course-map.html">Course map</a>
+  <span class="sep">/</span>
+  <a href="../course-map.html">Tier 3 examples</a>
+  <span class="sep">/</span>
+  <span>Example 12 — Incident RCA with AIOps handoff</span>
+</nav>
+
+<nav class="stepnav" id="stepnav">
+  <a class="stepnav-item active" href="#step-1"><span class="stepnav-num">1</span>Problem</a>
+  <a class="stepnav-item" href="#step-2"><span class="stepnav-num">2</span>Naive approach</a>
+  <a class="stepnav-item" href="#step-3"><span class="stepnav-num">3</span>Claude Code interaction</a>
+  <a class="stepnav-item" href="#step-4"><span class="stepnav-num">4</span>Refined output</a>
+  <a class="stepnav-item" href="#step-5"><span class="stepnav-num">5</span>Watch out</a>
+</nav>
+
+<div class="hero">
+  <div class="hero-inner">
+    <div class="hero-eyebrow">Example 12 of 13 · Tier 3 · Context-heavy scenario</div>
+    <h1>Incident RCA with <span>AIOps handoff</span></h1>
+    <div class="hero-meta">
+      <span class="meta-pill pill-tier">Tier 3 — Context-heavy scenario</span>
+      <span class="meta-pill pill-topic">Incident analysis · AIOps</span>
+      <span class="meta-pill pill-turns">5-turn interaction</span>
+      <span class="meta-pill pill-bridge">Module bridge · DevOps → AIOps</span>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- ══ STEP 1 ══ -->
+  <section class="step-section" id="step-1">
+    <div class="step-header">
+      <div class="step-number">1</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 1 of 5</div>
+        <div class="step-title">The problem</div>
+      </div>
+<div class="reviewer-bar" id="rev-bar-1">
+  <input type="checkbox" class="rev-checkbox" id="rev-cb-1" data-step="1">
+  <label for="rev-cb-1">Mark step as reviewed</label>
+</div>
+
+    </div>
+
+    <div class="callout bridge">
+      <div class="callout-label">Module bridge</div>
+      This example is the explicit handoff point between Module 1 (DevOps automation) and Module 2 (AIOps use cases). The first three turns follow the Tier 3 pattern established in Examples 10 and 11 — cross-layer evidence, causal chain diagnosis, targeted remediation. Turns 4 and 5 introduce something new: Claude Code's triage output is structured as a <strong>machine-readable AIOps payload</strong> that can be consumed by remediation automation, alert enrichment pipelines, and runbook generation systems. This structured handoff is what connects DevOps diagnosis to AIOps action.
+    </div>
+
+    <p class="prose">
+      At 02:14 UTC, PagerDuty fires a P1 alert: <code>payment-api</code> error rate has spiked to 34% and p99 latency has exceeded 8 seconds. The on-call engineer is paged. By the time they open their laptop, three other alerts have fired: a pod restart count alert, a network policy alert, and a certificate expiry warning.
+    </p>
+
+    <p class="prose">
+      Four alerts in 90 seconds, two of which look unrelated. The engineer's first job is to determine which alerts describe the same incident and which are coincidental. Their second job is to produce a structured triage summary that can feed into the AIOps remediation pipeline — not just fix the immediate problem, but produce output that makes the next similar incident faster to resolve.
+    </p>
+
+    <div class="evidence-map">
+      <div class="evidence-map-header">Evidence sources in this scenario</div>
+      <table>
+        <thead><tr><th>Source</th><th>What it shows</th><th>Type</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>Application error logs</td>
+            <td><code>x509: certificate has expired</code> errors on all outbound TLS calls to the payment processor API; no database errors</td>
+            <td><span class="layer-pill layer-app">Application</span></td>
+          </tr>
+          <tr>
+            <td>Kubernetes events</td>
+            <td>Pod restarts on <code>payment-api</code> — liveness probe failures after error rate spike; no OOMKilled, no scheduling issues</td>
+            <td><span class="layer-pill layer-k8s">Kubernetes</span></td>
+          </tr>
+          <tr>
+            <td>Network policy audit log</td>
+            <td>No policy changes in the last 7 days; existing policy permits egress to payment processor endpoint on port 443</td>
+            <td><span class="layer-pill layer-net">Network</span></td>
+          </tr>
+          <tr>
+            <td>Certificate inventory</td>
+            <td>Internal mTLS cert: valid 90 days remaining. Payment processor client cert: expired at 02:00 UTC (14 minutes before alert). Cert rotation job: last successful run 94 days ago — missed the 90-day renewal window.</td>
+            <td><span class="layer-pill layer-alert">Certificates</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ══ STEP 2 ══ -->
+  <section class="step-section" id="step-2">
+    <div class="step-header">
+      <div class="step-number">2</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 2 of 5</div>
+        <div class="step-title">The naive approach</div>
+      </div>
+<div class="reviewer-bar" id="rev-bar-2">
+  <input type="checkbox" class="rev-checkbox" id="rev-cb-2" data-step="2">
+  <label for="rev-cb-2">Mark step as reviewed</label>
+</div>
+
+    </div>
+
+    <p class="prose">
+      The naive approach to a multi-alert incident is to treat each alert independently and work through them in priority order. This produces correct remediations for each alert but misses the causal relationships between them — wasting time and producing a postmortem that lists symptoms rather than root causes.
+    </p>
+
+    <div class="callout warn">
+      <div class="callout-label">The naive alert-by-alert investigation</div>
+      <strong>Alert 1 (error rate):</strong> Engineer checks app logs → sees TLS errors → assumes network issue → checks network policy → policy is fine → confused. Checks if payment processor is down → processor is up. Escalates to networking team.<br><br>
+      <strong>Alert 2 (pod restarts):</strong> Different engineer checks pod events → sees liveness probe failures → assumes app bug in the new deployment → checks deployment history → no recent deployment → confused. Checks memory limits → fine. Restarts pods → error rate briefly drops then returns.<br><br>
+      <strong>Alert 3 (network policy):</strong> Third engineer checks network policy → no changes → dismisses as noise. Closes alert.<br><br>
+      <strong>Alert 4 (cert expiry):</strong> Someone eventually opens the cert expiry warning that fired at 02:15 → sees payment processor client cert expired at 02:00 → this is the root cause. Time elapsed: 47 minutes.
+    </div>
+
+    <ul class="annotation-list">
+      <li>
+        <span class="ann-badge ann-warn">Methodology</span>
+        <div><strong>Alert-by-alert investigation treats symptoms as independent incidents.</strong> The pod restarts are caused by the liveness probe failing because the error rate is high. The error rate is high because TLS calls are failing. The TLS calls are failing because the client cert expired. All four alerts describe the same causal chain — but investigated independently, they look like four separate problems.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Methodology</span>
+        <div><strong>No structured handoff to remediation automation.</strong> Even after finding the root cause, the postmortem is written in prose, the cert rotation process is manual, and the next expiry will produce the same 47-minute investigation. An AIOps handoff converts the triage output into a structured payload that can trigger automated cert rotation, update the monitoring system with the causal chain for future alert correlation, and seed the runbook with the diagnosis steps.</div>
+      </li>
+    </ul>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ══ STEP 3 ══ -->
+  <section class="step-section" id="step-3">
+    <div class="step-header">
+      <div class="step-number">3</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 3 of 5</div>
+        <div class="step-title">The Claude Code interaction</div>
+      </div>
+<div class="reviewer-bar" id="rev-bar-3">
+  <input type="checkbox" class="rev-checkbox" id="rev-cb-3" data-step="3">
+  <label for="rev-cb-3">Mark step as reviewed</label>
+</div>
+
+    </div>
+
+    <p class="prose">Five turns. Turn 1 is the evidence dump — all four sources simultaneously, including the four concurrent alerts. Turn 2 produces the causal chain and alert correlation. Turn 3 produces the immediate remediation. Turn 4 produces the structured AIOps handoff payload. Turn 5 produces the prevention rule for the cert rotation pipeline.</p>
+
+    <!-- Turn 1 -->
+    <div class="turn-nav">
+      <span class="turn-nav-label">Turns</span>
+      <span class="turn-pip active">1</span><span class="turn-connector"></span>
+      <span class="turn-pip">2</span><span class="turn-connector"></span>
+      <span class="turn-pip">3</span><span class="turn-connector"></span>
+      <span class="turn-pip">4</span><span class="turn-connector"></span>
+      <span class="turn-pip">5</span>
+    </div>
+
+    <div class="turn-label">Turn 1 of 5 — Evidence dump with four concurrent alerts</div>
+    <div class="conversation">
+      <div class="conv-turn engineer">
+        <div class="conv-role">Engineer → Claude Code</div>
+        <div class="conv-body">
+          <p>P1 incident. 02:14 UTC. Four alerts fired within 90 seconds. Here is everything simultaneously:</p>
+
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">PagerDuty alerts (chronological)</span></div>
+            <pre><code class="block">02:14:03  P1  payment-api error rate > 5% (current: 34%)
+02:14:31  P2  payment-api pod restart count > 2 in 5 minutes
+02:14:47  P3  network policy change detected (payment namespace)
+02:15:02  P2  payment-api TLS certificate expiry warning (expires/expired)</code></pre>
+          </div>
+
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">Application error log (payment-api, 02:10–02:20 UTC)</span></div>
+            <pre><code class="block">02:10:14 INFO  payment-processor: initiating payment transaction TXN-8847
+02:10:14 ERROR payment-processor: TLS handshake failed: x509: certificate has expired or is not yet valid
+02:10:14 ERROR payment-processor: payment transaction failed: TXN-8847
+02:10:15 ERROR payment-processor: TLS handshake failed: x509: certificate has expired [repeated 847x in 4 minutes]
+02:14:22 WARN  health: liveness probe threshold exceeded (error rate 34%)
+02:14:22 INFO  health: /health returning 503
+02:14:38 INFO  pod: receiving SIGTERM (liveness probe failure)
+02:14:39 INFO  pod: graceful shutdown initiated</code></pre>
+          </div>
+
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">Certificate inventory (relevant entries)</span></div>
+            <pre><code class="block">cert: internal-mtls-client
+  subject: payment-api.payment.svc.cluster.local
+  expires: 2026-06-15T00:00:00Z  (90 days remaining)
+  status: VALID
+
+cert: payment-processor-client
+  subject: payment-api@sourcefuse.com
+  expires: 2026-03-15T02:00:00Z  ← EXPIRED 14 minutes ago
+  status: EXPIRED
+  last_rotated: 2025-12-11T06:00:00Z (94 days ago)
+  rotation_job: cert-rotation-cronjob (last_success: 2025-12-11, last_failure: 2026-03-14 — job failed silently)
+
+cert: payment-processor-server
+  subject: api.payment-processor.com
+  expires: 2027-01-20T00:00:00Z
+  status: VALID</code></pre>
+          </div>
+
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">Network policy audit (last 7 days)</span></div>
+            <pre><code class="block">No NetworkPolicy changes in namespace 'payment' in the last 7 days.
+Existing egress rule: allow payment-api → api.payment-processor.com:443
+Alert reason: automated scanner flagged cert expiry warning as 'policy-adjacent event'
+Alert is informational — no actual policy change occurred.</code></pre>
+          </div>
+
+          <p style="margin-top:10px;">Which alerts are related? What is the root cause?</p>
+        </div>
+      </div>
+
+      <div class="conv-turn claude">
+        <div class="conv-role">Claude Code</div>
+        <div class="conv-body">
+          <p><strong>Three of the four alerts describe the same incident. One is noise.</strong></p>
+
+          <p style="margin-top:10px;"><strong>Root cause: the <code>payment-processor-client</code> TLS certificate expired at 02:00 UTC.</strong> The cert rotation job failed silently on 2026-03-14 — one day before expiry — and the failure was not alerted. When the cert expired, every outbound TLS handshake to the payment processor API failed with <code>x509: certificate has expired</code>. The application's liveness probe monitors error rate; at 34% error rate, the probe threshold was exceeded, triggering pod restarts.</p>
+
+          <p style="margin-top:10px;"><strong>Alert correlation:</strong></p>
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">Alert correlation analysis</span></div>
+            <pre><code class="block">02:14:03  P1  error rate > 5%          → CAUSAL (cert expired → TLS failures → error rate)
+02:14:31  P2  pod restart count > 2    → CAUSAL (error rate → liveness probe → restart)
+02:14:47  P3  network policy change    → NOISE  (no policy change; scanner false positive)
+02:15:02  P2  certificate expiry       → ROOT CAUSE (cert expired 14 minutes earlier)
+
+Causal chain: cert expired (02:00) → TLS failures (02:00) → error rate spike (02:00–02:14)
+              → liveness threshold exceeded (02:14) → pod restarts (02:14) → three alerts (02:14–02:15)
+
+The network policy alert is a false positive — the scanner classifies cert expiry events
+as policy-adjacent and fires the alert. No policy changed. Dismiss immediately.</code></pre>
+          </div>
+
+          <p style="margin-top:10px;"><strong>Why the rotation job failure was not caught:</strong> the <code>cert-rotation-cronjob</code> failed on 2026-03-14 — one day before expiry — but no alert fired for the job failure. Kubernetes CronJob failures do not fire alerts by default; the failure was visible in the job status but no monitoring rule covered it. The 14-minute gap between cert expiry (02:00) and the first alert (02:14) is the liveness probe evaluation window — the probe fires after the error rate sustained above threshold for 4 minutes, then the alert fires after 10 minutes of pod restarts.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Turn 2 -->
+    <div class="turn-nav" style="margin-top:28px;">
+      <span class="turn-nav-label">Turns</span>
+      <span class="turn-pip done">1</span><span class="turn-connector"></span>
+      <span class="turn-pip active">2</span><span class="turn-connector"></span>
+      <span class="turn-pip">3</span><span class="turn-connector"></span>
+      <span class="turn-pip">4</span><span class="turn-connector"></span>
+      <span class="turn-pip">5</span>
+    </div>
+
+    <div class="turn-label">Turn 2 of 5 — Immediate remediation</div>
+    <div class="conversation">
+      <div class="conv-turn engineer">
+        <div class="conv-role">Engineer → Claude Code</div>
+        <div class="conv-body">
+          <p>Confirmed. What do I do right now to restore service?</p>
+        </div>
+      </div>
+      <div class="conv-turn claude">
+        <div class="conv-role">Claude Code</div>
+        <div class="conv-body">
+          <p>Two steps in sequence — cert renewal first, then pod restart:</p>
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">Immediate remediation sequence</span><button class="code-copy" onclick="copyCode(this)">copy</button></div>
+            <pre><code class="block"><span class="cm"># Step 1: Renew the expired client certificate
+# The exact command depends on your cert issuer (Let's Encrypt, internal CA, etc.)
+# For cert-manager (most common Kubernetes cert management tool):</span>
+<span class="fn">kubectl</span> annotate certificate payment-processor-client \
+  -n payment \
+  cert-manager.io/issuer-kind=ClusterIssuer \
+  --overwrite
+
+<span class="cm"># Force cert-manager to reissue immediately:</span>
+<span class="fn">kubectl</span> delete certificaterequest \
+  -n payment \
+  -l cert-manager.io/certificate-name=payment-processor-client
+
+<span class="cm"># Watch for new cert to be issued (typically 30–60 seconds):</span>
+<span class="fn">kubectl</span> get certificate payment-processor-client -n payment -w
+
+<span class="cm"># Step 2: Restart pods to pick up the new cert
+# Wait until certificate shows Ready=True before restarting</span>
+<span class="fn">kubectl</span> rollout restart deployment/payment-api -n payment
+<span class="fn">kubectl</span> rollout status deployment/payment-api -n payment --timeout=180s
+
+<span class="cm"># Verify recovery:</span>
+<span class="fn">kubectl</span> logs -l app=payment-api -n payment --tail=20 | grep -E "ERROR|payment-processor"
+<span class="cm"># Should show no new TLS errors after pod restart</span></code></pre>
+          </div>
+          <p style="margin-top:10px;"><strong>If your certificates are not managed by cert-manager:</strong> the renewal process depends on your CA. The pattern is the same — renew the client cert, store it in the Kubernetes Secret that the pod mounts, then restart pods. Check that the secret <code>payment-processor-client-cert</code> (or equivalent) is updated with the new cert before restarting pods — restarting without renewing first will not fix the issue.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Turn 3 -->
+    <div class="turn-nav" style="margin-top:28px;">
+      <span class="turn-nav-label">Turns</span>
+      <span class="turn-pip done">1</span><span class="turn-connector"></span>
+      <span class="turn-pip done">2</span><span class="turn-connector"></span>
+      <span class="turn-pip active">3</span><span class="turn-connector"></span>
+      <span class="turn-pip">4</span><span class="turn-connector"></span>
+      <span class="turn-pip">5</span>
+    </div>
+
+    <div class="turn-label">Turn 3 of 5 — CronJob failure alerting (the missed detection)</div>
+    <div class="conversation">
+      <div class="conv-turn engineer">
+        <div class="conv-role">Engineer → Claude Code</div>
+        <div class="conv-body">
+          <p>Service is recovering. The rotation job failed the day before expiry and nobody was alerted. How do I add alerting for CronJob failures so this cannot happen silently again?</p>
+        </div>
+      </div>
+      <div class="conv-turn claude">
+        <div class="conv-role">Claude Code</div>
+        <div class="conv-body">
+          <p>Two complementary alerting approaches — both are needed because they cover different failure modes:</p>
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">Kubernetes CronJob failure alert (PrometheusRule)</span><button class="code-copy" onclick="copyCode(this)">copy</button></div>
+            <pre><code class="block"><span class="kw">apiVersion:</span> <span class="st">monitoring.coreos.com/v1</span>
+<span class="kw">kind:</span> <span class="st">PrometheusRule</span>
+<span class="kw">metadata:</span>
+  <span class="kw">name:</span> <span class="st">cronjob-failure-alerts</span>
+  <span class="kw">namespace:</span> <span class="st">payment</span>
+<span class="kw">spec:</span>
+  <span class="kw">groups:</span>
+    - <span class="kw">name:</span> <span class="st">cronjob.rules</span>
+      <span class="kw">rules:</span>
+        - <span class="kw">alert:</span> <span class="st">CronJobFailed</span>
+          <span class="kw">expr:</span> |
+            kube_job_status_failed{namespace="payment"} > 0
+          <span class="kw">for:</span> <span class="st">5m</span>
+          <span class="kw">labels:</span>
+            <span class="kw">severity:</span> <span class="st">warning</span>
+          <span class="kw">annotations:</span>
+            <span class="kw">summary:</span> <span class="st">"CronJob {{ $labels.job_name }} failed in namespace {{ $labels.namespace }}"</span>
+            <span class="kw">description:</span> <span class="st">"Job {{ $labels.job_name }} has failed. Check: kubectl describe job {{ $labels.job_name }} -n {{ $labels.namespace }}"</span>
+
+        - <span class="kw">alert:</span> <span class="st">CertificateExpiringSoon</span>
+          <span class="kw">expr:</span> |
+            certmanager_certificate_expiration_timestamp_seconds
+              - time() < 7 * 24 * 3600
+          <span class="kw">for:</span> <span class="st">1h</span>
+          <span class="kw">labels:</span>
+            <span class="kw">severity:</span> <span class="st">critical</span>
+          <span class="kw">annotations:</span>
+            <span class="kw">summary:</span> <span class="st">"Certificate {{ $labels.name }} expires in less than 7 days"</span>
+            <span class="kw">description:</span> <span class="st">"Certificate {{ $labels.name }} in namespace {{ $labels.namespace }} expires at {{ $value | humanizeTimestamp }}. Rotation job: cert-rotation-cronjob"</span></code></pre>
+          </div>
+          <p style="margin-top:10px;">The two rules cover complementary failure modes: <code>CronJobFailed</code> catches the rotation job failing (what happened here), and <code>CertificateExpiringSoon</code> catches the cert approaching expiry regardless of why the rotation job failed (defense in depth). Both should be alerting — the job failure should have fired 24 hours before expiry; the cert expiry alert should have fired 7 days before. Neither was in place.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Turn 4 — AIOps handoff -->
+    <div class="turn-nav" style="margin-top:28px;">
+      <span class="turn-nav-label">Turns</span>
+      <span class="turn-pip done">1</span><span class="turn-connector"></span>
+      <span class="turn-pip done">2</span><span class="turn-connector"></span>
+      <span class="turn-pip done">3</span><span class="turn-connector"></span>
+      <span class="turn-pip active">4</span><span class="turn-connector"></span>
+      <span class="turn-pip">5</span>
+    </div>
+
+    <div class="turn-label">Turn 4 of 5 — Structured AIOps handoff payload</div>
+
+    <div class="callout bridge">
+      <div class="callout-label">The AIOps handoff moment</div>
+      This is where Example 12 diverges from Examples 10 and 11. Turns 1–3 are DevOps RCA — the same pattern established in Tier 3. Turn 4 asks Claude Code to produce a structured, machine-readable payload from the triage output. This payload is what an AIOps remediation system, alert correlation engine, or runbook generator consumes. The engineer is no longer asking "what is wrong" — they are asking "produce the structured output that makes automated remediation possible."
+    </div>
+
+    <div class="conversation">
+      <div class="conv-turn engineer">
+        <div class="conv-role">Engineer → Claude Code</div>
+        <div class="conv-body">
+          <p>Produce a structured JSON triage payload from this incident — formatted for our AIOps remediation pipeline. The pipeline expects: incident metadata, root cause classification, alert correlation (which are causal, which are noise), affected systems, remediation steps (automated and manual), and prevention rules. Include confidence scores on the root cause and on each alert correlation.</p>
+        </div>
+      </div>
+      <div class="conv-turn claude">
+        <div class="conv-role">Claude Code</div>
+        <div class="conv-body">
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">AIOps triage payload — incident-2026-03-15-payment-api.json</span><button class="code-copy" onclick="copyCode(this)">copy</button></div>
+            <pre><code class="block">{
+  <span class="kw">"incident_id"</span>: <span class="st">"INC-2026-03-15-001"</span>,
+  <span class="kw">"service"</span>: <span class="st">"payment-api"</span>,
+  <span class="kw">"severity"</span>: <span class="st">"P1"</span>,
+  <span class="kw">"start_time"</span>: <span class="st">"2026-03-15T02:00:00Z"</span>,
+  <span class="kw">"detected_time"</span>: <span class="st">"2026-03-15T02:14:03Z"</span>,
+  <span class="kw">"detection_gap_minutes"</span>: <span class="nm">14</span>,
+
+  <span class="kw">"root_cause"</span>: {
+    <span class="kw">"classification"</span>: <span class="st">"certificate_expiry"</span>,
+    <span class="kw">"confidence"</span>: <span class="nm">0.97</span>,
+    <span class="kw">"description"</span>: <span class="st">"payment-processor-client TLS certificate expired at 02:00 UTC. Rotation job failed silently on 2026-03-14 — 24 hours before expiry."</span>,
+    <span class="kw">"affected_cert"</span>: <span class="st">"payment-processor-client"</span>,
+    <span class="kw">"cert_expired_at"</span>: <span class="st">"2026-03-15T02:00:00Z"</span>,
+    <span class="kw">"rotation_job"</span>: <span class="st">"cert-rotation-cronjob"</span>,
+    <span class="kw">"rotation_job_last_failure"</span>: <span class="st">"2026-03-14T06:00:00Z"</span>,
+    <span class="kw">"silent_failure"</span>: <span class="nm">true</span>
+  },
+
+  <span class="kw">"alert_correlation"</span>: [
+    {
+      <span class="kw">"alert_id"</span>: <span class="st">"PD-001"</span>,
+      <span class="kw">"name"</span>: <span class="st">"payment-api error rate > 5%"</span>,
+      <span class="kw">"classification"</span>: <span class="st">"causal_symptom"</span>,
+      <span class="kw">"confidence"</span>: <span class="nm">0.98</span>,
+      <span class="kw">"causal_chain_position"</span>: 2,
+      <span class="kw">"caused_by"</span>: <span class="st">"certificate_expiry"</span>
+    },
+    {
+      <span class="kw">"alert_id"</span>: <span class="st">"PD-002"</span>,
+      <span class="kw">"name"</span>: <span class="st">"pod restart count > 2"</span>,
+      <span class="kw">"classification"</span>: <span class="st">"causal_symptom"</span>,
+      <span class="kw">"confidence"</span>: <span class="nm">0.95</span>,
+      <span class="kw">"causal_chain_position"</span>: 3,
+      <span class="kw">"caused_by"</span>: <span class="st">"liveness_probe_failure_from_error_rate"</span>
+    },
+    {
+      <span class="kw">"alert_id"</span>: <span class="st">"PD-003"</span>,
+      <span class="kw">"name"</span>: <span class="st">"network policy change detected"</span>,
+      <span class="kw">"classification"</span>: <span class="st">"noise"</span>,
+      <span class="kw">"confidence"</span>: <span class="nm">0.99</span>,
+      <span class="kw">"reason"</span>: <span class="st">"No policy change occurred. Scanner false positive — cert expiry classified as policy-adjacent event."</span>
+    },
+    {
+      <span class="kw">"alert_id"</span>: <span class="st">"PD-004"</span>,
+      <span class="kw">"name"</span>: <span class="st">"TLS certificate expiry warning"</span>,
+      <span class="kw">"classification"</span>: <span class="st">"root_cause_signal"</span>,
+      <span class="kw">"confidence"</span>: <span class="nm">0.97</span>,
+      <span class="kw">"causal_chain_position"</span>: 1,
+      <span class="kw">"note"</span>: <span class="st">"Fired 15 minutes after cert expired. Should have fired 7 days before expiry."</span>
+    }
+  ],
+
+  <span class="kw">"remediation"</span>: {
+    <span class="kw">"automated"</span>: [
+      {
+        <span class="kw">"action"</span>: <span class="st">"renew_certificate"</span>,
+        <span class="kw">"target"</span>: <span class="st">"payment-processor-client"</span>,
+        <span class="kw">"namespace"</span>: <span class="st">"payment"</span>,
+        <span class="kw">"tool"</span>: <span class="st">"cert-manager"</span>,
+        <span class="kw">"command"</span>: <span class="st">"kubectl delete certificaterequest -n payment -l cert-manager.io/certificate-name=payment-processor-client"</span>
+      },
+      {
+        <span class="kw">"action"</span>: <span class="st">"rolling_restart"</span>,
+        <span class="kw">"target"</span>: <span class="st">"deployment/payment-api"</span>,
+        <span class="kw">"namespace"</span>: <span class="st">"payment"</span>,
+        <span class="kw">"prerequisite"</span>: <span class="st">"certificate_ready"</span>,
+        <span class="kw">"command"</span>: <span class="st">"kubectl rollout restart deployment/payment-api -n payment"</span>
+      }
+    ],
+    <span class="kw">"manual"</span>: [
+      <span class="st">"Verify cert-rotation-cronjob failure reason from 2026-03-14"</span>,
+      <span class="st">"Deploy PrometheusRule: CronJobFailed and CertificateExpiringSoon alerts"</span>,
+      <span class="st">"Dismiss PD-003 (network policy false positive)"</span>
+    ]
+  },
+
+  <span class="kw">"prevention_rules"</span>: [
+    {
+      <span class="kw">"rule"</span>: <span class="st">"alert_on_cronjob_failure"</span>,
+      <span class="kw">"target"</span>: <span class="st">"cert-rotation-cronjob"</span>,
+      <span class="kw">"priority"</span>: <span class="st">"critical"</span>
+    },
+    {
+      <span class="kw">"rule"</span>: <span class="st">"alert_on_cert_expiry"</span>,
+      <span class="kw">"threshold_days"</span>: <span class="nm">7</span>,
+      <span class="kw">"target"</span>: <span class="st">"payment-processor-client"</span>,
+      <span class="kw">"priority"</span>: <span class="st">"critical"</span>
+    }
+  ],
+
+  <span class="kw">"triage_metadata"</span>: {
+    <span class="kw">"triage_tool"</span>: <span class="st">"claude-code"</span>,
+    <span class="kw">"evidence_sources"</span>: [<span class="st">"application_logs"</span>, <span class="st">"kubernetes_events"</span>, <span class="st">"network_policy_audit"</span>, <span class="st">"certificate_inventory"</span>],
+    <span class="kw">"overall_confidence"</span>: <span class="nm">0.97</span>,
+    <span class="kw">"human_review_required"</span>: <span class="nm">false</span>,
+    <span class="kw">"escalation_needed"</span>: <span class="nm">false</span>
+  }
+}</code></pre>
+          </div>
+          <p style="margin-top:10px;">The <code>causal_chain_position</code> field on each alert lets the AIOps pipeline suppress downstream symptoms once the root cause is resolved — when <code>certificate_expiry</code> is remediated, alerts at positions 2 and 3 should auto-resolve without separate remediation actions. The <code>prerequisite</code> field on the rolling restart action enforces the dependency: pods must not restart until the certificate is ready, or the restart will not fix the problem.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Turn 5 -->
+    <div class="turn-nav" style="margin-top:28px;">
+      <span class="turn-nav-label">Turns</span>
+      <span class="turn-pip done">1</span><span class="turn-connector"></span>
+      <span class="turn-pip done">2</span><span class="turn-connector"></span>
+      <span class="turn-pip done">3</span><span class="turn-connector"></span>
+      <span class="turn-pip done">4</span><span class="turn-connector"></span>
+      <span class="turn-pip active">5</span>
+    </div>
+
+    <div class="turn-label">Turn 5 of 5 — Cert rotation pipeline hardening</div>
+    <div class="conversation">
+      <div class="conv-turn engineer">
+        <div class="conv-role">Engineer → Claude Code</div>
+        <div class="conv-body">
+          <p>The rotation job ran on a CronJob but failed silently. What is the right pattern for a cert rotation job that (a) alerts on failure, (b) verifies the new cert is valid before the old one expires, and (c) emits a structured event that the AIOps pipeline can consume?</p>
+        </div>
+      </div>
+      <div class="conv-turn claude">
+        <div class="conv-role">Claude Code</div>
+        <div class="conv-body">
+          <p>Three design requirements, each addressed separately:</p>
+
+          <p style="margin-top:10px;"><strong>(a) Alert on failure:</strong> already covered in Turn 3 via the <code>CronJobFailed</code> PrometheusRule. In addition, add <code>successfulJobsHistoryLimit: 3</code> and <code>failedJobsHistoryLimit: 3</code> to the CronJob spec so job history is retained for debugging.</p>
+
+          <p style="margin-top:10px;"><strong>(b) Verify new cert before old one expires:</strong></p>
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">cert-rotation-job.sh — verification before cutover</span><button class="code-copy" onclick="copyCode(this)">copy</button></div>
+            <pre><code class="block"><span class="cm">#!/usr/bin/env bash
+set -euo pipefail
+
+log() { echo "[$(date -u +%H:%M:%S)] $*"; }
+
+CERT_NAME="payment-processor-client"
+NAMESPACE="payment"
+MIN_VALIDITY_DAYS=14   # New cert must be valid for at least 14 days</span>
+
+<span class="cm"># Trigger renewal</span>
+<span class="fn">log</span> <span class="st">"Triggering renewal for $CERT_NAME"</span>
+<span class="fn">kubectl</span> delete certificaterequest \
+  -n <span class="st">"$NAMESPACE"</span> \
+  -l cert-manager.io/certificate-name=<span class="st">"$CERT_NAME"</span> \
+  --ignore-not-found
+
+<span class="cm"># Wait for new cert to be issued (max 5 minutes)</span>
+<span class="fn">kubectl</span> wait certificate <span class="st">"$CERT_NAME"</span> \
+  -n <span class="st">"$NAMESPACE"</span> \
+  --for=condition=Ready \
+  --timeout=300s
+
+<span class="cm"># Verify new cert is valid for at least MIN_VALIDITY_DAYS</span>
+<span class="va">EXPIRY</span>=$(<span class="fn">kubectl</span> get secret <span class="st">"${CERT_NAME}-tls"</span> -n <span class="st">"$NAMESPACE"</span> \
+  -o jsonpath=<span class="st">'{.data.tls\.crt}'</span> | base64 -d | \
+  openssl x509 -noout -enddate | cut -d= -f2)
+
+<span class="va">EXPIRY_EPOCH</span>=$(<span class="fn">date</span> -d <span class="st">"$EXPIRY"</span> +%s)
+<span class="va">NOW_EPOCH</span>=$(<span class="fn">date</span> +%s)
+<span class="va">DAYS_REMAINING</span>=$(( (EXPIRY_EPOCH - NOW_EPOCH) / 86400 ))
+
+<span class="kw">if</span> [[ <span class="st">"$DAYS_REMAINING"</span> -lt <span class="st">"$MIN_VALIDITY_DAYS"</span> ]]; <span class="kw">then</span>
+  <span class="fn">log</span> <span class="st">"ERROR: New cert only valid for $DAYS_REMAINING days (minimum: $MIN_VALIDITY_DAYS)" >&2</span>
+  <span class="fn">exit</span> <span class="nm">1</span>
+<span class="kw">fi</span>
+
+<span class="fn">log</span> <span class="st">"Cert renewed successfully. Valid for $DAYS_REMAINING days (expires: $EXPIRY)"</span>
+
+<span class="cm"># (c) Emit structured event for AIOps pipeline</span>
+<span class="fn">kubectl</span> create event \
+  --namespace <span class="st">"$NAMESPACE"</span> \
+  --field-manager=cert-rotation \
+  <span class="st">"cert-rotated-$(date +%s)"</span> \
+  --type=Normal \
+  --reason=CertificateRotated \
+  --message=<span class="st">"$(jq -n \
+    --arg cert "$CERT_NAME" \
+    --arg expiry "$EXPIRY" \
+    --argjson days "$DAYS_REMAINING" \
+    '{event:"certificate_rotated", cert:$cert, new_expiry:$expiry, days_remaining:$days}')"</span></code></pre>
+          </div>
+          <p style="margin-top:10px;">The structured Kubernetes event in step (c) is machine-readable — the AIOps pipeline can watch for <code>CertificateRotated</code> events in the payment namespace and use them to update the certificate inventory, confirm remediation of active cert-expiry alerts, and reset the detection window for future expiry monitoring.</p>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ══ STEP 4 ══ -->
+  <section class="step-section" id="step-4">
+    <div class="step-header">
+      <div class="step-number">4</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 4 of 5</div>
+        <div class="step-title">The refined output</div>
+      </div>
+<div class="reviewer-bar" id="rev-bar-4">
+  <input type="checkbox" class="rev-checkbox" id="rev-cb-4" data-step="4">
+  <label for="rev-cb-4">Mark step as reviewed</label>
+</div>
+
+    </div>
+
+    <p class="prose">Example 12 produces two distinct outputs — the immediate RCA and remediation (Turns 1–3), and the structured AIOps handoff payload (Turn 4). The finding chain covers the incident; the handoff box shows what flows into the AIOps system.</p>
+
+    <div class="finding-chain">
+      <div class="finding-chain-label">Causal chain and alert correlation</div>
+
+      <div class="fc-row">
+        <span class="fc-layer">Root cause</span>
+        <span class="fc-arrow">→</span>
+        <div class="fc-desc"><strong>cert-rotation-cronjob failed silently on 2026-03-14.</strong> The job failed 24 hours before the cert expired. No alert fired for the job failure. The cert expired at 02:00 UTC — 14 minutes before any alert reached the on-call engineer.</div>
+      </div>
+
+      <div class="fc-row">
+        <span class="fc-layer">Causal (pos 1)</span>
+        <span class="fc-arrow">→</span>
+        <div class="fc-desc"><strong>Certificate expiry alert (PD-004) — root cause signal.</strong> Fired 15 minutes after expiry. Should have fired 7 days before expiry. The late firing is itself a monitoring gap that the PrometheusRule from Turn 3 closes.</div>
+      </div>
+
+      <div class="fc-row">
+        <span class="fc-layer">Causal (pos 2)</span>
+        <span class="fc-arrow">→</span>
+        <div class="fc-desc"><strong>Error rate alert (PD-001) — causal symptom.</strong> Every outbound TLS call fails → 34% error rate. Not a separate problem; resolves automatically when the cert is renewed.</div>
+      </div>
+
+      <div class="fc-row">
+        <span class="fc-layer">Causal (pos 3)</span>
+        <span class="fc-arrow">→</span>
+        <div class="fc-desc"><strong>Pod restart alert (PD-002) — second-order symptom.</strong> Liveness probe fires when error rate exceeds threshold → pods restart. Resolves when error rate recovers after cert renewal.</div>
+      </div>
+
+      <div class="fc-row">
+        <span class="fc-layer">Noise</span>
+        <span class="fc-arrow">→</span>
+        <div class="fc-desc"><strong>Network policy alert (PD-003) — false positive.</strong> Scanner misclassified the cert expiry event as a policy-adjacent change. No policy changed. Dismiss immediately; no action required.</div>
+      </div>
+    </div>
+
+    <div class="handoff-box">
+      <div class="handoff-label">AIOps handoff — what flows into Module 2</div>
+
+      <div class="handoff-field">
+        <div class="handoff-key">Root cause classification</div>
+        <div class="handoff-val"><code>certificate_expiry</code> · confidence <strong>0.97</strong> · silent failure pattern</div>
+      </div>
+
+      <div class="handoff-field">
+        <div class="handoff-key">Alert correlation result</div>
+        <div class="handoff-val">4 alerts → 1 root cause · 2 causal symptoms · 1 noise (false positive) · <code>causal_chain_position</code> enables downstream alert suppression</div>
+      </div>
+
+      <div class="handoff-field">
+        <div class="handoff-key">Automated remediation actions</div>
+        <div class="handoff-val"><code>renew_certificate</code> → <code>rolling_restart</code> (with prerequisite gate: <strong>certificate_ready</strong>)</div>
+      </div>
+
+      <div class="handoff-field">
+        <div class="handoff-key">Prevention rules</div>
+        <div class="handoff-val"><code>alert_on_cronjob_failure</code> + <code>alert_on_cert_expiry</code> (7-day threshold) — feeds into alert rule management system</div>
+      </div>
+
+      <div class="handoff-field">
+        <div class="handoff-key">Structured event for future automation</div>
+        <div class="handoff-val">Kubernetes event <code>CertificateRotated</code> emitted by the hardened rotation job — consumable by AIOps pipeline for inventory updates and alert auto-resolution</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ══ STEP 5 ══ -->
+  <section class="step-section" id="step-5">
+    <div class="step-header">
+      <div class="step-number">5</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 5 of 5</div>
+        <div class="step-title">Watch out</div>
+      </div>
+<div class="reviewer-bar" id="rev-bar-5">
+  <input type="checkbox" class="rev-checkbox" id="rev-cb-5" data-step="5">
+  <label for="rev-cb-5">Mark step as reviewed</label>
+</div>
+
+    </div>
+
+    <p class="prose">Claude Code correctly identified the root cause, dismissed the noise alert, produced a sequenced remediation with a prerequisite gate, and generated a structured AIOps payload. Here is what your environment must verify.</p>
+
+    <div class="callout good">
+      <div class="callout-label">What Claude Code handled well</div>
+      Noise alert correctly identified and dismissed in Turn 1 from the network policy audit evidence, causal chain positions assigned correctly enabling downstream alert suppression, prerequisite gate on the rolling restart (<code>certificate_ready</code> must be satisfied before pod restart — otherwise the restart does not fix the problem), <code>human_review_required: false</code> correctly set given confidence 0.97 on all correlations, structured Kubernetes event from the rotation job enabling machine-readable confirmation of remediation.
+    </div>
+
+    <ul class="annotation-list" style="margin-top:24px;">
+      <li>
+        <span class="ann-badge ann-warn">Verify</span>
+        <div><strong>The cert renewal commands assume cert-manager.</strong> The remediation in Turn 2 uses cert-manager CRDs (<code>Certificate</code>, <code>CertificateRequest</code>). If your cluster uses a different certificate management system — HashiCorp Vault PKI, AWS Certificate Manager, or a custom cert rotation script — the renewal commands will differ. The pattern (trigger renewal → wait for ready → restart pods) is correct regardless of the tool; the specific commands depend on your cert management implementation.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Verify</span>
+        <div><strong>The AIOps payload schema must match your pipeline's expected format.</strong> The JSON structure in Turn 4 is designed to be illustrative rather than tied to a specific AIOps platform. Before feeding this payload into a remediation pipeline, verify that the field names, confidence score format, and action schema match what your pipeline expects. The <code>causal_chain_position</code> and <code>prerequisite</code> fields in particular may need to be translated to your platform's schema.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Verify</span>
+        <div><strong>The <code>human_review_required: false</code> flag should be conservative in production.</strong> A confidence score of 0.97 is high — but for a payment service, automated remediation without human review should be reserved for well-understood, low-risk actions (renewing a cert, restarting pods). For more invasive actions (scaling down, modifying network policy, changing resource limits), set <code>human_review_required: true</code> regardless of confidence score. The threshold for automated action should be a policy decision, not a confidence calculation.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-info">Note</span>
+        <div><strong>This example is the bridge to Module 2.</strong> The AIOps handoff payload in Turn 4 is the form in which Module 2's use cases begin. Module 2 (AIOps use cases) covers incident analysis, RCA, and remediation patterns — all of which consume structured triage payloads as input. The payload format introduced here, the alert correlation schema, and the remediation action structure with prerequisite gates are all patterns that Module 2 builds on.</div>
+      </li>
+    </ul>
+
+    <div class="callout tip">
+      <div class="callout-label">Prompting tip for multi-alert incidents</div>
+      <strong>Include all concurrent alerts in the first turn — not just the highest-priority one.</strong> The noise alert (PD-003, network policy change) was dismissed in Turn 1 because its evidence (the network policy audit log) was provided alongside the other signals. Without that evidence, the network policy alert would have been a plausible hypothesis requiring its own investigation thread. Providing all concurrent alerts with their supporting evidence simultaneously lets Claude Code correlate and dismiss noise in a single pass — the same principle as the simultaneous evidence dump in Examples 10 and 11, applied specifically to alert triage.
+    </div>
+  </section>
+
+  
+<div class="reviewer-panel">
+  <div class="reviewer-panel-label">🔍 Reviewer question — E12-1</div>
+  <div class="reviewer-q-text">In Example 12, four alerts fired within 90 seconds. Which alert was correctly identified as noise (a false positive)?</div>
+  <div class="reviewer-options">
+    <div class="reviewer-option" data-key="A" onclick="selectRevOption('A',this)"><span class="reviewer-option-key">A</span><span>The pod restart count alert — pod restarts were caused by the liveness probe, not a separate issue</span></div>
+    <div class="reviewer-option" data-key="B" onclick="selectRevOption('B',this)"><span class="reviewer-option-key">B</span><span>The TLS certificate expiry warning — the cert had already expired so no warning was needed</span></div>
+    <div class="reviewer-option" data-key="C" onclick="selectRevOption('C',this)"><span class="reviewer-option-key">C</span><span>The network policy change alert — no policy changed; the scanner misclassified the cert expiry event as policy-adjacent</span></div>
+    <div class="reviewer-option" data-key="D" onclick="selectRevOption('D',this)"><span class="reviewer-option-key">D</span><span>The error rate alert — the error rate spike was within acceptable SLO bounds</span></div>
+  </div>
+  <button class="reviewer-reveal" id="rev-reveal-btn" onclick="revealRevAnswer()">Check answer</button>
+  <div class="reviewer-explanation" id="rev-explanation">
+    <div class="reviewer-exp-label"></div>
+    The network policy change alert (PD-003) was a false positive. The automated scanner classified the cert expiry event as a 'policy-adjacent event' and fired a policy change alert even though no NetworkPolicy object was modified. The network policy audit log confirmed no changes in the last 7 days.
+  </div>
+  <div class="reviewer-comment-label">Reviewer notes</div>
+  <textarea class="reviewer-comment" id="rev-comment" placeholder="Add your review notes for this example…"></textarea>
+  <div class="reviewer-save-note">Notes are auto-saved in your browser.</div>
+</div>
+<script>window.REV_CORRECT = "C";</script>
+
+<div class="bottom-nav">
+    <a class="nav-btn secondary" href="../example-11-pipeline-triage.html">← Example 11 — Pipeline performance triage</a>
+    <a class="nav-btn" href="../example-13-alert-enrichment.html">Example 13 — Alert enrichment →</a>
+  </div>
+
+</div>
+
+<footer>
+  <span>AIOps &amp; DevOps Learning Path · SourceFuse L&amp;D</span>
+  <span>Example 12 of 13 · Tier 3 · Incident RCA with AIOps handoff</span>
+</footer>
+
+<script>
+  const sections = document.querySelectorAll('.step-section');
+  const navItems = document.querySelectorAll('.stepnav-item');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const id = entry.target.id;
+        navItems.forEach(item => {
+          item.classList.toggle('active', item.getAttribute('href') === '#' + id);
+        });
+      }
+    });
+  }, { rootMargin:'-30% 0px -60% 0px', threshold:0 });
+  sections.forEach(s => observer.observe(s));
+
+  function copyCode(btn) {
+    const pre = btn.closest('.code-wrap').querySelector('pre');
+    navigator.clipboard.writeText(pre.innerText).then(() => {
+      btn.textContent = 'copied!';
+      setTimeout(() => btn.textContent = 'copy', 2000);
+    });
+  }
+</script>
+
+<script>
+// ── Reviewer persistence ─────────────────────────────────────────────────────
+const REV_KEY = 'reviewer_example-12';
+
+function revLoad() {
+  try { return JSON.parse(localStorage.getItem(REV_KEY)) || {}; } catch(e) { return {}; }
+}
+
+function revSave(state) {
+  localStorage.setItem(REV_KEY, JSON.stringify(state));
+}
+
+// Restore checkboxes
+document.querySelectorAll('.rev-checkbox').forEach(cb => {
+  const state = revLoad();
+  if (state['cb_' + cb.dataset.step]) {
+    cb.checked = true;
+    cb.closest('.reviewer-bar').classList.add('checked');
+    cb.closest('.reviewer-bar').querySelector('label').textContent = '✓ Step reviewed';
+  }
+  cb.addEventListener('change', () => {
+    const s = revLoad();
+    s['cb_' + cb.dataset.step] = cb.checked;
+    revSave(s);
+    const bar = cb.closest('.reviewer-bar');
+    bar.classList.toggle('checked', cb.checked);
+    bar.querySelector('label').textContent = cb.checked ? '✓ Step reviewed' : 'Mark step as reviewed';
+  });
+});
+
+// Restore comment
+const commentEl = document.getElementById('rev-comment');
+if (commentEl) {
+  const state = revLoad();
+  if (state.comment) commentEl.value = state.comment;
+  commentEl.addEventListener('input', () => {
+    const s = revLoad();
+    s.comment = commentEl.value;
+    revSave(s);
+  });
+}
+
+// Reviewer question logic
+let revAnswer = null;
+let revSubmitted = false;
+
+(function restoreRevQ() {
+  const state = revLoad();
+  if (state.revAnswer !== undefined) {
+    revAnswer = state.revAnswer;
+    revSubmitted = state.revSubmitted || false;
+    if (revAnswer !== null) applyRevAnswer(revAnswer, revSubmitted);
+  }
+})();
+
+function selectRevOption(key, el) {
+  if (revSubmitted) return;
+  revAnswer = key;
+  document.querySelectorAll('.reviewer-option').forEach(o => o.classList.toggle('selected', o.dataset.key === key));
+  const s = revLoad(); s.revAnswer = key; revSave(s);
+}
+
+function selectRevTF(val, el) {
+  if (revSubmitted) return;
+  revAnswer = val;
+  document.querySelectorAll('.reviewer-tf-btn').forEach(b => {
+    b.classList.toggle('selected', (b.dataset.val === 'true') === val);
+  });
+  const s = revLoad(); s.revAnswer = val; revSave(s);
+}
+
+function revealRevAnswer() {
+  if (revAnswer === null) { alert('Please select an answer first.'); return; }
+  revSubmitted = true;
+  const s = revLoad(); s.revSubmitted = true; revSave(s);
+  applyRevAnswer(revAnswer, true);
+}
+
+function applyRevAnswer(ans, showResult) {
+  const correctVal = window.REV_CORRECT;
+  // MCQ
+  document.querySelectorAll('.reviewer-option').forEach(o => {
+    o.classList.remove('selected','correct','wrong');
+    if (showResult) {
+      if (o.dataset.key === correctVal) o.classList.add('correct');
+      else if (o.dataset.key === ans && o.dataset.key !== correctVal) o.classList.add('wrong');
+    } else {
+      if (o.dataset.key === ans) o.classList.add('selected');
+    }
+  });
+  // T/F
+  document.querySelectorAll('.reviewer-tf-btn').forEach(b => {
+    b.classList.remove('selected','correct','wrong');
+    const bVal = b.dataset.val === 'true';
+    if (showResult) {
+      if (bVal === correctVal) b.classList.add('correct');
+      else if (bVal === ans && bVal !== correctVal) b.classList.add('wrong');
+    } else {
+      if (bVal === ans) b.classList.add('selected');
+    }
+  });
+  if (showResult) {
+    const expEl = document.getElementById('rev-explanation');
+    const btnEl = document.getElementById('rev-reveal-btn');
+    if (expEl) {
+      const isCorrect = (ans === correctVal) || (ans === correctVal);
+      expEl.classList.add('visible');
+      const lbl = expEl.querySelector('.reviewer-exp-label');
+      if (lbl) { lbl.textContent = isCorrect ? '✓ Correct' : '✗ Incorrect'; lbl.className = 'reviewer-exp-label ' + (isCorrect ? 'correct' : 'wrong'); }
+    }
+    if (btnEl) btnEl.style.display = 'none';
+  }
+}
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>[Reviewer] Example 13 — Alert Enrichment and Runbook Generation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Merriweather+Sans:wght@300;400;600;700&family=Source+Code+Pro:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+  :root {
+    --bg:#eef2f7; --bg2:#ffffff; --bg3:#f0f4f9; --border:#d0dae8;
+    --text:#1a2332; --text-dim:#4a5568; --text-dimmer:#8fa3bc;
+    --blue:#1a6eb5; --blue-light:#e8f1fb; --blue-mid:#b8d0ed; --blue-dark:#0f4a7a;
+    --teal:#0e7a6b; --teal-light:#e6f4f2;
+    --coral:#c0392b; --coral-light:#fdf0ee; --coral-mid:#f0b8b2;
+    --green:#1a6b3a; --green-light:#e8f5ed;
+    --amber:#92600a; --amber-light:#fdf3e3;
+    --purple:#5b4fcf; --purple-light:#f0effe;
+    --code-bg:#1e2433; --code-text:#cdd6f4; --radius:12px;
+  }
+  html,body { min-height:100%; background:var(--bg); color:var(--text); font-family:'Merriweather Sans',sans-serif; font-size:15px; line-height:1.6; }
+  .topnav { background:var(--bg2); border-bottom:1px solid var(--border); padding:0 40px; height:52px; display:flex; align-items:center; gap:8px; font-size:12px; color:var(--text-dimmer); font-family:'Source Code Pro',monospace; position:sticky; top:0; z-index:100; }
+  .topnav a { color:var(--blue); text-decoration:none; } .topnav a:hover { text-decoration:underline; }
+  .topnav .sep { margin:0 4px; color:var(--text-dimmer); }
+  .stepnav { background:var(--bg2); border-bottom:1px solid var(--border); padding:0 40px; display:flex; align-items:stretch; position:sticky; top:52px; z-index:99; overflow-x:auto; }
+  .stepnav-item { display:flex; align-items:center; gap:8px; padding:14px 20px; font-size:12px; font-family:'Source Code Pro',monospace; color:var(--text-dimmer); cursor:pointer; border-bottom:3px solid transparent; white-space:nowrap; transition:color .15s,border-color .15s; text-decoration:none; }
+  .stepnav-item:hover { color:var(--text-dim); }
+  .stepnav-item.active { color:var(--blue); border-bottom-color:var(--blue); font-weight:600; }
+  .stepnav-num { width:20px; height:20px; border-radius:50%; background:var(--bg3); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; flex-shrink:0; }
+  .stepnav-item.active .stepnav-num { background:var(--blue); border-color:var(--blue); color:white; }
+  .hero { background:var(--bg2); border-bottom:2px solid var(--border); padding:40px 40px 32px; }
+  .hero-inner { max-width:900px; margin:0 auto; }
+  .hero-eyebrow { font-size:10px; letter-spacing:.2em; text-transform:uppercase; color:var(--blue); font-weight:600; margin-bottom:10px; font-family:'Source Code Pro',monospace; }
+  .hero h1 { font-size:clamp(18px,2.5vw,26px); font-weight:700; color:var(--text); line-height:1.25; }
+  .hero h1 span { color:var(--blue); }
+  .hero-meta { margin-top:14px; display:flex; flex-wrap:wrap; gap:8px; }
+  .meta-pill { font-size:10.5px; font-family:'Source Code Pro',monospace; padding:3px 10px; border-radius:20px; font-weight:600; }
+  .pill-tier { background:var(--coral-light); color:var(--coral); border:1px solid var(--coral-mid); }
+  .pill-topic { background:var(--teal-light); color:var(--teal); border:1px solid #a3d4ce; }
+  .pill-turns { background:var(--bg3); color:var(--text-dim); border:1px solid var(--border); font-weight:400; }
+  .main { max-width:900px; margin:0 auto; padding:40px 40px 80px; }
+  .step-section { margin-bottom:56px; scroll-margin-top:120px; }
+  .step-header { display:flex; align-items:center; gap:14px; margin-bottom:20px; padding-bottom:16px; border-bottom:2px solid var(--border); }
+  .step-number { width:40px; height:40px; border-radius:50%; background:var(--blue); color:white; display:flex; align-items:center; justify-content:center; font-size:16px; font-weight:700; font-family:'Source Code Pro',monospace; flex-shrink:0; }
+  .step-label { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:.18em; text-transform:uppercase; color:var(--blue); font-weight:600; margin-bottom:3px; }
+  .step-title { font-size:18px; font-weight:700; color:var(--text); line-height:1.25; }
+  .prose { font-size:14.5px; color:var(--text-dim); line-height:1.8; margin-bottom:20px; }
+  .prose strong { color:var(--text); font-weight:600; }
+  .prose code { font-family:'Source Code Pro',monospace; font-size:13px; background:var(--bg3); border:1px solid var(--border); padding:1px 5px; border-radius:4px; color:var(--blue-dark); }
+  .evidence-map { background:var(--bg2); border:1px solid var(--border); border-top:3px solid var(--coral); border-radius:var(--radius); overflow:hidden; margin:20px 0; }
+  .evidence-map-header { padding:12px 18px; background:var(--coral-light); border-bottom:1px solid var(--border); font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:.18em; text-transform:uppercase; color:var(--coral); font-weight:600; }
+  .evidence-map table { width:100%; border-collapse:collapse; }
+  .evidence-map th { padding:10px 16px; font-size:11px; font-family:'Source Code Pro',monospace; color:var(--text-dimmer); font-weight:600; text-align:left; border-bottom:1px solid var(--border); background:var(--bg3); }
+  .evidence-map td { padding:10px 16px; font-size:13px; color:var(--text-dim); border-bottom:1px solid var(--border); vertical-align:top; }
+  .evidence-map tr:last-child td { border-bottom:none; }
+  .evidence-map td:first-child { font-family:'Source Code Pro',monospace; font-size:12px; color:var(--blue-dark); font-weight:600; white-space:nowrap; }
+  .layer-pill { font-size:9.5px; font-family:'Source Code Pro',monospace; padding:2px 8px; border-radius:20px; font-weight:600; white-space:nowrap; }
+  .layer-alert { background:var(--coral-light); color:var(--coral); border:1px solid var(--coral-mid); }
+  .layer-svc   { background:var(--blue-light); color:var(--blue); border:1px solid var(--blue-mid); }
+  .layer-hist  { background:var(--amber-light); color:var(--amber); border:1px solid #f0d4a0; }
+  .layer-dep   { background:var(--purple-light); color:var(--purple); border:1px solid #c4bdf0; }
+  .callout { border-radius:var(--radius); padding:16px 18px; margin:20px 0; font-size:13.5px; line-height:1.7; }
+  .callout-label { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:.15em; text-transform:uppercase; font-weight:700; margin-bottom:6px; }
+  .callout.info { background:var(--blue-light); border:1px solid var(--blue-mid); border-left:3px solid var(--blue); color:var(--text-dim); }
+  .callout.info .callout-label { color:var(--blue); }
+  .callout.warn { background:#fdf5f5; border:1px solid var(--coral-mid); border-left:3px solid var(--coral); color:var(--text-dim); }
+  .callout.warn .callout-label { color:var(--coral); }
+  .callout.good { background:var(--green-light); border:1px solid #a3d4b8; border-left:3px solid var(--green); color:var(--text-dim); }
+  .callout.good .callout-label { color:var(--green); }
+  .callout.tip  { background:var(--amber-light); border:1px solid #f0d4a0; border-left:3px solid var(--amber); color:var(--text-dim); }
+  .callout.tip  .callout-label { color:var(--amber); }
+  .callout strong { color:var(--text); font-weight:600; }
+  .callout code { font-family:'Source Code Pro',monospace; font-size:12.5px; background:rgba(0,0,0,.06); padding:1px 5px; border-radius:4px; }
+  .code-wrap { margin:20px 0; border-radius:0; overflow:hidden; border:1px solid #2a3144; background:#1e2433; }
+  .code-header { background:#252b3b; padding:10px 16px; display:flex; align-items:center; justify-content:space-between; }
+  .code-filename { font-size:11px; font-family:'Source Code Pro',monospace; color:#ffffff; letter-spacing:.05em; }
+  .code-copy { font-size:10px; font-family:'Source Code Pro',monospace; color:#7a8ab0; background:none; border:1px solid #3a4155; border-radius:4px; padding:2px 8px; cursor:pointer; transition:color .15s,border-color .15s; }
+  .code-copy:hover { color:#cdd6f4; border-color:#6a7ab0; }
+  pre { background:#1e2433 !important; padding:20px; overflow-x:auto; margin:0; }
+  code.block { font-family:'Source Code Pro',monospace; font-size:13px; line-height:1.7; color:var(--code-text); background:none; border:none; padding:0; display:block; }
+  .kw{color:#cba6f7;} .cm{color:#6c7086;font-style:italic;} .st{color:#a6e3a1;}
+  .nm{color:#fab387;} .op{color:#89dceb;} .an{color:#f38ba8;} .fn{color:#89b4fa;}
+  .annotation-list { list-style:none; display:flex; flex-direction:column; gap:12px; margin:20px 0; }
+  .annotation-list li { display:flex; gap:12px; align-items:flex-start; font-size:13.5px; color:var(--text-dim); line-height:1.7; }
+  .ann-badge { flex-shrink:0; font-size:10px; font-family:'Source Code Pro',monospace; font-weight:700; padding:2px 8px; border-radius:4px; margin-top:2px; }
+  .ann-good { background:var(--green-light); color:var(--green); border:1px solid #a3d4b8; }
+  .ann-warn { background:var(--coral-light); color:var(--coral); border:1px solid var(--coral-mid); }
+  .ann-info { background:var(--blue-light); color:var(--blue); border:1px solid var(--blue-mid); }
+  .annotation-list li strong { color:var(--text); font-weight:600; }
+  .annotation-list li code { font-family:'Source Code Pro',monospace; font-size:12.5px; background:var(--bg3); border:1px solid var(--border); padding:1px 5px; border-radius:4px; color:var(--blue-dark); }
+  .conversation { display:flex; flex-direction:column; gap:0; margin:16px 0; border:1px solid #2a3144; border-radius:var(--radius); overflow:hidden; }
+  .conv-turn { padding:18px 22px; }
+  .conv-turn + .conv-turn { border-top:1px solid #2a3144; }
+  .conv-turn.engineer { background:var(--bg3); }
+  .conv-turn.claude   { background:#1e2433; }
+  .conv-role { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:.18em; text-transform:uppercase; font-weight:700; margin-bottom:8px; }
+  .conv-turn.engineer .conv-role { color:var(--teal); }
+  .conv-turn.claude   .conv-role { color:#7a8ab0; }
+  .conv-body { font-size:13.5px; line-height:1.75; }
+  .conv-turn.engineer .conv-body { color:var(--text-dim); }
+  .conv-turn.claude   .conv-body { color:#cdd6f4; }
+  .conv-turn.engineer .conv-body strong { color:var(--text); font-weight:600; }
+  .conv-turn.claude   .conv-body strong { color:#ffffff; font-weight:600; }
+  .conv-turn.engineer .conv-body code { font-family:'Source Code Pro',monospace; font-size:12.5px; background:var(--bg3); border:1px solid var(--border); padding:1px 5px; border-radius:4px; color:var(--blue-dark); }
+  .conv-turn.claude   .conv-body code { font-family:'Source Code Pro',monospace; font-size:12.5px; background:#252b3b; border:1px solid #3a4155; padding:1px 5px; border-radius:4px; color:#89dceb; }
+  .conv-turn.claude   .conv-body em { font-style:italic; color:#6c7086; }
+  .conv-turn.claude   .code-wrap { margin:12px 0; }
+  .turn-nav { display:flex; align-items:center; gap:6px; margin-bottom:16px; flex-wrap:wrap; }
+  .turn-nav-label { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:.15em; text-transform:uppercase; color:var(--text-dimmer); font-weight:600; margin-right:4px; }
+  .turn-pip { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; font-family:'Source Code Pro',monospace; border:1px solid var(--border); background:var(--bg3); color:var(--text-dimmer); }
+  .turn-pip.active { background:var(--blue); border-color:var(--blue); color:#fff; }
+  .turn-pip.done   { background:var(--green-light); border-color:#a3d4b8; color:var(--green); }
+  .turn-connector  { width:20px; height:1px; background:var(--border); }
+  .runbook-box { background:var(--bg2); border:1px solid var(--border); border-top:3px solid var(--teal); border-radius:var(--radius); padding:20px 24px; margin:24px 0; }
+  .runbook-label { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:.18em; text-transform:uppercase; color:var(--teal); font-weight:600; margin-bottom:14px; }
+  .runbook-section { margin-bottom:16px; }
+  .runbook-section:last-child { margin-bottom:0; }
+  .runbook-section-title { font-size:11px; font-family:'Source Code Pro',monospace; letter-spacing:.1em; text-transform:uppercase; color:var(--text-dimmer); font-weight:600; margin-bottom:8px; }
+  .runbook-step { display:flex; gap:10px; margin-bottom:8px; font-size:13.5px; color:var(--text-dim); line-height:1.6; }
+  .runbook-step:last-child { margin-bottom:0; }
+  .runbook-num { flex-shrink:0; width:22px; height:22px; border-radius:50%; background:var(--teal-light); border:1px solid #a3d4ce; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; font-family:'Source Code Pro',monospace; color:var(--teal); margin-top:1px; }
+  .runbook-step-body { flex:1; }
+  .runbook-step-body strong { color:var(--text); font-weight:600; }
+  .runbook-step-body code { font-family:'Source Code Pro',monospace; font-size:12px; background:var(--bg3); border:1px solid var(--border); padding:1px 5px; border-radius:4px; color:var(--blue-dark); }
+  .turn-label { display:inline-flex; align-items:center; gap:6px; font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:.12em; text-transform:uppercase; color:var(--text-dimmer); background:var(--bg3); border:1px solid var(--border); border-radius:20px; padding:3px 10px; margin-bottom:14px; font-weight:600; }
+  .section-divider { height:1px; background:var(--border); margin:40px 0; }
+  .tier-complete { background:var(--bg2); border:1px solid var(--border); border-top:3px solid var(--green); border-radius:var(--radius); padding:24px 28px; margin-top:48px; }
+  .tier-complete-label { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:.18em; text-transform:uppercase; color:var(--green); font-weight:600; margin-bottom:8px; }
+  .tier-complete-title { font-size:17px; font-weight:700; color:var(--text); margin-bottom:8px; }
+  .tier-complete-desc { font-size:13.5px; color:var(--text-dim); line-height:1.7; }
+  .tier-complete-desc a { color:var(--blue); text-decoration:none; }
+  .tier-complete-desc a:hover { text-decoration:underline; }
+  .bottom-nav { display:flex; justify-content:space-between; align-items:center; padding:20px 0 0; border-top:1px solid var(--border); margin-top:40px; }
+  .nav-btn { display:inline-flex; align-items:center; gap:8px; font-size:13px; font-family:'Source Code Pro',monospace; color:var(--blue); text-decoration:none; padding:10px 18px; border:1px solid var(--blue-mid); border-radius:8px; background:var(--blue-light); transition:background .15s,border-color .15s; font-weight:600; }
+  .nav-btn:hover { background:var(--blue-mid); border-color:var(--blue); }
+  .nav-btn.secondary { background:var(--bg2); color:var(--text-dim); border-color:var(--border); }
+  .nav-btn.secondary:hover { background:var(--bg3); }
+  footer { background:var(--bg2); border-top:1px solid var(--border); padding:14px 40px; font-size:11px; font-family:'Source Code Pro',monospace; color:var(--text-dimmer); display:flex; justify-content:space-between; align-items:center; }
+  @media(max-width:640px){.topnav,.main,footer{padding-left:20px;padding-right:20px;}.hero{padding:28px 20px;}.stepnav{padding:0 20px;}}
+
+  /* ── Reviewer additions ──────────────────────────────────────────────────── */
+  .reviewer-bar {
+    background: #fff8e6;
+    border: 1px solid #f0d4a0;
+    border-left: 3px solid #92600a;
+    border-radius: 8px;
+    padding: 10px 16px;
+    margin-top: 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: #92600a;
+    font-family: 'Source Code Pro', monospace;
+  }
+  .reviewer-bar input[type="checkbox"] {
+    width: 16px; height: 16px; cursor: pointer; flex-shrink: 0;
+    accent-color: #1a6b3a;
+  }
+  .reviewer-bar label { cursor: pointer; font-weight: 600; user-select: none; }
+  .reviewer-bar.checked { background: #e8f5ed; border-color: #a3d4b8; border-left-color: #1a6b3a; color: #1a6b3a; }
+
+  .reviewer-panel {
+    background: #f5f0ff;
+    border: 1px solid #c4bdf0;
+    border-top: 3px solid #5b4fcf;
+    border-radius: 12px;
+    padding: 24px 28px;
+    margin: 32px 0;
+  }
+  .reviewer-panel-label {
+    font-size: 9px; font-family: 'Source Code Pro', monospace;
+    letter-spacing: .18em; text-transform: uppercase;
+    color: #5b4fcf; font-weight: 600; margin-bottom: 16px;
+  }
+  .reviewer-q-text {
+    font-size: 14px; font-weight: 600; color: #1a2332;
+    line-height: 1.65; margin-bottom: 14px;
+  }
+  .reviewer-options { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
+  .reviewer-option {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 10px 14px; border: 1px solid #d0dae8;
+    border-radius: 8px; cursor: pointer;
+    font-size: 13.5px; color: #4a5568; line-height: 1.5;
+    transition: background .12s, border-color .12s;
+    background: #ffffff;
+  }
+  .reviewer-option:hover { background: #f0f4f9; border-color: #b8d0ed; }
+  .reviewer-option.selected { background: #e8f1fb; border-color: #1a6eb5; color: #1a2332; }
+  .reviewer-option.correct  { background: #e8f5ed; border-color: #a3d4b8; color: #1a6b3a; }
+  .reviewer-option.wrong    { background: #fdf0ee; border-color: #f0b8b2; color: #c0392b; }
+  .reviewer-option-key { font-family: 'Source Code Pro', monospace; font-size: 11px; font-weight: 700; color: #8fa3bc; flex-shrink: 0; margin-top: 1px; }
+
+  .reviewer-tf { display: flex; gap: 10px; margin-bottom: 18px; }
+  .reviewer-tf-btn {
+    flex: 1; padding: 10px; border: 1px solid #d0dae8;
+    border-radius: 8px; cursor: pointer; text-align: center;
+    font-size: 13.5px; font-weight: 600;
+    font-family: 'Source Code Pro', monospace; color: #4a5568;
+    background: #ffffff; transition: background .12s;
+  }
+  .reviewer-tf-btn:hover { background: #f0f4f9; border-color: #b8d0ed; }
+  .reviewer-tf-btn.selected { background: #e8f1fb; border-color: #1a6eb5; color: #1a6eb5; }
+  .reviewer-tf-btn.correct  { background: #e8f5ed; border-color: #a3d4b8; color: #1a6b3a; }
+  .reviewer-tf-btn.wrong    { background: #fdf0ee; border-color: #f0b8b2; color: #c0392b; }
+
+  .reviewer-reveal {
+    font-size: 12px; font-family: 'Source Code Pro', monospace;
+    color: #5b4fcf; cursor: pointer; text-decoration: underline;
+    background: none; border: none; padding: 0; margin-bottom: 14px; display: block;
+  }
+  .reviewer-explanation {
+    font-size: 13px; color: #4a5568; line-height: 1.7;
+    padding: 12px 14px; background: #eef2f7; border-radius: 8px;
+    margin-bottom: 16px; display: none;
+  }
+  .reviewer-explanation.visible { display: block; }
+  .reviewer-exp-label { font-size: 9px; font-family: 'Source Code Pro', monospace; letter-spacing: .15em; text-transform: uppercase; font-weight: 700; margin-bottom: 4px; }
+  .reviewer-exp-label.correct { color: #1a6b3a; }
+  .reviewer-exp-label.wrong   { color: #c0392b; }
+
+  .reviewer-comment-label {
+    font-size: 11px; font-family: 'Source Code Pro', monospace;
+    letter-spacing: .12em; text-transform: uppercase;
+    color: #8fa3bc; font-weight: 600; margin-bottom: 6px;
+  }
+  .reviewer-comment {
+    width: 100%; min-height: 80px; padding: 10px 12px;
+    border: 1px solid #c4bdf0; border-radius: 8px;
+    font-family: 'Merriweather Sans', sans-serif; font-size: 13.5px;
+    color: #1a2332; background: #ffffff; resize: vertical;
+    line-height: 1.6; transition: border-color .15s;
+  }
+  .reviewer-comment:focus { outline: none; border-color: #5b4fcf; }
+  .reviewer-save-note {
+    font-size: 11px; font-family: 'Source Code Pro', monospace;
+    color: #8fa3bc; margin-top: 6px;
+  }
+
+  .reviewer-topbanner {
+    background: #f5f0ff; border-bottom: 2px solid #c4bdf0;
+    padding: 10px 40px; font-size: 12px;
+    font-family: 'Source Code Pro', monospace; color: #5b4fcf;
+    display: flex; align-items: center; gap: 8px;
+  }
+
+</style>
+</head>
+<body>
+<div class="reviewer-topbanner">
+  <span>👁</span>
+  <span><strong>Reviewer mode</strong> — checkboxes, question answers, and notes are saved in your browser.</span>
+</div>
+
+
+<nav class="topnav">
+  <a href="../course-map.html">Course map</a>
+  <span class="sep">/</span>
+  <a href="../course-map.html">Tier 3 examples</a>
+  <span class="sep">/</span>
+  <span>Example 13 — Alert enrichment and runbook generation</span>
+</nav>
+
+<nav class="stepnav" id="stepnav">
+  <a class="stepnav-item active" href="#step-1"><span class="stepnav-num">1</span>Problem</a>
+  <a class="stepnav-item" href="#step-2"><span class="stepnav-num">2</span>Naive approach</a>
+  <a class="stepnav-item" href="#step-3"><span class="stepnav-num">3</span>Claude Code interaction</a>
+  <a class="stepnav-item" href="#step-4"><span class="stepnav-num">4</span>Refined output</a>
+  <a class="stepnav-item" href="#step-5"><span class="stepnav-num">5</span>Watch out</a>
+</nav>
+
+<div class="hero">
+  <div class="hero-inner">
+    <div class="hero-eyebrow">Example 13 of 13 · Tier 3 · Context-heavy scenario</div>
+    <h1>Alert enrichment and <span>runbook generation</span></h1>
+    <div class="hero-meta">
+      <span class="meta-pill pill-tier">Tier 3 — Context-heavy scenario</span>
+      <span class="meta-pill pill-topic">AIOps · Runbook generation</span>
+      <span class="meta-pill pill-turns">5-turn interaction</span>
+      <span class="meta-pill pill-turns">Raw alerts → structured runbook</span>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- ══ STEP 1 ══ -->
+  <section class="step-section" id="step-1">
+    <div class="step-header">
+      <div class="step-number">1</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 1 of 5</div>
+        <div class="step-title">The problem</div>
+      </div>
+<div class="reviewer-bar" id="rev-bar-1">
+  <input type="checkbox" class="rev-checkbox" id="rev-cb-1" data-step="1">
+  <label for="rev-cb-1">Mark step as reviewed</label>
+</div>
+
+    </div>
+
+    <p class="prose">
+      The <code>payment-api</code> team has accumulated twelve Prometheus alert rules over nine months. Each alert fires reliably — but when they fire at 03:00, the on-call engineer opens them to find a single line of metric context with no operational guidance. The alert says <em>what</em> crossed a threshold; it does not say <em>why it matters</em>, <em>what to check first</em>, or <em>what the last three times this alert fired looked like</em>.
+    </p>
+
+    <p class="prose">
+      The result is that every P2 and P3 incident begins with 10–20 minutes of context gathering that experienced engineers do from memory and junior engineers do by Slack-messaging the team at 03:00. This is the problem that alert enrichment and runbook generation solves — not by removing the alert, but by attaching structured operational context to it before it reaches the engineer.
+    </p>
+
+    <div class="callout info">
+      <div class="callout-label">What this example produces</div>
+      Unlike Examples 10–12, which diagnosed existing incidents, Example 13 is <strong>proactive</strong> — it produces enrichment and runbooks for alerts that have not yet fired in the current context. The engineer provides the raw alert definitions, service context, and incident history; Claude Code produces enriched alert metadata and a structured runbook. The output is usable immediately as documentation, and machine-parseable as input to an AIOps alert management system.
+    </div>
+
+    <div class="evidence-map">
+      <div class="evidence-map-header">Inputs to this scenario</div>
+      <table>
+        <thead><tr><th>Input</th><th>What it contains</th><th>Type</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>Raw alert definitions</td>
+            <td>Three Prometheus alert rules — HighErrorRate, PodMemoryPressure, DatabaseConnectionPoolExhausted — with current thresholds and labels but no annotations beyond a summary line</td>
+            <td><span class="layer-pill layer-alert">Alerts</span></td>
+          </tr>
+          <tr>
+            <td>Service context</td>
+            <td>payment-api architecture: Node.js, PostgreSQL via RDS, payment processor external API, 3–10 replicas (HPA), connection pool 50/pod</td>
+            <td><span class="layer-pill layer-svc">Service</span></td>
+          </tr>
+          <tr>
+            <td>Incident history</td>
+            <td>Last three firings of each alert — timestamp, duration, resolution action, and root cause for each</td>
+            <td><span class="layer-pill layer-hist">History</span></td>
+          </tr>
+          <tr>
+            <td>Dependency map</td>
+            <td>payment-api upstream and downstream dependencies — what it calls and what calls it</td>
+            <td><span class="layer-pill layer-dep">Dependencies</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ══ STEP 2 ══ -->
+  <section class="step-section" id="step-2">
+    <div class="step-header">
+      <div class="step-number">2</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 2 of 5</div>
+        <div class="step-title">The naive approach</div>
+      </div>
+<div class="reviewer-bar" id="rev-bar-2">
+  <input type="checkbox" class="rev-checkbox" id="rev-cb-2" data-step="2">
+  <label for="rev-cb-2">Mark step as reviewed</label>
+</div>
+
+    </div>
+
+    <p class="prose">The naive alert definition is a threshold with a label. The naive runbook is a Confluence page that has not been updated since the alert was created.</p>
+
+    <div class="code-wrap">
+      <div class="code-header"><span class="code-filename">Naive alert definition — no operational context</span></div>
+      <pre><code class="block"><span class="kw">- alert:</span> <span class="st">HighErrorRate</span>
+  <span class="kw">expr:</span> <span class="st">rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) > 0.05</span>
+  <span class="kw">for:</span> <span class="st">2m</span>
+  <span class="kw">labels:</span>
+    <span class="kw">severity:</span> <span class="st">critical</span>
+  <span class="kw">annotations:</span>
+    <span class="kw">summary:</span> <span class="st">"High error rate on {{ $labels.service }}"</span>
+    <span class="cm"># No description of what causes this alert</span>
+    <span class="cm"># No links to dashboards or runbooks</span>
+    <span class="cm"># No context about what 5% means for this service</span>
+    <span class="cm"># No triage steps</span>
+    <span class="cm"># No escalation path</span></code></pre>
+    </div>
+
+    <div class="callout warn">
+      <div class="callout-label">The core problem</div>
+      The on-call engineer receives a Slack notification at 03:00: "High error rate on payment-api." They open PagerDuty and find the alert expression. They open Grafana and look at a graph. They look at the logs. They remember what happened last time — if they were on-call last time. If they were not, they start from zero. The alert contains everything the monitoring system knows and nothing the engineering team knows. Alert enrichment closes that gap proactively, before the next 03:00 page.
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ══ STEP 3 ══ -->
+  <section class="step-section" id="step-3">
+    <div class="step-header">
+      <div class="step-number">3</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 3 of 5</div>
+        <div class="step-title">The Claude Code interaction</div>
+      </div>
+<div class="reviewer-bar" id="rev-bar-3">
+  <input type="checkbox" class="rev-checkbox" id="rev-cb-3" data-step="3">
+  <label for="rev-cb-3">Mark step as reviewed</label>
+</div>
+
+    </div>
+
+    <p class="prose">Five turns. Turn 1 provides all inputs simultaneously — alert definitions, service context, incident history, dependency map. Turn 2 produces enriched alert annotations. Turn 3 produces the structured runbook for the highest-priority alert. Turn 4 adds the machine-readable enrichment payload for the AIOps pipeline. Turn 5 produces a PrometheusRule file with the enriched annotations baked in.</p>
+
+    <!-- Turn 1 -->
+    <div class="turn-nav">
+      <span class="turn-nav-label">Turns</span>
+      <span class="turn-pip active">1</span><span class="turn-connector"></span>
+      <span class="turn-pip">2</span><span class="turn-connector"></span>
+      <span class="turn-pip">3</span><span class="turn-connector"></span>
+      <span class="turn-pip">4</span><span class="turn-connector"></span>
+      <span class="turn-pip">5</span>
+    </div>
+
+    <div class="turn-label">Turn 1 of 5 — All inputs simultaneously</div>
+    <div class="conversation">
+      <div class="conv-turn engineer">
+        <div class="conv-role">Engineer → Claude Code</div>
+        <div class="conv-body">
+          <p>I need to enrich three alert definitions with operational context and generate runbooks. Here is everything at once:</p>
+
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">Alert definitions (current — minimal annotations)</span></div>
+            <pre><code class="block"><span class="kw">- alert:</span> <span class="st">HighErrorRate</span>
+  <span class="kw">expr:</span> <span class="st">rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) > 0.05</span>
+  <span class="kw">for:</span> <span class="st">2m</span>
+  <span class="kw">labels:</span>
+    <span class="kw">severity:</span> <span class="st">critical</span>
+  <span class="kw">annotations:</span>
+    <span class="kw">summary:</span> <span class="st">"High error rate on {{ $labels.service }}"</span>
+
+<span class="kw">- alert:</span> <span class="st">PodMemoryPressure</span>
+  <span class="kw">expr:</span> <span class="st">container_memory_working_set_bytes{container="payment-api"} / container_spec_memory_limit_bytes > 0.85</span>
+  <span class="kw">for:</span> <span class="st">5m</span>
+  <span class="kw">labels:</span>
+    <span class="kw">severity:</span> <span class="st">warning</span>
+  <span class="kw">annotations:</span>
+    <span class="kw">summary:</span> <span class="st">"Memory pressure on {{ $labels.pod }}"</span>
+
+<span class="kw">- alert:</span> <span class="st">DatabaseConnectionPoolExhausted</span>
+  <span class="kw">expr:</span> <span class="st">payment_api_db_pool_active / payment_api_db_pool_size > 0.90</span>
+  <span class="kw">for:</span> <span class="st">1m</span>
+  <span class="kw">labels:</span>
+    <span class="kw">severity:</span> <span class="st">critical</span>
+  <span class="kw">annotations:</span>
+    <span class="kw">summary:</span> <span class="st">"DB connection pool > 90% on {{ $labels.pod }}"</span></code></pre>
+          </div>
+
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">Service context</span></div>
+            <pre><code class="block">Service: payment-api (Node.js 20, Express)
+Database: PostgreSQL 15 on RDS (payment-api-prod, ap-south-1)
+External: payment-processor API (api.payment-processor.com:443, mTLS)
+Replicas: 3–10 (HPA, scales on CPU 70% / memory 80%)
+Connection pool: 50 connections per pod (pg-pool)
+Namespace: payment
+Key metrics: payment success rate, p99 latency, DB connection utilisation
+SLO: 99.5% payment success rate, p99 < 2000ms</pre></code>
+          </div>
+
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">Incident history — last 3 firings per alert</span></div>
+            <pre><code class="block">HighErrorRate:
+  2026-01-14: Duration 23min. Cause: payment-processor API timeout spike. Resolution: waited for processor recovery.
+  2026-02-28: Duration 8min.  Cause: bad deployment (Node.js version regression). Resolution: rolled back.
+  2026-03-15: Duration 35min. Cause: TLS cert expired (Example 12). Resolution: renewed cert + pod restart.
+
+PodMemoryPressure:
+  2026-01-22: Duration 12min. Cause: memory leak in v1.4.2 release. Resolution: rolled back.
+  2026-02-10: Duration 4min.  Cause: traffic spike during marketing campaign. Resolution: HPA scaled to 8 pods.
+  2026-03-01: Duration 6min.  Cause: connection pool not releasing connections (fixed in v1.6.1). Resolution: patched.
+
+DatabaseConnectionPoolExhausted:
+  2025-12-20: Duration 47min. Cause: max_connections reduced by Terraform change (Example 10). Resolution: restored parameter.
+  2026-01-31: Duration 11min. Cause: connection leak in batch job (fixed in v1.5.0). Resolution: restarted batch job.
+  2026-02-19: Duration 3min.  Cause: traffic spike, pool recovered when HPA added pods. Resolution: self-resolved.</code></pre>
+          </div>
+
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">Dependency map</span></div>
+            <pre><code class="block">payment-api calls:
+  → PostgreSQL/RDS (payment-api-prod) — all payment transactions
+  → payment-processor API (api.payment-processor.com) — card processing
+  → Redis (session cache, optional — degraded mode available)
+
+payment-api is called by:
+  ← checkout-service (primary caller, synchronous)
+  ← reconciliation-service (batch, async, lower priority)
+  ← admin-dashboard (read-only, very low volume)</code></pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="conv-turn claude">
+        <div class="conv-role">Claude Code</div>
+        <div class="conv-body">
+          <p>Three observations from the incident history before producing the enrichment:</p>
+          <p style="margin-top:10px;"><strong>HighErrorRate has three distinct root cause categories</strong> across its three firings: external dependency failure (processor timeout), deployment regression, and infrastructure change (cert expiry). No single triage path covers all three. The runbook must branch early on distinguishing between these categories rather than prescribing a single investigation sequence.</p>
+          <p style="margin-top:10px;"><strong>PodMemoryPressure at 85% should trigger investigation immediately</strong> — two of the three historical firings were caused by bugs (memory leak, connection leak) that worsened over time. The one traffic-spike firing self-resolved via HPA. The enrichment should flag that 85% memory pressure is not a safe "wait and see" threshold for this service.</p>
+          <p style="margin-top:10px;"><strong>DatabaseConnectionPoolExhausted is causally linked to HighErrorRate</strong> — when the pool exhausts, payment transactions fail, which triggers HighErrorRate within minutes. The runbook for DatabaseConnectionPoolExhausted should reference the HighErrorRate alert as a likely co-firer and explicitly sequence: fix the pool issue before investigating the error rate. The two alerts are correlated at Example 10's root cause level.</p>
+          <p style="margin-top:10px;">Ready to produce enriched annotations and runbooks.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Turn 2 -->
+    <div class="turn-nav" style="margin-top:28px;">
+      <span class="turn-nav-label">Turns</span>
+      <span class="turn-pip done">1</span><span class="turn-connector"></span>
+      <span class="turn-pip active">2</span><span class="turn-connector"></span>
+      <span class="turn-pip">3</span><span class="turn-connector"></span>
+      <span class="turn-pip">4</span><span class="turn-connector"></span>
+      <span class="turn-pip">5</span>
+    </div>
+
+    <div class="turn-label">Turn 2 of 5 — Enriched alert annotations</div>
+    <div class="conversation">
+      <div class="conv-turn engineer">
+        <div class="conv-role">Engineer → Claude Code</div>
+        <div class="conv-body">
+          <p>Produce enriched annotations for all three alerts. Each annotation block should include: description (what this means operationally), impact (what breaks when this fires), historical pattern (from the incident history), first triage step, and escalation path. Keep annotations concise — they appear in PagerDuty notifications.</p>
+        </div>
+      </div>
+      <div class="conv-turn claude">
+        <div class="conv-role">Claude Code</div>
+        <div class="conv-body">
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">Enriched annotations — all three alerts</span><button class="code-copy" onclick="copyCode(this)">copy</button></div>
+            <pre><code class="block"><span class="cm"># ── HighErrorRate ────────────────────────────────────────────────────────────</span>
+<span class="kw">annotations:</span>
+  <span class="kw">summary:</span> <span class="st">"payment-api error rate {{ $value | humanizePercentage }} (SLO: < 0.5%)"</span>
+  <span class="kw">description:</span> <span class="st">"5xx error rate exceeded 5% for 2+ minutes. At this level, payment success
+    rate is below SLO (99.5%). Checkout-service callers are experiencing failures."</span>
+  <span class="kw">impact:</span> <span class="st">"Payment transactions failing. checkout-service blocked. Revenue impact active."</span>
+  <span class="kw">historical_pattern:</span> <span class="st">"3 recent firings: external API timeout (23min), bad deployment (8min),
+    TLS cert expiry (35min). Check external dependency health before internal causes."</span>
+  <span class="kw">triage_first_step:</span> <span class="st">"Check: (1) payment-processor API status, (2) recent deployments,
+    (3) DatabaseConnectionPoolExhausted alert co-firing, (4) TLS cert validity."</span>
+  <span class="kw">runbook_url:</span> <span class="st">"https://sflearningdevelopment.github.io/runbooks/payment-api/high-error-rate"</span>
+  <span class="kw">escalation:</span> <span class="st">"If not resolved in 10 minutes: page payment-platform team lead."</span>
+
+<span class="cm"># ── PodMemoryPressure ─────────────────────────────────────────────────────────</span>
+<span class="kw">annotations:</span>
+  <span class="kw">summary:</span> <span class="st">"{{ $labels.pod }} memory at {{ $value | humanizePercentage }} of limit (768Mi)"</span>
+  <span class="kw">description:</span> <span class="st">"Pod memory usage exceeded 85% of limit (768Mi). OOMKill risk if sustained.
+    Two of three historical firings were caused by bugs, not traffic — do not wait for HPA."</span>
+  <span class="kw">impact:</span> <span class="st">"OOMKill risk on affected pod. If multiple pods affected: service degradation."</span>
+  <span class="kw">historical_pattern:</span> <span class="st">"3 recent firings: memory leak v1.4.2 (12min), traffic spike
+    self-resolved via HPA (4min), connection leak v1.6.1 (6min). Check recent deploys first."</span>
+  <span class="kw">triage_first_step:</span> <span class="st">"Check: (1) recent deployments in last 2 hours, (2) DB connection pool
+    metrics (connection leak pattern), (3) current traffic vs baseline."</span>
+  <span class="kw">runbook_url:</span> <span class="st">"https://sflearningdevelopment.github.io/runbooks/payment-api/pod-memory-pressure"</span>
+  <span class="kw">escalation:</span> <span class="st">"If memory > 95% or OOMKill event fires: escalate immediately."</span>
+
+<span class="cm"># ── DatabaseConnectionPoolExhausted ──────────────────────────────────────────</span>
+<span class="kw">annotations:</span>
+  <span class="kw">summary:</span> <span class="st">"DB pool {{ $value | humanizePercentage }} utilised on {{ $labels.pod }}"</span>
+  <span class="kw">description:</span> <span class="st">"Connection pool > 90% of capacity (45/50 connections active). At 100%,
+    new payment transactions queue then fail. HighErrorRate alert will follow within minutes."</span>
+  <span class="kw">impact:</span> <span class="st">"Payment transactions queuing. HighErrorRate likely co-firing or imminent."</span>
+  <span class="kw">historical_pattern:</span> <span class="st">"3 recent firings: RDS max_connections halved by Terraform (47min),
+    connection leak in batch job (11min), traffic spike self-resolved via HPA (3min)."</span>
+  <span class="kw">triage_first_step:</span> <span class="st">"Check: (1) RDS DatabaseConnections CloudWatch metric vs max_connections
+    parameter, (2) batch job status, (3) recent Terraform applies to RDS parameter group."</span>
+  <span class="kw">runbook_url:</span> <span class="st">"https://sflearningdevelopment.github.io/runbooks/payment-api/db-pool-exhausted"</span>
+  <span class="kw">escalation:</span> <span class="st">"Resolve pool issue before investigating HighErrorRate — they share a root cause."</span></code></pre>
+          </div>
+          <p style="margin-top:10px;">The historical pattern annotation is the highest-value addition for on-call engineers — it encodes what experienced engineers know from memory into the alert itself. The triage_first_step annotation is intentionally sequenced to match the most common root causes from the incident history, not alphabetically or by system layer.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Turn 3 -->
+    <div class="turn-nav" style="margin-top:28px;">
+      <span class="turn-nav-label">Turns</span>
+      <span class="turn-pip done">1</span><span class="turn-connector"></span>
+      <span class="turn-pip done">2</span><span class="turn-connector"></span>
+      <span class="turn-pip active">3</span><span class="turn-connector"></span>
+      <span class="turn-pip">4</span><span class="turn-connector"></span>
+      <span class="turn-pip">5</span>
+    </div>
+
+    <div class="turn-label">Turn 3 of 5 — Structured runbook for HighErrorRate</div>
+    <div class="conversation">
+      <div class="conv-turn engineer">
+        <div class="conv-role">Engineer → Claude Code</div>
+        <div class="conv-body">
+          <p>Generate the full structured runbook for <code>HighErrorRate</code>. The runbook should branch on the three root cause categories from the incident history. Include the diagnostic commands, decision points, and resolution actions for each branch. It should be usable by an engineer who has never seen this service before.</p>
+        </div>
+      </div>
+      <div class="conv-turn claude">
+        <div class="conv-role">Claude Code</div>
+        <div class="conv-body">
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">Runbook: HighErrorRate — payment-api</span><button class="code-copy" onclick="copyCode(this)">copy</button></div>
+            <pre><code class="block"><span class="cm"># Runbook: HighErrorRate — payment-api
+# Alert: 5xx error rate > 5% for 2+ minutes
+# SLO impact: Payment success rate below 99.5%
+# Typical duration: 8–35 minutes (3 historical firings)
+# Last updated: auto-generated from incident history</span>
+
+<span class="cm">## STEP 1: Check for co-firing alerts (30 seconds)</span>
+<span class="fn">argocd</span> <span class="cm"># Not relevant here</span>
+
+<span class="cm"># Is DatabaseConnectionPoolExhausted also firing?</span>
+<span class="fn">kubectl</span> get events -n payment --field-selector reason=OOMKilling --sort-by=.lastTimestamp
+<span class="cm"># If yes → go to BRANCH C (pool exhaustion). Fix pool before returning here.</span>
+
+<span class="cm">## STEP 2: Check application logs (1 minute)</span>
+<span class="fn">kubectl</span> logs -l app=payment-api -n payment --tail=50 --since=5m | \
+  grep -E "ERROR|payment-processor|x509|connection"
+
+<span class="cm"># Pattern A: "TLS handshake failed" or "x509: certificate" → BRANCH A (cert issue)</span>
+<span class="cm"># Pattern B: "payment-processor: timeout" or "ECONNREFUSED" → BRANCH B (external API)</span>
+<span class="cm"># Pattern C: "connection pool exhausted" or "pg-pool" → BRANCH C (DB pool)</span>
+<span class="cm"># No clear pattern → STEP 3</span>
+
+<span class="cm">## STEP 3: Check for recent deployment (1 minute)</span>
+<span class="fn">kubectl</span> rollout history deployment/payment-api -n payment | tail -5
+<span class="cm"># If deployment in last 2 hours → BRANCH D (deployment regression)</span>
+<span class="cm"># If no recent deployment → STEP 4</span>
+
+<span class="cm">## STEP 4: Check external dependency health (1 minute)</span>
+<span class="cm"># Check payment-processor API status page (bookmark in team wiki)</span>
+<span class="fn">curl</span> -s https://status.payment-processor.com/api/v2/status.json | jq .status
+<span class="cm"># If degraded → BRANCH B (external API). No action from our side — monitor and wait.</span>
+
+<span class="cm">────────────────────────────────────────────────────────────────
+BRANCH A: TLS certificate issue
+────────────────────────────────────────────────────────────────</span>
+<span class="cm"># Identify which cert has expired</span>
+<span class="fn">kubectl</span> get certificates -n payment
+<span class="cm"># Look for status: False or NotReady</span>
+
+<span class="cm"># Renew expired cert (cert-manager)</span>
+<span class="fn">kubectl</span> delete certificaterequest -n payment \
+  -l cert-manager.io/certificate-name=&lt;expired-cert-name&gt;
+
+<span class="cm"># Wait for renewal, then restart pods</span>
+<span class="fn">kubectl</span> wait certificate &lt;cert-name&gt; -n payment --for=condition=Ready --timeout=300s
+<span class="fn">kubectl</span> rollout restart deployment/payment-api -n payment
+<span class="cm"># See full procedure in Example 12 runbook</span>
+
+<span class="cm">────────────────────────────────────────────────────────────────
+BRANCH B: External payment processor API degraded
+────────────────────────────────────────────────────────────────</span>
+<span class="cm"># This is not recoverable from our side. Actions:</span>
+<span class="cm"># 1. Confirm on status page (see STEP 4)</span>
+<span class="cm"># 2. Enable payment-api degraded mode if implemented (returns 503 with retry-after)</span>
+<span class="cm"># 3. Notify checkout-service team to surface user-facing message</span>
+<span class="cm"># 4. Monitor processor status — alert will resolve when processor recovers</span>
+<span class="cm"># 5. Do NOT restart pods — they will not fix an external dependency failure</span>
+<span class="cm"># Typical resolution: 10–30 minutes (processor-side recovery)</span>
+
+<span class="cm">────────────────────────────────────────────────────────────────
+BRANCH C: Database connection pool exhausted
+────────────────────────────────────────────────────────────────</span>
+<span class="cm"># Follow DatabaseConnectionPoolExhausted runbook first.
+# Return here after pool is recovered — HighErrorRate should auto-resolve.</span>
+
+<span class="cm">────────────────────────────────────────────────────────────────
+BRANCH D: Deployment regression
+────────────────────────────────────────────────────────────────</span>
+<span class="cm"># Roll back the deployment</span>
+<span class="fn">kubectl</span> rollout undo deployment/payment-api -n payment
+<span class="fn">kubectl</span> rollout status deployment/payment-api -n payment --timeout=180s
+<span class="cm"># Verify error rate recovers in next 2–3 minutes</span>
+<span class="cm"># File a bug report against the rolled-back version before marking resolved</span></code></pre>
+          </div>
+          <p style="margin-top:10px;">The branching structure matches the three root cause categories from the incident history, with the most common pattern (external API) deprioritised in favour of the most time-sensitive check (co-firing pool alert) at Step 1. Branch B includes the explicit instruction "do NOT restart pods" — a common mistake when engineers assume restarting will fix any service degradation.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Turn 4 -->
+    <div class="turn-nav" style="margin-top:28px;">
+      <span class="turn-nav-label">Turns</span>
+      <span class="turn-pip done">1</span><span class="turn-connector"></span>
+      <span class="turn-pip done">2</span><span class="turn-connector"></span>
+      <span class="turn-pip done">3</span><span class="turn-connector"></span>
+      <span class="turn-pip active">4</span><span class="turn-connector"></span>
+      <span class="turn-pip">5</span>
+    </div>
+
+    <div class="turn-label">Turn 4 of 5 — Machine-readable enrichment payload for AIOps pipeline</div>
+    <div class="conversation">
+      <div class="conv-turn engineer">
+        <div class="conv-role">Engineer → Claude Code</div>
+        <div class="conv-body">
+          <p>Produce a machine-readable enrichment payload for the three alerts — structured for the AIOps alert management system. Include alert correlation rules (which alerts co-fire with which), root cause classification probabilities based on the historical pattern, and recommended automated vs manual triage actions.</p>
+        </div>
+      </div>
+      <div class="conv-turn claude">
+        <div class="conv-role">Claude Code</div>
+        <div class="conv-body">
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">alert-enrichment-payment-api.json</span><button class="code-copy" onclick="copyCode(this)">copy</button></div>
+            <pre><code class="block">{
+  <span class="kw">"service"</span>: <span class="st">"payment-api"</span>,
+  <span class="kw">"enrichment_version"</span>: <span class="st">"2026-03-15"</span>,
+  <span class="kw">"alerts"</span>: [
+    {
+      <span class="kw">"name"</span>: <span class="st">"HighErrorRate"</span>,
+      <span class="kw">"severity"</span>: <span class="st">"critical"</span>,
+      <span class="kw">"slo_impact"</span>: <span class="nm">true</span>,
+      <span class="kw">"root_cause_distribution"</span>: [
+        { <span class="kw">"cause"</span>: <span class="st">"external_api_degradation"</span>, <span class="kw">"probability"</span>: <span class="nm">0.33</span>, <span class="kw">"avg_duration_min"</span>: <span class="nm">23</span> },
+        { <span class="kw">"cause"</span>: <span class="st">"deployment_regression"</span>,     <span class="kw">"probability"</span>: <span class="nm">0.33</span>, <span class="kw">"avg_duration_min"</span>: <span class="nm">8</span>  },
+        { <span class="kw">"cause"</span>: <span class="st">"certificate_expiry"</span>,        <span class="kw">"probability"</span>: <span class="nm">0.34</span>, <span class="kw">"avg_duration_min"</span>: <span class="nm">35</span> }
+      ],
+      <span class="kw">"correlation_rules"</span>: [
+        {
+          <span class="kw">"co_fires_with"</span>: <span class="st">"DatabaseConnectionPoolExhausted"</span>,
+          <span class="kw">"relationship"</span>: <span class="st">"downstream_symptom"</span>,
+          <span class="kw">"action"</span>: <span class="st">"resolve_pool_issue_first"</span>
+        }
+      ],
+      <span class="kw">"triage_actions"</span>: {
+        <span class="kw">"automated"</span>: [
+          <span class="st">"check_payment_processor_status_api"</span>,
+          <span class="st">"check_certificate_validity"</span>,
+          <span class="st">"check_recent_deployment_history"</span>
+        ],
+        <span class="kw">"manual"</span>: [
+          <span class="st">"review_application_logs_for_error_pattern"</span>,
+          <span class="st">"branch_on_root_cause_category"</span>
+        ]
+      },
+      <span class="kw">"do_not"</span>: [<span class="st">"restart_pods_if_external_api_degraded"</span>]
+    },
+    {
+      <span class="kw">"name"</span>: <span class="st">"PodMemoryPressure"</span>,
+      <span class="kw">"severity"</span>: <span class="st">"warning"</span>,
+      <span class="kw">"slo_impact"</span>: <span class="nm">false</span>,
+      <span class="kw">"root_cause_distribution"</span>: [
+        { <span class="kw">"cause"</span>: <span class="st">"application_bug_memory_leak"</span>,      <span class="kw">"probability"</span>: <span class="nm">0.67</span>, <span class="kw">"avg_duration_min"</span>: <span class="nm">9</span>  },
+        { <span class="kw">"cause"</span>: <span class="st">"traffic_spike_self_resolving"</span>,      <span class="kw">"probability"</span>: <span class="nm">0.33</span>, <span class="kw">"avg_duration_min"</span>: <span class="nm">4</span>  }
+      ],
+      <span class="kw">"escalation_threshold"</span>: <span class="nm">0.95</span>,
+      <span class="kw">"triage_actions"</span>: {
+        <span class="kw">"automated"</span>: [
+          <span class="st">"check_recent_deployments_2h"</span>,
+          <span class="st">"check_db_connection_pool_metrics"</span>
+        ],
+        <span class="kw">"manual"</span>: [<span class="st">"review_heap_dump_if_memory_leak_suspected"</span>]
+      }
+    },
+    {
+      <span class="kw">"name"</span>: <span class="st">"DatabaseConnectionPoolExhausted"</span>,
+      <span class="kw">"severity"</span>: <span class="st">"critical"</span>,
+      <span class="kw">"slo_impact"</span>: <span class="nm">true</span>,
+      <span class="kw">"root_cause_distribution"</span>: [
+        { <span class="kw">"cause"</span>: <span class="st">"rds_max_connections_reduced"</span>,  <span class="kw">"probability"</span>: <span class="nm">0.33</span>, <span class="kw">"avg_duration_min"</span>: <span class="nm">47</span> },
+        { <span class="kw">"cause"</span>: <span class="st">"connection_leak_application"</span>,  <span class="kw">"probability"</span>: <span class="nm">0.33</span>, <span class="kw">"avg_duration_min"</span>: <span class="nm">11</span> },
+        { <span class="kw">"cause"</span>: <span class="st">"traffic_spike_self_resolving"</span>, <span class="kw">"probability"</span>: <span class="nm">0.34</span>, <span class="kw">"avg_duration_min"</span>: <span class="nm">3</span>  }
+      ],
+      <span class="kw">"correlation_rules"</span>: [
+        {
+          <span class="kw">"co_fires_with"</span>: <span class="st">"HighErrorRate"</span>,
+          <span class="kw">"relationship"</span>: <span class="st">"upstream_cause"</span>,
+          <span class="kw">"action"</span>: <span class="st">"resolve_before_investigating_error_rate"</span>
+        }
+      ],
+      <span class="kw">"triage_actions"</span>: {
+        <span class="kw">"automated"</span>: [
+          <span class="st">"check_rds_max_connections_parameter"</span>,
+          <span class="st">"check_recent_terraform_applies_rds"</span>,
+          <span class="st">"check_batch_job_status"</span>
+        ],
+        <span class="kw">"manual"</span>: [<span class="st">"review_connection_pool_metrics_per_pod"</span>]
+      }
+    }
+  ]
+}</code></pre>
+          </div>
+          <p style="margin-top:10px;">The <code>do_not</code> field on HighErrorRate encodes the anti-pattern identified in the runbook — restarting pods when the root cause is an external API failure. This field can be used by an AIOps remediation pipeline to block automated restart actions when the current hypothesis is <code>external_api_degradation</code>, preventing an action that would add noise without fixing the problem.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Turn 5 -->
+    <div class="turn-nav" style="margin-top:28px;">
+      <span class="turn-nav-label">Turns</span>
+      <span class="turn-pip done">1</span><span class="turn-connector"></span>
+      <span class="turn-pip done">2</span><span class="turn-connector"></span>
+      <span class="turn-pip done">3</span><span class="turn-connector"></span>
+      <span class="turn-pip done">4</span><span class="turn-connector"></span>
+      <span class="turn-pip active">5</span>
+    </div>
+
+    <div class="turn-label">Turn 5 of 5 — PrometheusRule file with enriched annotations baked in</div>
+    <div class="conversation">
+      <div class="conv-turn engineer">
+        <div class="conv-role">Engineer → Claude Code</div>
+        <div class="conv-body">
+          <p>Produce the final PrometheusRule Kubernetes manifest with the enriched annotations from Turn 2 baked in. This file goes in the repo and gets applied to the cluster — it replaces the current minimal alert definitions.</p>
+        </div>
+      </div>
+      <div class="conv-turn claude">
+        <div class="conv-role">Claude Code</div>
+        <div class="conv-body">
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">k8s/monitoring/payment-api-alerts.yaml</span><button class="code-copy" onclick="copyCode(this)">copy</button></div>
+            <pre><code class="block"><span class="kw">apiVersion:</span> <span class="st">monitoring.coreos.com/v1</span>
+<span class="kw">kind:</span> <span class="st">PrometheusRule</span>
+<span class="kw">metadata:</span>
+  <span class="kw">name:</span> <span class="st">payment-api-alerts</span>
+  <span class="kw">namespace:</span> <span class="st">payment</span>
+  <span class="kw">labels:</span>
+    <span class="kw">app:</span> <span class="st">payment-api</span>
+    <span class="kw">prometheus:</span> <span class="st">kube-prometheus</span>
+<span class="kw">spec:</span>
+  <span class="kw">groups:</span>
+    - <span class="kw">name:</span> <span class="st">payment-api.rules</span>
+      <span class="kw">rules:</span>
+
+        - <span class="kw">alert:</span> <span class="st">HighErrorRate</span>
+          <span class="kw">expr:</span> <span class="st">rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) > 0.05</span>
+          <span class="kw">for:</span> <span class="st">2m</span>
+          <span class="kw">labels:</span>
+            <span class="kw">severity:</span> <span class="st">critical</span>
+            <span class="kw">team:</span> <span class="st">payment-platform</span>
+            <span class="kw">runbook:</span> <span class="st">high-error-rate</span>
+          <span class="kw">annotations:</span>
+            <span class="kw">summary:</span> <span class="st">"payment-api error rate {{ $value | humanizePercentage }} (SLO: < 0.5%)"</span>
+            <span class="kw">description:</span> <span class="st">"5xx error rate exceeded 5% for 2+ minutes. Payment success rate below SLO. Checkout-service callers experiencing failures."</span>
+            <span class="kw">impact:</span> <span class="st">"Payment transactions failing. checkout-service blocked. Revenue impact active."</span>
+            <span class="kw">historical_pattern:</span> <span class="st">"3 firings: external API timeout (23min), bad deploy (8min), TLS cert expiry (35min). Check external dependency before internal causes."</span>
+            <span class="kw">triage_first_step:</span> <span class="st">"1) DatabaseConnectionPoolExhausted co-firing? Fix pool first. 2) App logs: TLS/timeout/pool pattern? 3) Recent deployment? 4) Payment processor status."</span>
+            <span class="kw">runbook_url:</span> <span class="st">"https://sflearningdevelopment.github.io/runbooks/payment-api/high-error-rate"</span>
+            <span class="kw">escalation:</span> <span class="st">"Unresolved after 10min: page payment-platform team lead."</span>
+
+        - <span class="kw">alert:</span> <span class="st">PodMemoryPressure</span>
+          <span class="kw">expr:</span> <span class="st">container_memory_working_set_bytes{container="payment-api"} / container_spec_memory_limit_bytes > 0.85</span>
+          <span class="kw">for:</span> <span class="st">5m</span>
+          <span class="kw">labels:</span>
+            <span class="kw">severity:</span> <span class="st">warning</span>
+            <span class="kw">team:</span> <span class="st">payment-platform</span>
+            <span class="kw">runbook:</span> <span class="st">pod-memory-pressure</span>
+          <span class="kw">annotations:</span>
+            <span class="kw">summary:</span> <span class="st">"{{ $labels.pod }} memory {{ $value | humanizePercentage }} of 768Mi limit"</span>
+            <span class="kw">description:</span> <span class="st">"Pod memory > 85% limit. OOMKill risk if sustained. Two of three historical firings were bugs — do not wait for HPA to self-resolve."</span>
+            <span class="kw">impact:</span> <span class="st">"OOMKill risk on affected pod. Multiple pods affected: service degradation."</span>
+            <span class="kw">historical_pattern:</span> <span class="st">"3 firings: memory leak v1.4.2 (12min), traffic spike HPA resolved (4min), connection leak v1.6.1 (6min). Check recent deploys and DB pool first."</span>
+            <span class="kw">triage_first_step:</span> <span class="st">"1) Recent deployment in last 2h? 2) DB pool metrics (connection leak pattern)? 3) Current traffic vs baseline."</span>
+            <span class="kw">runbook_url:</span> <span class="st">"https://sflearningdevelopment.github.io/runbooks/payment-api/pod-memory-pressure"</span>
+            <span class="kw">escalation:</span> <span class="st">"Memory > 95% or OOMKill fires: escalate immediately."</span>
+
+        - <span class="kw">alert:</span> <span class="st">DatabaseConnectionPoolExhausted</span>
+          <span class="kw">expr:</span> <span class="st">payment_api_db_pool_active / payment_api_db_pool_size > 0.90</span>
+          <span class="kw">for:</span> <span class="st">1m</span>
+          <span class="kw">labels:</span>
+            <span class="kw">severity:</span> <span class="st">critical</span>
+            <span class="kw">team:</span> <span class="st">payment-platform</span>
+            <span class="kw">runbook:</span> <span class="st">db-pool-exhausted</span>
+          <span class="kw">annotations:</span>
+            <span class="kw">summary:</span> <span class="st">"DB pool {{ $value | humanizePercentage }} utilised on {{ $labels.pod }}"</span>
+            <span class="kw">description:</span> <span class="st">"Connection pool > 90% capacity (45/50 connections). At 100%, payments queue then fail. HighErrorRate alert will follow within minutes."</span>
+            <span class="kw">impact:</span> <span class="st">"Payment transactions queuing. HighErrorRate likely co-firing or imminent."</span>
+            <span class="kw">historical_pattern:</span> <span class="st">"3 firings: RDS max_connections halved by Terraform (47min), connection leak batch job (11min), traffic spike HPA resolved (3min)."</span>
+            <span class="kw">triage_first_step:</span> <span class="st">"1) RDS DatabaseConnections vs max_connections parameter. 2) Recent Terraform apply on RDS parameter group. 3) Batch job status."</span>
+            <span class="kw">runbook_url:</span> <span class="st">"https://sflearningdevelopment.github.io/runbooks/payment-api/db-pool-exhausted"</span>
+            <span class="kw">escalation:</span> <span class="st">"Resolve pool issue before investigating HighErrorRate — shared root cause pattern."</span></code></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ══ STEP 4 ══ -->
+  <section class="step-section" id="step-4">
+    <div class="step-header">
+      <div class="step-number">4</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 4 of 5</div>
+        <div class="step-title">The refined output</div>
+      </div>
+<div class="reviewer-bar" id="rev-bar-4">
+  <input type="checkbox" class="rev-checkbox" id="rev-cb-4" data-step="4">
+  <label for="rev-cb-4">Mark step as reviewed</label>
+</div>
+
+    </div>
+
+    <p class="prose">Example 13 produces three distinct outputs: enriched Prometheus annotations deployable to the cluster, a structured runbook for the highest-priority alert, and a machine-readable enrichment payload for the AIOps pipeline. The runbook box below shows the HighErrorRate runbook structure.</p>
+
+    <div class="runbook-box">
+      <div class="runbook-label">HighErrorRate runbook — branching structure</div>
+
+      <div class="runbook-section">
+        <div class="runbook-section-title">Immediate checks (2 minutes)</div>
+        <div class="runbook-step">
+          <span class="runbook-num">1</span>
+          <div class="runbook-step-body"><strong>Co-firing alerts?</strong> If <code>DatabaseConnectionPoolExhausted</code> is also active — follow that runbook first. Pool exhaustion causes error rate spikes; fixing the pool resolves both alerts.</div>
+        </div>
+        <div class="runbook-step">
+          <span class="runbook-num">2</span>
+          <div class="runbook-step-body"><strong>Application log pattern:</strong> <code>kubectl logs -l app=payment-api -n payment --since=5m | grep -E "ERROR|x509|timeout|pool"</code> — identifies which branch to follow.</div>
+        </div>
+        <div class="runbook-step">
+          <span class="runbook-num">3</span>
+          <div class="runbook-step-body"><strong>Recent deployment?</strong> <code>kubectl rollout history deployment/payment-api -n payment | tail -5</code> — deployment in last 2 hours points to regression branch.</div>
+        </div>
+      </div>
+
+      <div class="runbook-section">
+        <div class="runbook-section-title">Branch A — TLS certificate (35 min avg)</div>
+        <div class="runbook-step">
+          <span class="runbook-num">→</span>
+          <div class="runbook-step-body">Log pattern: <code>x509: certificate has expired</code>. Action: renew cert via cert-manager, wait for Ready, rolling restart. See Example 12 for full procedure.</div>
+        </div>
+      </div>
+
+      <div class="runbook-section">
+        <div class="runbook-section-title">Branch B — External API degraded (23 min avg)</div>
+        <div class="runbook-step">
+          <span class="runbook-num">→</span>
+          <div class="runbook-step-body">Log pattern: <code>payment-processor: timeout / ECONNREFUSED</code>. Action: check processor status page, notify checkout-service, <strong>do not restart pods</strong>. Monitor for processor recovery.</div>
+        </div>
+      </div>
+
+      <div class="runbook-section">
+        <div class="runbook-section-title">Branch D — Deployment regression (8 min avg)</div>
+        <div class="runbook-step">
+          <span class="runbook-num">→</span>
+          <div class="runbook-step-body">Recent deployment in history. Action: <code>kubectl rollout undo deployment/payment-api -n payment</code>. File bug against rolled-back version before closing incident.</div>
+        </div>
+      </div>
+    </div>
+
+    <ul class="annotation-list" style="margin-top:24px;">
+      <li>
+        <span class="ann-badge ann-good">Value</span>
+        <div><strong>Historical pattern annotation encodes institutional memory into the alert.</strong> The three most common root causes, with their average resolution times, are now visible to any engineer who opens the alert — not just those who were on-call for the historical incidents. This is the primary value of alert enrichment: making experienced-engineer knowledge available at 03:00 to whoever is paged.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-good">Value</span>
+        <div><strong>The <code>do_not</code> field prevents the most common mitigation mistake.</strong> Restarting pods when the root cause is an external API failure is the most common wrong action in a HighErrorRate incident. Encoding it as a machine-readable constraint lets the AIOps pipeline suppress automated restart actions when the diagnosis points to an external dependency — preventing an action that adds noise without fixing anything.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-good">Value</span>
+        <div><strong>Alert correlation is bidirectional in the enrichment payload.</strong> HighErrorRate lists DatabaseConnectionPoolExhausted as a co-fire that should be resolved first. DatabaseConnectionPoolExhausted lists HighErrorRate as a downstream symptom to resolve automatically. Both relationships are in the payload — the AIOps pipeline can use either alert as the entry point and navigate to the correct resolution sequence regardless of which fires first.</div>
+      </li>
+    </ul>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ══ STEP 5 ══ -->
+  <section class="step-section" id="step-5">
+    <div class="step-header">
+      <div class="step-number">5</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 5 of 5</div>
+        <div class="step-title">Watch out</div>
+      </div>
+<div class="reviewer-bar" id="rev-bar-5">
+  <input type="checkbox" class="rev-checkbox" id="rev-cb-5" data-step="5">
+  <label for="rev-cb-5">Mark step as reviewed</label>
+</div>
+
+    </div>
+
+    <p class="prose">Claude Code produced accurate enrichment grounded in the incident history, a correctly branched runbook, and a machine-readable payload with bidirectional correlation rules. Here is what requires ongoing maintenance and human judgment.</p>
+
+    <div class="callout good">
+      <div class="callout-label">What Claude Code handled well</div>
+      Identified that HighErrorRate has three distinct root cause categories requiring runbook branching rather than a single triage path, correctly deprioritised external API as the first check (check co-firing pool alert first — faster resolution), <code>do_not: restart_pods_if_external_api_degraded</code> derived from Branch B logic without prompting, bidirectional alert correlation (HighErrorRate ↔ DatabaseConnectionPoolExhausted) produced correctly, root cause probability distribution derived arithmetically from three historical firings per alert, PodMemoryPressure warning correctly flagged as not safe to "wait and see" despite being P2 severity.
+    </div>
+
+    <ul class="annotation-list" style="margin-top:24px;">
+      <li>
+        <span class="ann-badge ann-warn">Verify</span>
+        <div><strong>Root cause probabilities are based on three data points per alert.</strong> The probability distributions (e.g. 0.33/0.33/0.34 for HighErrorRate) are calculated from exactly three historical firings. Three firings is a statistically thin sample — the distributions will update significantly as more incidents accumulate. The enrichment payload should be regenerated every quarter, or after each new incident, to keep the distributions current. Treat the probabilities as rough priors, not reliable forecasts.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Verify</span>
+        <div><strong>The runbook assumes cert-manager for certificate operations.</strong> Branch A of the HighErrorRate runbook references cert-manager CRDs. If your certificate management uses a different system, this branch produces incorrect commands. The runbook structure (identify cert → renew → wait for ready → restart pods) is correct regardless of the tool; update the specific commands to match your implementation.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Verify</span>
+        <div><strong>Alert annotations have character limits in some notification systems.</strong> PagerDuty, Opsgenie, and other alerting tools may truncate annotation fields beyond a certain length. The <code>historical_pattern</code> and <code>triage_first_step</code> annotations are the longest — verify they render correctly in your notification system before deploying the PrometheusRule. If truncation occurs, shorten these fields or move the detail to the runbook URL.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-info">Note</span>
+        <div><strong>Alert enrichment requires ongoing maintenance.</strong> The value of the historical pattern annotation degrades as new incidents occur that are not reflected in it. A runbook that references three incidents from six months ago and ignores the last five incidents is less useful than the unannotated alert. Establish a process to update alert annotations after each incident postmortem — or regenerate the enrichment payload automatically from your incident tracking system on a scheduled basis.</div>
+      </li>
+    </ul>
+
+    <div class="callout tip">
+      <div class="callout-label">Prompting tip for alert enrichment</div>
+      <strong>Provide incident history structured by alert, not by date.</strong> A chronological incident log ("here is everything that happened in Q1") requires Claude Code to categorise incidents by alert before it can derive root cause distributions — which adds a reasoning step that may introduce classification errors. Providing history pre-grouped by alert name ("here are the last three firings of HighErrorRate") lets Claude Code focus on deriving distributions and patterns rather than categorisation. The more structured the input, the more precise the enrichment output.
+    </div>
+  </section>
+
+  <!-- Tier 3 + Module 1 complete -->
+  <div class="tier-complete">
+    <div class="tier-complete-label">Tier 3 complete · Module 1 complete</div>
+    <div class="tier-complete-title">All thirteen examples finished</div>
+    <div class="tier-complete-desc">
+      You have completed the full Module 1 learning path — Practical Usage of Claude Code for DevOps Automation. Tier 1 covered single-file tasks. Tier 2 covered multi-step workflows. Tier 3 covered context-heavy cross-layer scenarios, ending with alert enrichment and runbook generation as the bridge into AIOps.<br><br>
+      The payment-api service is now fully built, deployed, monitored, and documented. Every artifact produced across thirteen examples — the Dockerfile, the Terraform modules, the CI/CD pipeline, the Kubernetes workload spec, the GitOps promotion flow, the smoke test, and now the enriched alert runbooks — describes the same system. Module 2 (AIOps use cases) builds on the incident patterns, structured payloads, and alert correlation rules introduced in Tier 3. Return to the <a href="../course-map.html">course map</a> to continue.
+    </div>
+  </div>
+
+  
+<div class="reviewer-panel">
+  <div class="reviewer-panel-label">🔍 Reviewer question — E13-1</div>
+  <div class="reviewer-q-text">In Example 13 Turn 1, Claude Code identified that the HighErrorRate alert requires a branching runbook rather than a single linear triage sequence. What observation from the incident history led to this conclusion?</div>
+  <div class="reviewer-options">
+    <div class="reviewer-option" data-key="A" onclick="selectRevOption('A',this)"><span class="reviewer-option-key">A</span><span>HighErrorRate had the longest average resolution time of the three alerts</span></div>
+    <div class="reviewer-option" data-key="B" onclick="selectRevOption('B',this)"><span class="reviewer-option-key">B</span><span>HighErrorRate's three historical firings had three categorically different root causes: external API failure, deployment regression, and TLS cert expiry</span></div>
+    <div class="reviewer-option" data-key="C" onclick="selectRevOption('C',this)"><span class="reviewer-option-key">C</span><span>HighErrorRate always co-fires with DatabaseConnectionPoolExhausted</span></div>
+    <div class="reviewer-option" data-key="D" onclick="selectRevOption('D',this)"><span class="reviewer-option-key">D</span><span>HighErrorRate is a P1 alert, which always requires branching runbooks by policy</span></div>
+  </div>
+  <button class="reviewer-reveal" id="rev-reveal-btn" onclick="revealRevAnswer()">Check answer</button>
+  <div class="reviewer-explanation" id="rev-explanation">
+    <div class="reviewer-exp-label"></div>
+    A single linear triage sequence assumes one dominant root cause. HighErrorRate has three distinct root causes from its history — each requiring a different resolution action (wait for processor recovery vs rollback vs cert renewal). A linear sequence would misguide the engineer in two out of three cases. The branching structure is driven by the incident history, not by alert severity.
+  </div>
+  <div class="reviewer-comment-label">Reviewer notes</div>
+  <textarea class="reviewer-comment" id="rev-comment" placeholder="Add your review notes for this example…"></textarea>
+  <div class="reviewer-save-note">Notes are auto-saved in your browser.</div>
+</div>
+<script>window.REV_CORRECT = "B";</script>
+
+<div class="bottom-nav">
+    <a class="nav-btn secondary" href="../example-12-incident-rca-aiops.html">← Example 12 — Incident RCA with AIOps handoff</a>
+    <a class="nav-btn" href="../course-map.html">Back to course map →</a>
+  </div>
+
+</div>
+
+<footer>
+  <span>AIOps &amp; DevOps Learning Path · SourceFuse L&amp;D</span>
+  <span>Example 13 of 13 · Tier 3 · Alert enrichment and runbook generation</span>
+</footer>
+
+<script>
+  const sections = document.querySelectorAll('.step-section');
+  const navItems = document.querySelectorAll('.stepnav-item');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const id = entry.target.id;
+        navItems.forEach(item => {
+          item.classList.toggle('active', item.getAttribute('href') === '#' + id);
+        });
+      }
+    });
+  }, { rootMargin:'-30% 0px -60% 0px', threshold:0 });
+  sections.forEach(s => observer.observe(s));
+
+  function copyCode(btn) {
+    const pre = btn.closest('.code-wrap').querySelector('pre');
+    navigator.clipboard.writeText(pre.innerText).then(() => {
+      btn.textContent = 'copied!';
+      setTimeout(() => btn.textContent = 'copy', 2000);
+    });
+  }
+</script>
+
+<script>
+// ── Reviewer persistence ─────────────────────────────────────────────────────
+const REV_KEY = 'reviewer_example-13';
+
+function revLoad() {
+  try { return JSON.parse(localStorage.getItem(REV_KEY)) || {}; } catch(e) { return {}; }
+}
+
+function revSave(state) {
+  localStorage.setItem(REV_KEY, JSON.stringify(state));
+}
+
+// Restore checkboxes
+document.querySelectorAll('.rev-checkbox').forEach(cb => {
+  const state = revLoad();
+  if (state['cb_' + cb.dataset.step]) {
+    cb.checked = true;
+    cb.closest('.reviewer-bar').classList.add('checked');
+    cb.closest('.reviewer-bar').querySelector('label').textContent = '✓ Step reviewed';
+  }
+  cb.addEventListener('change', () => {
+    const s = revLoad();
+    s['cb_' + cb.dataset.step] = cb.checked;
+    revSave(s);
+    const bar = cb.closest('.reviewer-bar');
+    bar.classList.toggle('checked', cb.checked);
+    bar.querySelector('label').textContent = cb.checked ? '✓ Step reviewed' : 'Mark step as reviewed';
+  });
+});
+
+// Restore comment
+const commentEl = document.getElementById('rev-comment');
+if (commentEl) {
+  const state = revLoad();
+  if (state.comment) commentEl.value = state.comment;
+  commentEl.addEventListener('input', () => {
+    const s = revLoad();
+    s.comment = commentEl.value;
+    revSave(s);
+  });
+}
+
+// Reviewer question logic
+let revAnswer = null;
+let revSubmitted = false;
+
+(function restoreRevQ() {
+  const state = revLoad();
+  if (state.revAnswer !== undefined) {
+    revAnswer = state.revAnswer;
+    revSubmitted = state.revSubmitted || false;
+    if (revAnswer !== null) applyRevAnswer(revAnswer, revSubmitted);
+  }
+})();
+
+function selectRevOption(key, el) {
+  if (revSubmitted) return;
+  revAnswer = key;
+  document.querySelectorAll('.reviewer-option').forEach(o => o.classList.toggle('selected', o.dataset.key === key));
+  const s = revLoad(); s.revAnswer = key; revSave(s);
+}
+
+function selectRevTF(val, el) {
+  if (revSubmitted) return;
+  revAnswer = val;
+  document.querySelectorAll('.reviewer-tf-btn').forEach(b => {
+    b.classList.toggle('selected', (b.dataset.val === 'true') === val);
+  });
+  const s = revLoad(); s.revAnswer = val; revSave(s);
+}
+
+function revealRevAnswer() {
+  if (revAnswer === null) { alert('Please select an answer first.'); return; }
+  revSubmitted = true;
+  const s = revLoad(); s.revSubmitted = true; revSave(s);
+  applyRevAnswer(revAnswer, true);
+}
+
+function applyRevAnswer(ans, showResult) {
+  const correctVal = window.REV_CORRECT;
+  // MCQ
+  document.querySelectorAll('.reviewer-option').forEach(o => {
+    o.classList.remove('selected','correct','wrong');
+    if (showResult) {
+      if (o.dataset.key === correctVal) o.classList.add('correct');
+      else if (o.dataset.key === ans && o.dataset.key !== correctVal) o.classList.add('wrong');
+    } else {
+      if (o.dataset.key === ans) o.classList.add('selected');
+    }
+  });
+  // T/F
+  document.querySelectorAll('.reviewer-tf-btn').forEach(b => {
+    b.classList.remove('selected','correct','wrong');
+    const bVal = b.dataset.val === 'true';
+    if (showResult) {
+      if (bVal === correctVal) b.classList.add('correct');
+      else if (bVal === ans && bVal !== correctVal) b.classList.add('wrong');
+    } else {
+      if (bVal === ans) b.classList.add('selected');
+    }
+  });
+  if (showResult) {
+    const expEl = document.getElementById('rev-explanation');
+    const btnEl = document.getElementById('rev-reveal-btn');
+    if (expEl) {
+      const isCorrect = (ans === correctVal) || (ans === correctVal);
+      expEl.classList.add('visible');
+      const lbl = expEl.querySelector('.reviewer-exp-label');
+      if (lbl) { lbl.textContent = isCorrect ? '✓ Correct' : '✗ Incorrect'; lbl.className = 'reviewer-exp-label ' + (isCorrect ? 'correct' : 'wrong'); }
+    }
+    if (btnEl) btnEl.style.display = 'none';
+  }
+}
+</script>
+
+</body>
+</html>

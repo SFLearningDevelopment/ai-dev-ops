@@ -1,0 +1,1112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>[Reviewer] Example 2 — Terraform variables.tf with Validation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Merriweather+Sans:wght@300;400;600;700&family=Source+Code+Pro:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:           #eef2f7;
+    --bg2:          #ffffff;
+    --bg3:          #f0f4f9;
+    --border:       #d0dae8;
+    --text:         #1a2332;
+    --text-dim:     #4a5568;
+    --text-dimmer:  #8fa3bc;
+    --blue:         #1a6eb5;
+    --blue-light:   #e8f1fb;
+    --blue-mid:     #b8d0ed;
+    --blue-dark:    #0f4a7a;
+    --teal:         #0e7a6b;
+    --teal-light:   #e6f4f2;
+    --coral:        #c0392b;
+    --coral-light:  #fdf0ee;
+    --coral-mid:    #f0b8b2;
+    --green:        #1a6b3a;
+    --green-light:  #e8f5ed;
+    --amber:        #92600a;
+    --amber-light:  #fdf3e3;
+    --code-bg:      #1e2433;
+    --code-text:    #cdd6f4;
+    --radius:       12px;
+  }
+
+  html, body { min-height:100%; background:var(--bg); color:var(--text); font-family:'Merriweather Sans',sans-serif; font-size:15px; line-height:1.6; }
+
+  .topnav { background:var(--bg2); border-bottom:1px solid var(--border); padding:0 40px; height:52px; display:flex; align-items:center; gap:8px; font-size:12px; color:var(--text-dimmer); font-family:'Source Code Pro',monospace; position:sticky; top:0; z-index:100; }
+  .topnav a { color:var(--blue); text-decoration:none; }
+  .topnav a:hover { text-decoration:underline; }
+  .topnav .sep { margin:0 4px; color:var(--text-dimmer); }
+
+  .stepnav { background:var(--bg2); border-bottom:1px solid var(--border); padding:0 40px; display:flex; align-items:stretch; position:sticky; top:52px; z-index:99; overflow-x:auto; }
+  .stepnav-item { display:flex; align-items:center; gap:8px; padding:14px 20px; font-size:12px; font-family:'Source Code Pro',monospace; color:var(--text-dimmer); cursor:pointer; border-bottom:3px solid transparent; white-space:nowrap; transition:color 0.15s,border-color 0.15s; text-decoration:none; }
+  .stepnav-item:hover { color:var(--text-dim); }
+  .stepnav-item.active { color:var(--blue); border-bottom-color:var(--blue); font-weight:600; }
+  .stepnav-num { width:20px; height:20px; border-radius:50%; background:var(--bg3); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; flex-shrink:0; transition:background 0.15s,border-color 0.15s,color 0.15s; }
+  .stepnav-item.active .stepnav-num { background:var(--blue); border-color:var(--blue); color:white; }
+
+  .hero { background:var(--bg2); border-bottom:2px solid var(--border); padding:40px 40px 32px; }
+  .hero-inner { max-width:860px; margin:0 auto; }
+  .hero-eyebrow { font-size:10px; letter-spacing:0.2em; text-transform:uppercase; color:var(--blue); font-weight:600; margin-bottom:10px; font-family:'Source Code Pro',monospace; }
+  .hero h1 { font-size:clamp(18px,2.5vw,26px); font-weight:700; color:var(--text); line-height:1.25; }
+  .hero h1 span { color:var(--blue); }
+  .hero-meta { margin-top:14px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  .meta-pill { font-size:10.5px; font-family:'Source Code Pro',monospace; padding:3px 10px; border-radius:20px; font-weight:600; }
+  .pill-tier  { background:var(--blue-light); color:var(--blue); border:1px solid var(--blue-mid); }
+  .pill-topic { background:var(--teal-light); color:var(--teal); border:1px solid #a3d4ce; }
+  .pill-turns { background:var(--bg3); color:var(--text-dim); border:1px solid var(--border); font-weight:400; }
+
+  .main { max-width:860px; margin:0 auto; padding:40px 40px 80px; }
+
+  .step-section { margin-bottom:56px; scroll-margin-top:120px; }
+  .step-header { display:flex; align-items:center; gap:14px; margin-bottom:20px; padding-bottom:16px; border-bottom:2px solid var(--border); }
+  .step-number { width:40px; height:40px; border-radius:50%; background:var(--blue); color:white; display:flex; align-items:center; justify-content:center; font-size:16px; font-weight:700; font-family:'Source Code Pro',monospace; flex-shrink:0; }
+  .step-label { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:0.18em; text-transform:uppercase; color:var(--blue); font-weight:600; margin-bottom:3px; }
+  .step-title { font-size:18px; font-weight:700; color:var(--text); line-height:1.25; }
+
+  .prose { font-size:14.5px; color:var(--text-dim); line-height:1.8; margin-bottom:20px; }
+  .prose strong { color:var(--text); font-weight:600; }
+  .prose code { font-family:'Source Code Pro',monospace; font-size:13px; background:var(--bg3); border:1px solid var(--border); padding:1px 5px; border-radius:4px; color:var(--blue-dark); }
+  .prose em { color:var(--text-dim); font-style:italic; }
+
+  .callout { border-radius:var(--radius); padding:16px 18px; margin:20px 0; font-size:13.5px; line-height:1.7; }
+  .callout-label { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:0.15em; text-transform:uppercase; font-weight:700; margin-bottom:6px; }
+  .callout.info { background:var(--blue-light); border:1px solid var(--blue-mid); border-left:3px solid var(--blue); color:var(--text-dim); }
+  .callout.info .callout-label { color:var(--blue); }
+  .callout.warn { background:#fdf5f5; border:1px solid var(--coral-mid); border-left:3px solid var(--coral); color:var(--text-dim); }
+  .callout.warn .callout-label { color:var(--coral); }
+  .callout.good { background:var(--green-light); border:1px solid #a3d4b8; border-left:3px solid var(--green); color:var(--text-dim); }
+  .callout.good .callout-label { color:var(--green); }
+  .callout.tip { background:var(--amber-light); border:1px solid #f0d4a0; border-left:3px solid var(--amber); color:var(--text-dim); }
+  .callout.tip .callout-label { color:var(--amber); }
+  .callout strong { color:var(--text); font-weight:600; }
+  .callout code { font-family:'Source Code Pro',monospace; font-size:12.5px; background:rgba(0,0,0,0.06); padding:1px 5px; border-radius:4px; }
+
+  .code-wrap { margin:20px 0; border-radius:0; overflow:hidden; border:1px solid #2a3144; background:#1e2433; }
+  .code-header { background:#252b3b; padding:10px 16px; display:flex; align-items:center; justify-content:space-between; }
+  .code-filename { font-size:11px; font-family:'Source Code Pro',monospace; color:#ffffff; letter-spacing:0.05em; }
+  .code-lang { font-size:10px; font-family:'Source Code Pro',monospace; color:#4a5568; letter-spacing:0.1em; text-transform:uppercase; }
+  .code-copy { font-size:10px; font-family:'Source Code Pro',monospace; color:#7a8ab0; background:none; border:1px solid #3a4155; border-radius:4px; padding:2px 8px; cursor:pointer; transition:color 0.15s,border-color 0.15s; }
+  .code-copy:hover { color:#cdd6f4; border-color:#6a7ab0; }
+  pre { background:#1e2433 !important; padding:20px; overflow-x:auto; margin:0; }
+  code.block { font-family:'Source Code Pro',monospace; font-size:13px; line-height:1.7; color:var(--code-text); background:none; border:none; padding:0; display:block; }
+
+  .kw  { color:#cba6f7; }
+  .cm  { color:#6c7086; font-style:italic; }
+  .st  { color:#a6e3a1; }
+  .nm  { color:#fab387; }
+  .op  { color:#89dceb; }
+  .an  { color:#f38ba8; }
+  .ty  { color:#f9e2af; }
+  .fn  { color:#89b4fa; }
+
+  .diff-wrap { margin:20px 0; border-radius:0; overflow:hidden; border:1px solid #2a3144; background:#1e2433; }
+  .diff-header { background:#252b3b; padding:10px 16px; font-size:11px; font-family:'Source Code Pro',monospace; color:#ffffff; }
+  .diff-body { background:#1e2433 !important; padding:16px 0; overflow-x:auto; }
+  .diff-line { padding:1px 20px; font-family:'Source Code Pro',monospace; font-size:13px; line-height:1.65; color:var(--code-text); display:block; }
+  .diff-line.add { background:rgba(166,227,161,0.12); color:#a6e3a1; }
+  .diff-line.add::before { content:'+  '; color:#a6e3a1; }
+  .diff-line.rem { background:rgba(243,139,168,0.12); color:#f38ba8; }
+  .diff-line.rem::before { content:'-  '; color:#f38ba8; }
+  .diff-line.neu::before { content:'   '; }
+
+  .annotation-list { list-style:none; display:flex; flex-direction:column; gap:12px; margin:20px 0; }
+  .annotation-list li { display:flex; gap:12px; align-items:flex-start; font-size:13.5px; color:var(--text-dim); line-height:1.7; }
+  .ann-badge { flex-shrink:0; font-size:10px; font-family:'Source Code Pro',monospace; font-weight:700; padding:2px 8px; border-radius:4px; margin-top:2px; }
+  .ann-good { background:var(--green-light); color:var(--green); border:1px solid #a3d4b8; }
+  .ann-warn { background:var(--coral-light); color:var(--coral); border:1px solid var(--coral-mid); }
+  .ann-info { background:var(--blue-light); color:var(--blue); border:1px solid var(--blue-mid); }
+  .annotation-list li strong { color:var(--text); font-weight:600; }
+  .annotation-list li code { font-family:'Source Code Pro',monospace; font-size:12.5px; background:var(--bg3); border:1px solid var(--border); padding:1px 5px; border-radius:4px; color:var(--blue-dark); }
+
+  .conversation { display:flex; flex-direction:column; gap:0; margin:24px 0; border:1px solid #2a3144; border-radius:var(--radius); overflow:hidden; }
+  .conv-turn { padding:18px 22px; }
+  .conv-turn + .conv-turn { border-top:1px solid #2a3144; }
+  .conv-turn.engineer { background:var(--bg3); }
+  .conv-turn.claude   { background:#1e2433; }
+  .conv-role { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:0.18em; text-transform:uppercase; font-weight:700; margin-bottom:8px; }
+  .conv-turn.engineer .conv-role { color:var(--teal); }
+  .conv-turn.claude   .conv-role { color:#7a8ab0; }
+  .conv-body { font-size:13.5px; line-height:1.75; }
+  .conv-turn.engineer .conv-body { color:var(--text-dim); }
+  .conv-turn.claude .conv-body { color:#cdd6f4; }
+  .conv-turn.engineer .conv-body strong { color:var(--text); font-weight:600; }
+  .conv-turn.claude .conv-body strong { color:#ffffff; font-weight:600; }
+  .conv-turn.engineer .conv-body code { font-family:'Source Code Pro',monospace; font-size:12.5px; background:var(--bg3); border:1px solid var(--border); padding:1px 5px; border-radius:4px; color:var(--blue-dark); }
+  .conv-turn.claude .conv-body code { font-family:'Source Code Pro',monospace; font-size:12.5px; background:#252b3b; border:1px solid #3a4155; padding:1px 5px; border-radius:4px; color:#89dceb; }
+  .conv-turn.claude .conv-body em { font-style:italic; color:#6c7086; }
+  .conv-turn.claude .code-wrap { margin:12px 0; }
+
+  .turn-label { display:inline-flex; align-items:center; gap:6px; font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:0.12em; text-transform:uppercase; color:var(--text-dimmer); background:var(--bg3); border:1px solid var(--border); border-radius:20px; padding:3px 10px; margin-bottom:14px; font-weight:600; }
+
+  .section-divider { height:1px; background:var(--border); margin:40px 0; }
+
+  .bottom-nav { display:flex; justify-content:space-between; align-items:center; padding:20px 0 0; border-top:1px solid var(--border); margin-top:40px; }
+  .nav-btn { display:inline-flex; align-items:center; gap:8px; font-size:13px; font-family:'Source Code Pro',monospace; color:var(--blue); text-decoration:none; padding:10px 18px; border:1px solid var(--blue-mid); border-radius:8px; background:var(--blue-light); transition:background 0.15s,border-color 0.15s; font-weight:600; }
+  .nav-btn:hover { background:var(--blue-mid); border-color:var(--blue); }
+  .nav-btn.secondary { background:var(--bg2); color:var(--text-dim); border-color:var(--border); }
+  .nav-btn.secondary:hover { background:var(--bg3); }
+
+  footer { background:var(--bg2); border-top:1px solid var(--border); padding:14px 40px; font-size:11px; font-family:'Source Code Pro',monospace; color:var(--text-dimmer); display:flex; justify-content:space-between; align-items:center; }
+
+  @media (max-width:640px) { .topnav,.main,footer { padding-left:20px; padding-right:20px; } .hero { padding:28px 20px; } .stepnav { padding:0 20px; } }
+
+  /* ── Reviewer additions ──────────────────────────────────────────────────── */
+  .reviewer-bar {
+    background: #fff8e6;
+    border: 1px solid #f0d4a0;
+    border-left: 3px solid #92600a;
+    border-radius: 8px;
+    padding: 10px 16px;
+    margin-top: 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: #92600a;
+    font-family: 'Source Code Pro', monospace;
+  }
+  .reviewer-bar input[type="checkbox"] {
+    width: 16px; height: 16px; cursor: pointer; flex-shrink: 0;
+    accent-color: #1a6b3a;
+  }
+  .reviewer-bar label { cursor: pointer; font-weight: 600; user-select: none; }
+  .reviewer-bar.checked { background: #e8f5ed; border-color: #a3d4b8; border-left-color: #1a6b3a; color: #1a6b3a; }
+
+  .reviewer-panel {
+    background: #f5f0ff;
+    border: 1px solid #c4bdf0;
+    border-top: 3px solid #5b4fcf;
+    border-radius: 12px;
+    padding: 24px 28px;
+    margin: 32px 0;
+  }
+  .reviewer-panel-label {
+    font-size: 9px; font-family: 'Source Code Pro', monospace;
+    letter-spacing: .18em; text-transform: uppercase;
+    color: #5b4fcf; font-weight: 600; margin-bottom: 16px;
+  }
+  .reviewer-q-text {
+    font-size: 14px; font-weight: 600; color: #1a2332;
+    line-height: 1.65; margin-bottom: 14px;
+  }
+  .reviewer-options { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
+  .reviewer-option {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 10px 14px; border: 1px solid #d0dae8;
+    border-radius: 8px; cursor: pointer;
+    font-size: 13.5px; color: #4a5568; line-height: 1.5;
+    transition: background .12s, border-color .12s;
+    background: #ffffff;
+  }
+  .reviewer-option:hover { background: #f0f4f9; border-color: #b8d0ed; }
+  .reviewer-option.selected { background: #e8f1fb; border-color: #1a6eb5; color: #1a2332; }
+  .reviewer-option.correct  { background: #e8f5ed; border-color: #a3d4b8; color: #1a6b3a; }
+  .reviewer-option.wrong    { background: #fdf0ee; border-color: #f0b8b2; color: #c0392b; }
+  .reviewer-option-key { font-family: 'Source Code Pro', monospace; font-size: 11px; font-weight: 700; color: #8fa3bc; flex-shrink: 0; margin-top: 1px; }
+
+  .reviewer-tf { display: flex; gap: 10px; margin-bottom: 18px; }
+  .reviewer-tf-btn {
+    flex: 1; padding: 10px; border: 1px solid #d0dae8;
+    border-radius: 8px; cursor: pointer; text-align: center;
+    font-size: 13.5px; font-weight: 600;
+    font-family: 'Source Code Pro', monospace; color: #4a5568;
+    background: #ffffff; transition: background .12s;
+  }
+  .reviewer-tf-btn:hover { background: #f0f4f9; border-color: #b8d0ed; }
+  .reviewer-tf-btn.selected { background: #e8f1fb; border-color: #1a6eb5; color: #1a6eb5; }
+  .reviewer-tf-btn.correct  { background: #e8f5ed; border-color: #a3d4b8; color: #1a6b3a; }
+  .reviewer-tf-btn.wrong    { background: #fdf0ee; border-color: #f0b8b2; color: #c0392b; }
+
+  .reviewer-reveal {
+    font-size: 12px; font-family: 'Source Code Pro', monospace;
+    color: #5b4fcf; cursor: pointer; text-decoration: underline;
+    background: none; border: none; padding: 0; margin-bottom: 14px; display: block;
+  }
+  .reviewer-explanation {
+    font-size: 13px; color: #4a5568; line-height: 1.7;
+    padding: 12px 14px; background: #eef2f7; border-radius: 8px;
+    margin-bottom: 16px; display: none;
+  }
+  .reviewer-explanation.visible { display: block; }
+  .reviewer-exp-label { font-size: 9px; font-family: 'Source Code Pro', monospace; letter-spacing: .15em; text-transform: uppercase; font-weight: 700; margin-bottom: 4px; }
+  .reviewer-exp-label.correct { color: #1a6b3a; }
+  .reviewer-exp-label.wrong   { color: #c0392b; }
+
+  .reviewer-comment-label {
+    font-size: 11px; font-family: 'Source Code Pro', monospace;
+    letter-spacing: .12em; text-transform: uppercase;
+    color: #8fa3bc; font-weight: 600; margin-bottom: 6px;
+  }
+  .reviewer-comment {
+    width: 100%; min-height: 80px; padding: 10px 12px;
+    border: 1px solid #c4bdf0; border-radius: 8px;
+    font-family: 'Merriweather Sans', sans-serif; font-size: 13.5px;
+    color: #1a2332; background: #ffffff; resize: vertical;
+    line-height: 1.6; transition: border-color .15s;
+  }
+  .reviewer-comment:focus { outline: none; border-color: #5b4fcf; }
+  .reviewer-save-note {
+    font-size: 11px; font-family: 'Source Code Pro', monospace;
+    color: #8fa3bc; margin-top: 6px;
+  }
+
+  .reviewer-topbanner {
+    background: #f5f0ff; border-bottom: 2px solid #c4bdf0;
+    padding: 10px 40px; font-size: 12px;
+    font-family: 'Source Code Pro', monospace; color: #5b4fcf;
+    display: flex; align-items: center; gap: 8px;
+  }
+
+</style>
+</head>
+<body>
+<div class="reviewer-topbanner">
+  <span>👁</span>
+  <span><strong>Reviewer mode</strong> — checkboxes, question answers, and notes are saved in your browser.</span>
+</div>
+
+
+<nav class="topnav">
+  <a href="../course-map.html">Course map</a>
+  <span class="sep">/</span>
+  <a href="../course-map.html">Tier 1 examples</a>
+  <span class="sep">/</span>
+  <span>Example 2 — Terraform variables.tf</span>
+</nav>
+
+<nav class="stepnav" id="stepnav">
+  <a class="stepnav-item active" href="#step-1"><span class="stepnav-num">1</span>Problem</a>
+  <a class="stepnav-item" href="#step-2"><span class="stepnav-num">2</span>Naive approach</a>
+  <a class="stepnav-item" href="#step-3"><span class="stepnav-num">3</span>Claude Code interaction</a>
+  <a class="stepnav-item" href="#step-4"><span class="stepnav-num">4</span>Refined output</a>
+  <a class="stepnav-item" href="#step-5"><span class="stepnav-num">5</span>Watch out</a>
+</nav>
+
+<div class="hero">
+  <div class="hero-inner">
+    <div class="hero-eyebrow">Example 2 of 4 · Tier 1 · Single-file task</div>
+    <h1>Terraform <span>variables.tf</span> with validation</h1>
+    <div class="hero-meta">
+      <span class="meta-pill pill-tier">Tier 1 — Single-file task</span>
+      <span class="meta-pill pill-topic">Infrastructure as Code</span>
+      <span class="meta-pill pill-turns">3-turn interaction</span>
+      <span class="meta-pill pill-turns">DevOps automation</span>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- ══ STEP 1: PROBLEM ══ -->
+  <section class="step-section" id="step-1">
+    <div class="step-header">
+      <div class="step-number">1</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 1 of 5</div>
+        <div class="step-title">The problem</div>
+      </div>
+<div class="reviewer-bar" id="rev-bar-1">
+  <input type="checkbox" class="rev-checkbox" id="rev-cb-1" data-step="1">
+  <label for="rev-cb-1">Mark step as reviewed</label>
+</div>
+
+    </div>
+
+    <p class="prose">
+      You are building a reusable Terraform module for provisioning an RDS PostgreSQL instance on AWS. The module will be used across three environments — dev, staging, and prod — by engineers who did not write it. The module needs a <code>variables.tf</code> that defines all inputs clearly, enforces sensible constraints, and makes it impossible to misconfigure the most common failure modes.
+    </p>
+
+    <p class="prose">
+      You have a list of inputs the module needs. The task is to turn that list into a <code>variables.tf</code> that is genuinely self-documenting, validates inputs at plan time rather than at apply time, and follows the conventions already established in the rest of the repo's modules.
+    </p>
+
+    <div class="callout info">
+      <div class="callout-label">Required inputs</div>
+      <strong>identifier</strong> — unique name for the RDS instance<br>
+      <strong>engine_version</strong> — PostgreSQL version (e.g. 15.4)<br>
+      <strong>instance_class</strong> — RDS instance type (e.g. db.t3.medium)<br>
+      <strong>allocated_storage</strong> — storage in GB<br>
+      <strong>db_name</strong> — initial database name<br>
+      <strong>username</strong> — master DB username<br>
+      <strong>password</strong> — master DB password (sensitive)<br>
+      <strong>vpc_id</strong> — VPC to place the instance in<br>
+      <strong>subnet_ids</strong> — list of subnet IDs for the subnet group<br>
+      <strong>allowed_cidr_blocks</strong> — CIDRs allowed to reach port 5432<br>
+      <strong>multi_az</strong> — whether to enable Multi-AZ (default false)<br>
+      <strong>backup_retention_period</strong> — days to retain automated backups<br>
+      <strong>tags</strong> — map of tags applied to all resources
+    </div>
+
+    <p class="prose">
+      The module will be reviewed by the security team before it can be used in prod. Validation blocks that catch bad values at <code>plan</code> time — rather than letting Terraform apply partway and fail — are a hard requirement.
+    </p>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ══ STEP 2: NAIVE APPROACH ══ -->
+  <section class="step-section" id="step-2">
+    <div class="step-header">
+      <div class="step-number">2</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 2 of 5</div>
+        <div class="step-title">The naive approach</div>
+      </div>
+<div class="reviewer-bar" id="rev-bar-2">
+  <input type="checkbox" class="rev-checkbox" id="rev-cb-2" data-step="2">
+  <label for="rev-cb-2">Mark step as reviewed</label>
+</div>
+
+    </div>
+
+    <p class="prose">
+      The naive <code>variables.tf</code> is not dangerous the way a bad Dockerfile is dangerous — it won't get you breached. But it will cost you hours of debugging, produce confusing plan-time errors, and make the module brittle for anyone who isn't its author.
+    </p>
+
+    <div class="code-wrap">
+      <div class="code-header">
+        <span class="code-filename">variables.tf (naive)</span>
+        <span class="code-lang">hcl</span>
+      </div>
+      <pre><code class="block"><span class="kw">variable</span> <span class="st">"identifier"</span> {}
+
+<span class="kw">variable</span> <span class="st">"engine_version"</span> {}
+
+<span class="kw">variable</span> <span class="st">"instance_class"</span> {}
+
+<span class="kw">variable</span> <span class="st">"allocated_storage"</span> {}
+
+<span class="kw">variable</span> <span class="st">"db_name"</span> {}
+
+<span class="kw">variable</span> <span class="st">"username"</span> {}
+
+<span class="kw">variable</span> <span class="st">"password"</span> {}
+
+<span class="kw">variable</span> <span class="st">"vpc_id"</span> {}
+
+<span class="kw">variable</span> <span class="st">"subnet_ids"</span> {}
+
+<span class="kw">variable</span> <span class="st">"allowed_cidr_blocks"</span> {}
+
+<span class="kw">variable</span> <span class="st">"multi_az"</span> {
+  <span class="kw">default</span> = <span class="nm">false</span>
+}
+
+<span class="kw">variable</span> <span class="st">"backup_retention_period"</span> {
+  <span class="kw">default</span> = <span class="nm">7</span>
+}
+
+<span class="kw">variable</span> <span class="st">"tags"</span> {
+  <span class="kw">default</span> = {}
+}</code></pre>
+    </div>
+
+    <p class="prose">This looks complete — all 13 inputs are declared. But it has six distinct problems that will surface the moment someone other than the author uses the module:</p>
+
+    <ul class="annotation-list">
+      <li>
+        <span class="ann-badge ann-warn">Correctness</span>
+        <div><strong>No types anywhere.</strong> <code>subnet_ids</code> is declared as type <code>any</code> by default. An engineer passing a string instead of a list of strings will get a cryptic apply-time error from the AWS provider, not a clear plan-time message. Same for <code>allowed_cidr_blocks</code>, <code>tags</code>, and <code>allocated_storage</code>. Type constraints catch these instantly.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Security</span>
+        <div><strong><code>password</code> is not marked sensitive.</strong> Without <code>sensitive = true</code>, the master DB password will appear in plain text in <code>terraform plan</code> output, CI logs, and state file diffs. Anyone with access to the CI pipeline history can read it.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Correctness</span>
+        <div><strong>No validation on <code>allocated_storage</code>.</strong> RDS requires a minimum of 20 GB. Passing <code>5</code> produces a confusing AWS API error at apply time — after the security group, subnet group, and parameter group have already been created. A validation block catches this at plan time, before any resources are touched.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Correctness</span>
+        <div><strong>No validation on <code>backup_retention_period</code>.</strong> AWS accepts 0–35 days. Passing <code>40</code> fails at apply time. Passing <code>0</code> silently disables backups — valid from AWS's perspective, but almost never the intent. A validation block can enforce a minimum of 1 for prod-grade modules.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Usability</span>
+        <div><strong>No descriptions.</strong> The next engineer using this module has to read <code>main.tf</code> to understand what <code>identifier</code> means, what format <code>engine_version</code> expects, or what <code>allowed_cidr_blocks</code> should contain. Descriptions appear in <code>terraform-docs</code> output and in IDE tooltips — they are the module's interface documentation.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Correctness</span>
+        <div><strong>No CIDR validation on <code>allowed_cidr_blocks</code>.</strong> Passing a malformed CIDR (a hostname, a bare IP without a prefix, a typo) fails at apply time inside the security group resource. A regex validation catches format errors at plan time with a human-readable error message instead of an AWS API exception.</div>
+      </li>
+    </ul>
+
+    <div class="callout warn">
+      <div class="callout-label">The core problem</div>
+      A variables.tf without types, descriptions, and validation is not a module interface — it's a list of names. It transfers all the cognitive load of "what does this accept and what are the constraints" from the module to every engineer who uses it. That cost compounds with every new caller.
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ══ STEP 3: CLAUDE CODE INTERACTION ══ -->
+  <section class="step-section" id="step-3">
+    <div class="step-header">
+      <div class="step-number">3</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 3 of 5</div>
+        <div class="step-title">The Claude Code interaction</div>
+      </div>
+<div class="reviewer-bar" id="rev-bar-3">
+  <input type="checkbox" class="rev-checkbox" id="rev-cb-3" data-step="3">
+  <label for="rev-cb-3">Mark step as reviewed</label>
+</div>
+
+    </div>
+
+    <p class="prose">
+      Three turns. Turn 1 generates a fully typed and described file. Turn 2 adds validation blocks based on a specific security team requirement. Turn 3 aligns the file to an existing repo convention that Claude Code had not seen on Turn 1.
+    </p>
+
+    <!-- Turn 1 -->
+    <div class="turn-label">Turn 1 of 3 — Typed, described, defaults set</div>
+
+    <div class="conversation">
+      <div class="conv-turn engineer">
+        <div class="conv-role">Engineer → Claude Code</div>
+        <div class="conv-body">
+          <p>Generate a <code>variables.tf</code> for a reusable Terraform module that provisions an RDS PostgreSQL instance on AWS. Here are the inputs required:</p>
+          <p style="margin-top:10px;">identifier (string), engine_version (string), instance_class (string), allocated_storage (number, min 20), db_name (string), username (string), password (string, sensitive), vpc_id (string), subnet_ids (list of strings), allowed_cidr_blocks (list of strings, must be valid CIDRs), multi_az (bool, default false), backup_retention_period (number, default 7, range 1–35), tags (map of strings, default empty)</p>
+          <p style="margin-top:10px;">Requirements:<br>
+          — Every variable must have a type constraint<br>
+          — Every variable must have a description<br>
+          — password must be marked sensitive<br>
+          — Validation blocks for allocated_storage, backup_retention_period, and allowed_cidr_blocks<br>
+          — Follow standard Terraform variable block style — no inline defaults mixed with complex blocks</p>
+        </div>
+      </div>
+
+      <div class="conv-turn claude">
+        <div class="conv-role">Claude Code</div>
+        <div class="conv-body">
+          <div class="code-wrap">
+            <div class="code-header">
+              <span class="code-filename">variables.tf (turn 1 output)</span>
+              <button class="code-copy" onclick="copyCode(this)">copy</button>
+            </div>
+            <pre><code class="block"><span class="kw">variable</span> <span class="st">"identifier"</span> {
+  <span class="kw">type</span>        = <span class="ty">string</span>
+  <span class="kw">description</span> = <span class="st">"Unique identifier for the RDS instance. Used as the resource name and in tags."</span>
+}
+
+<span class="kw">variable</span> <span class="st">"engine_version"</span> {
+  <span class="kw">type</span>        = <span class="ty">string</span>
+  <span class="kw">description</span> = <span class="st">"PostgreSQL engine version. Example: \"15.4\". Check AWS docs for supported versions."</span>
+}
+
+<span class="kw">variable</span> <span class="st">"instance_class"</span> {
+  <span class="kw">type</span>        = <span class="ty">string</span>
+  <span class="kw">description</span> = <span class="st">"RDS instance type. Example: \"db.t3.medium\". Must be a valid RDS instance class."</span>
+}
+
+<span class="kw">variable</span> <span class="st">"allocated_storage"</span> {
+  <span class="kw">type</span>        = <span class="ty">number</span>
+  <span class="kw">description</span> = <span class="st">"Storage allocated to the RDS instance in GB. Minimum 20."</span>
+
+  <span class="kw">validation</span> {
+    <span class="kw">condition</span>     = <span class="fn">var.allocated_storage</span> >= <span class="nm">20</span>
+    <span class="kw">error_message</span> = <span class="st">"allocated_storage must be at least 20 GB. AWS RDS does not accept values below 20."</span>
+  }
+}
+
+<span class="kw">variable</span> <span class="st">"db_name"</span> {
+  <span class="kw">type</span>        = <span class="ty">string</span>
+  <span class="kw">description</span> = <span class="st">"Name of the initial database created on the instance. Must be a valid PostgreSQL identifier."</span>
+}
+
+<span class="kw">variable</span> <span class="st">"username"</span> {
+  <span class="kw">type</span>        = <span class="ty">string</span>
+  <span class="kw">description</span> = <span class="st">"Master username for the RDS instance. Cannot be 'admin', 'root', or 'postgres' on Aurora."</span>
+}
+
+<span class="kw">variable</span> <span class="st">"password"</span> {
+  <span class="kw">type</span>        = <span class="ty">string</span>
+  <span class="kw">sensitive</span>   = <span class="nm">true</span>
+  <span class="kw">description</span> = <span class="st">"Master password for the RDS instance. Marked sensitive — will not appear in plan output or logs."</span>
+}
+
+<span class="kw">variable</span> <span class="st">"vpc_id"</span> {
+  <span class="kw">type</span>        = <span class="ty">string</span>
+  <span class="kw">description</span> = <span class="st">"ID of the VPC in which the RDS instance and its subnet group will be created."</span>
+}
+
+<span class="kw">variable</span> <span class="st">"subnet_ids"</span> {
+  <span class="kw">type</span>        = <span class="ty">list(string)</span>
+  <span class="kw">description</span> = <span class="st">"List of subnet IDs for the DB subnet group. Must span at least two availability zones."</span>
+}
+
+<span class="kw">variable</span> <span class="st">"allowed_cidr_blocks"</span> {
+  <span class="kw">type</span>        = <span class="ty">list(string)</span>
+  <span class="kw">description</span> = <span class="st">"List of CIDR blocks permitted to reach port 5432. Example: [\"10.0.0.0/8\"]."</span>
+
+  <span class="kw">validation</span> {
+    <span class="kw">condition</span> = <span class="fn">alltrue</span>([
+      <span class="kw">for</span> cidr <span class="kw">in</span> <span class="fn">var.allowed_cidr_blocks</span> :
+      <span class="fn">can(regex</span>(<span class="st">"^([0-9]{1,3}\\.){3}[0-9]{1,3}/[0-9]{1,2}$"</span>, cidr))
+    ])
+    <span class="kw">error_message</span> = <span class="st">"All entries in allowed_cidr_blocks must be valid IPv4 CIDR notation (e.g. 10.0.0.0/8)."</span>
+  }
+}
+
+<span class="kw">variable</span> <span class="st">"multi_az"</span> {
+  <span class="kw">type</span>        = <span class="ty">bool</span>
+  <span class="kw">default</span>     = <span class="nm">false</span>
+  <span class="kw">description</span> = <span class="st">"Whether to deploy the RDS instance across multiple availability zones. Recommended true for prod."</span>
+}
+
+<span class="kw">variable</span> <span class="st">"backup_retention_period"</span> {
+  <span class="kw">type</span>        = <span class="ty">number</span>
+  <span class="kw">default</span>     = <span class="nm">7</span>
+  <span class="kw">description</span> = <span class="st">"Number of days to retain automated backups. Range: 1–35. Set to 0 disables backups (not recommended)."</span>
+
+  <span class="kw">validation</span> {
+    <span class="kw">condition</span>     = <span class="fn">var.backup_retention_period</span> >= <span class="nm">1</span> && <span class="fn">var.backup_retention_period</span> <= <span class="nm">35</span>
+    <span class="kw">error_message</span> = <span class="st">"backup_retention_period must be between 1 and 35. AWS does not accept values outside this range."</span>
+  }
+}
+
+<span class="kw">variable</span> <span class="st">"tags"</span> {
+  <span class="kw">type</span>        = <span class="ty">map(string)</span>
+  <span class="kw">default</span>     = {}
+  <span class="kw">description</span> = <span class="st">"Map of tags applied to all resources created by this module."</span>
+}</code></pre>
+          </div>
+          <p style="margin-top:12px;"><strong>Key decisions:</strong></p>
+          <p style="margin-top:8px;">— <code>sensitive = true</code> on <code>password</code> suppresses it from all Terraform output, including state file diffs in CI. This does not encrypt the value in state — use a secrets manager reference in your root module instead of a plain string.</p>
+          <p style="margin-top:8px;">— The CIDR regex validates format only, not whether the CIDR is routeable or sensible. A value like <code>0.0.0.0/0</code> passes the regex but opens the database to the internet — semantic validation belongs in policy-as-code (OPA, Sentinel), not in variable validation blocks.</p>
+          <p style="margin-top:8px;">— <code>backup_retention_period</code> minimum is set to 1, not 0. Zero is valid from AWS's perspective but disables backups entirely. If you want to allow 0 as an intentional choice, remove the lower bound and add a comment.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Turn 2 -->
+    <div class="turn-label" style="margin-top:28px;">Turn 2 of 3 — Security team requirement: storage autoscaling cap</div>
+
+    <p class="prose">
+      The security team reviews the module and adds one requirement: <code>max_allocated_storage</code> must be declared, and if provided, must be greater than <code>allocated_storage</code>. This prevents the common mistake of setting a max lower than the initial allocation, which silently disables autoscaling.
+    </p>
+
+    <div class="conversation">
+      <div class="conv-turn engineer">
+        <div class="conv-role">Engineer → Claude Code</div>
+        <div class="conv-body">
+          <p>Security review added one requirement. Add a <code>max_allocated_storage</code> variable:</p>
+          <p style="margin-top:10px;">— Type: number<br>
+          — Optional (default null — means autoscaling disabled)<br>
+          — If provided, must be strictly greater than <code>allocated_storage</code><br>
+          — The cross-variable validation is the tricky part — <code>max_allocated_storage</code> can't reference <code>allocated_storage</code> directly in its own validation block in older Terraform versions. Handle this correctly.</p>
+        </div>
+      </div>
+
+      <div class="conv-turn claude">
+        <div class="conv-role">Claude Code</div>
+        <div class="conv-body">
+          <p>You're right that cross-variable validation has a nuance. In Terraform ≥ 1.3, a <code>validation</code> block can reference other variables using <code>var.*</code> — but only variables that are already declared above it in the file. The safest pattern for cross-variable constraints is to put the validation on the variable that has the dependency, not the one being depended on.</p>
+          <p style="margin-top:10px;">Here is the new variable block. Add it after <code>allocated_storage</code>:</p>
+          <div class="code-wrap">
+            <div class="code-header">
+              <span class="code-filename">variables.tf — add after allocated_storage block</span>
+              <button class="code-copy" onclick="copyCode(this)">copy</button>
+            </div>
+            <pre><code class="block"><span class="kw">variable</span> <span class="st">"max_allocated_storage"</span> {
+  <span class="kw">type</span>        = <span class="ty">number</span>
+  <span class="kw">default</span>     = <span class="nm">null</span>
+  <span class="kw">description</span> = <span class="st">"Maximum storage limit in GB for RDS storage autoscaling. Set to null to disable autoscaling. If provided, must be greater than allocated_storage."</span>
+
+  <span class="kw">validation</span> {
+    <span class="kw">condition</span> = (
+      <span class="fn">var.max_allocated_storage</span> == <span class="nm">null</span> ||
+      <span class="fn">var.max_allocated_storage</span> > <span class="fn">var.allocated_storage</span>
+    )
+    <span class="kw">error_message</span> = <span class="st">"max_allocated_storage must be greater than allocated_storage when autoscaling is enabled. Got max=${var.max_allocated_storage}, initial=${var.allocated_storage}."</span>
+  }
+}</code></pre>
+          </div>
+          <p style="margin-top:10px;"><strong>Why this works:</strong> the validation condition uses a short-circuit OR — if <code>max_allocated_storage</code> is null, the second clause is never evaluated and the validation passes. If it is set, Terraform checks that it exceeds <code>allocated_storage</code>. The error message includes both values so the engineer sees exactly what the conflict is, not just that a validation failed.</p>
+          <p style="margin-top:8px;">Note: this cross-variable reference in a validation block requires <strong>Terraform ≥ 1.3.0</strong>. If your team pins an older version, move this constraint into a <code>precondition</code> block on the <code>aws_db_instance</code> resource instead — it's semantically equivalent and supported from 1.2.0.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Turn 3 -->
+    <div class="turn-label" style="margin-top:28px;">Turn 3 of 3 — Convention alignment</div>
+
+    <p class="prose">
+      The engineer shares two existing module <code>variables.tf</code> files from the repo. Claude Code identifies a convention difference and aligns the new file without being explicitly told what to fix.
+    </p>
+
+    <div class="conversation">
+      <div class="conv-turn engineer">
+        <div class="conv-role">Engineer → Claude Code</div>
+        <div class="conv-body">
+          <p>Here are two existing module variables.tf files from our repo for reference. Review the output you produced and align it to our conventions — don't tell me what you're changing, just produce the corrected file.</p>
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">modules/vpc/variables.tf (existing convention reference)</span></div>
+            <pre><code class="block"><span class="cm"># Convention observed:
+# 1. Variables ordered: required first (no default), then optional (with default)
+# 2. Descriptions end with a period
+# 3. type, description, sensitive, default — always in that attribute order
+# 4. Validation blocks placed after default, never before description</span>
+
+<span class="kw">variable</span> <span class="st">"name"</span> {
+  <span class="kw">type</span>        = <span class="ty">string</span>
+  <span class="kw">description</span> = <span class="st">"Name prefix applied to all resources in this module."</span>
+}
+
+<span class="kw">variable</span> <span class="st">"cidr_block"</span> {
+  <span class="kw">type</span>        = <span class="ty">string</span>
+  <span class="kw">description</span> = <span class="st">"CIDR block for the VPC."</span>
+}
+
+<span class="kw">variable</span> <span class="st">"enable_dns_hostnames"</span> {
+  <span class="kw">type</span>        = <span class="ty">bool</span>
+  <span class="kw">default</span>     = <span class="nm">true</span>
+  <span class="kw">description</span> = <span class="st">"Whether to enable DNS hostnames in the VPC."</span>
+}
+
+<span class="kw">variable</span> <span class="st">"tags"</span> {
+  <span class="kw">type</span>        = <span class="ty">map(string)</span>
+  <span class="kw">default</span>     = {}
+  <span class="kw">description</span> = <span class="st">"Map of tags applied to all resources created by this module."</span>
+}</code></pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="conv-turn claude">
+        <div class="conv-role">Claude Code</div>
+        <div class="conv-body">
+          <p>Here is the aligned file. Changes made: required variables moved before optional ones, all descriptions end with a period, attribute ordering corrected to type → description → sensitive → default → validation throughout.</p>
+          <div class="code-wrap">
+            <div class="code-header">
+              <span class="code-filename">variables.tf (turn 3 — convention-aligned)</span>
+              <button class="code-copy" onclick="copyCode(this)">copy</button>
+            </div>
+            <pre><code class="block"><span class="cm"># ── Required variables (no defaults) ────────────────────────────────────────</span>
+
+<span class="kw">variable</span> <span class="st">"identifier"</span> {
+  <span class="kw">type</span>        = <span class="ty">string</span>
+  <span class="kw">description</span> = <span class="st">"Unique identifier for the RDS instance. Used as the resource name and in tags."</span>
+}
+
+<span class="kw">variable</span> <span class="st">"engine_version"</span> {
+  <span class="kw">type</span>        = <span class="ty">string</span>
+  <span class="kw">description</span> = <span class="st">"PostgreSQL engine version. Example: 15.4. Check AWS docs for supported versions."</span>
+}
+
+<span class="kw">variable</span> <span class="st">"instance_class"</span> {
+  <span class="kw">type</span>        = <span class="ty">string</span>
+  <span class="kw">description</span> = <span class="st">"RDS instance type. Example: db.t3.medium. Must be a valid RDS instance class."</span>
+}
+
+<span class="kw">variable</span> <span class="st">"allocated_storage"</span> {
+  <span class="kw">type</span>        = <span class="ty">number</span>
+  <span class="kw">description</span> = <span class="st">"Storage allocated to the RDS instance in GB. Minimum 20."</span>
+
+  <span class="kw">validation</span> {
+    <span class="kw">condition</span>     = <span class="fn">var.allocated_storage</span> >= <span class="nm">20</span>
+    <span class="kw">error_message</span> = <span class="st">"allocated_storage must be at least 20 GB. AWS RDS does not accept values below 20."</span>
+  }
+}
+
+<span class="kw">variable</span> <span class="st">"db_name"</span> {
+  <span class="kw">type</span>        = <span class="ty">string</span>
+  <span class="kw">description</span> = <span class="st">"Name of the initial database created on the instance. Must be a valid PostgreSQL identifier."</span>
+}
+
+<span class="kw">variable</span> <span class="st">"username"</span> {
+  <span class="kw">type</span>        = <span class="ty">string</span>
+  <span class="kw">description</span> = <span class="st">"Master username for the RDS instance. Cannot be 'admin', 'root', or 'postgres' on Aurora."</span>
+}
+
+<span class="kw">variable</span> <span class="st">"password"</span> {
+  <span class="kw">type</span>        = <span class="ty">string</span>
+  <span class="kw">sensitive</span>   = <span class="nm">true</span>
+  <span class="kw">description</span> = <span class="st">"Master password for the RDS instance. Marked sensitive — will not appear in plan output or logs."</span>
+}
+
+<span class="kw">variable</span> <span class="st">"vpc_id"</span> {
+  <span class="kw">type</span>        = <span class="ty">string</span>
+  <span class="kw">description</span> = <span class="st">"ID of the VPC in which the RDS instance and its subnet group will be created."</span>
+}
+
+<span class="kw">variable</span> <span class="st">"subnet_ids"</span> {
+  <span class="kw">type</span>        = <span class="ty">list(string)</span>
+  <span class="kw">description</span> = <span class="st">"List of subnet IDs for the DB subnet group. Must span at least two availability zones."</span>
+}
+
+<span class="kw">variable</span> <span class="st">"allowed_cidr_blocks"</span> {
+  <span class="kw">type</span>        = <span class="ty">list(string)</span>
+  <span class="kw">description</span> = <span class="st">"List of CIDR blocks permitted to reach port 5432. Example: 10.0.0.0/8."</span>
+
+  <span class="kw">validation</span> {
+    <span class="kw">condition</span> = <span class="fn">alltrue</span>([
+      <span class="kw">for</span> cidr <span class="kw">in</span> <span class="fn">var.allowed_cidr_blocks</span> :
+      <span class="fn">can(regex</span>(<span class="st">"^([0-9]{1,3}\\.){3}[0-9]{1,3}/[0-9]{1,2}$"</span>, cidr))
+    ])
+    <span class="kw">error_message</span> = <span class="st">"All entries in allowed_cidr_blocks must be valid IPv4 CIDR notation (e.g. 10.0.0.0/8)."</span>
+  }
+}
+
+<span class="cm"># ── Optional variables (with defaults) ──────────────────────────────────────</span>
+
+<span class="kw">variable</span> <span class="st">"multi_az"</span> {
+  <span class="kw">type</span>        = <span class="ty">bool</span>
+  <span class="kw">description</span> = <span class="st">"Whether to deploy the RDS instance across multiple availability zones. Recommended true for prod."</span>
+  <span class="kw">default</span>     = <span class="nm">false</span>
+}
+
+<span class="kw">variable</span> <span class="st">"backup_retention_period"</span> {
+  <span class="kw">type</span>        = <span class="ty">number</span>
+  <span class="kw">description</span> = <span class="st">"Number of days to retain automated backups. Range: 1-35."</span>
+  <span class="kw">default</span>     = <span class="nm">7</span>
+
+  <span class="kw">validation</span> {
+    <span class="kw">condition</span>     = <span class="fn">var.backup_retention_period</span> >= <span class="nm">1</span> && <span class="fn">var.backup_retention_period</span> <= <span class="nm">35</span>
+    <span class="kw">error_message</span> = <span class="st">"backup_retention_period must be between 1 and 35."</span>
+  }
+}
+
+<span class="kw">variable</span> <span class="st">"max_allocated_storage"</span> {
+  <span class="kw">type</span>        = <span class="ty">number</span>
+  <span class="kw">description</span> = <span class="st">"Maximum storage limit in GB for RDS autoscaling. Set to null to disable autoscaling."</span>
+  <span class="kw">default</span>     = <span class="nm">null</span>
+
+  <span class="kw">validation</span> {
+    <span class="kw">condition</span> = (
+      <span class="fn">var.max_allocated_storage</span> == <span class="nm">null</span> ||
+      <span class="fn">var.max_allocated_storage</span> > <span class="fn">var.allocated_storage</span>
+    )
+    <span class="kw">error_message</span> = <span class="st">"max_allocated_storage must be greater than allocated_storage when autoscaling is enabled."</span>
+  }
+}
+
+<span class="kw">variable</span> <span class="st">"tags"</span> {
+  <span class="kw">type</span>        = <span class="ty">map(string)</span>
+  <span class="kw">description</span> = <span class="st">"Map of tags applied to all resources created by this module."</span>
+  <span class="kw">default</span>     = {}
+}</code></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ══ STEP 4: REFINED OUTPUT ══ -->
+  <section class="step-section" id="step-4">
+    <div class="step-header">
+      <div class="step-number">4</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 4 of 5</div>
+        <div class="step-title">The refined output</div>
+      </div>
+<div class="reviewer-bar" id="rev-bar-4">
+  <input type="checkbox" class="rev-checkbox" id="rev-cb-4" data-step="4">
+  <label for="rev-cb-4">Mark step as reviewed</label>
+</div>
+
+    </div>
+
+    <p class="prose">
+      The Turn 3 output is the final file. Here is an annotated breakdown of the decisions that make it production-grade — the things that distinguish it from the naive version and justify each addition.
+    </p>
+
+    <ul class="annotation-list">
+      <li>
+        <span class="ann-badge ann-good">Type</span>
+        <div><strong>Every variable has an explicit type constraint.</strong> <code>list(string)</code> for <code>subnet_ids</code> and <code>allowed_cidr_blocks</code>, <code>map(string)</code> for <code>tags</code>, <code>number</code> for storage and retention, <code>bool</code> for <code>multi_az</code>. Type errors surface at <code>terraform validate</code>, before a single API call is made.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-good">Security</span>
+        <div><strong><code>password</code> marked <code>sensitive = true</code>.</strong> Terraform suppresses the value in all output, plan diffs, and log streams. Note: this does not encrypt the value in the state file. Manage the password via AWS Secrets Manager or SSM Parameter Store and pass a reference, not the literal string.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-good">Validation</span>
+        <div><strong>Four validation blocks, each with a human-readable error message.</strong> <code>allocated_storage ≥ 20</code>, <code>backup_retention_period</code> between 1 and 35, CIDR format check on each entry in <code>allowed_cidr_blocks</code>, and the cross-variable guard on <code>max_allocated_storage</code>. All fire at plan time — before any resource is created or modified.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-good">Convention</span>
+        <div><strong>Required variables before optional variables.</strong> Engineers reading the file see the mandatory inputs first. The section comments make the boundary explicit. Attribute ordering — type, description, sensitive, default, validation — is consistent throughout, matching the repo convention.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-info">Note</span>
+        <div><strong>CIDR validation is format-only, not semantic.</strong> <code>0.0.0.0/0</code> passes the regex. Semantic validation — "is this CIDR too broad for a production database?" — belongs in Sentinel or OPA policy, not in a variable validation block. The description signals the intent; the policy enforces the constraint.</div>
+      </li>
+    </ul>
+
+    <p class="prose">What changed from the naive version — the logical diff:</p>
+
+    <div class="diff-wrap">
+      <div class="diff-header">Naive → final diff (representative sample)</div>
+      <div class="diff-body">
+        <span class="diff-line rem">variable "identifier" {}</span>
+        <span class="diff-line add">variable "identifier" {</span>
+        <span class="diff-line add">  type        = string</span>
+        <span class="diff-line add">  description = "Unique identifier for the RDS instance..."</span>
+        <span class="diff-line add">}</span>
+        <span class="diff-line neu"> </span>
+        <span class="diff-line rem">variable "password" {}</span>
+        <span class="diff-line add">variable "password" {</span>
+        <span class="diff-line add">  type        = string</span>
+        <span class="diff-line add">  sensitive   = true</span>
+        <span class="diff-line add">  description = "Master password... Marked sensitive."</span>
+        <span class="diff-line add">}</span>
+        <span class="diff-line neu"> </span>
+        <span class="diff-line rem">variable "allocated_storage" {}</span>
+        <span class="diff-line add">variable "allocated_storage" {</span>
+        <span class="diff-line add">  type        = number</span>
+        <span class="diff-line add">  description = "Storage allocated in GB. Minimum 20."</span>
+        <span class="diff-line add">  validation {</span>
+        <span class="diff-line add">    condition     = var.allocated_storage >= 20</span>
+        <span class="diff-line add">    error_message = "allocated_storage must be at least 20 GB."</span>
+        <span class="diff-line add">  }</span>
+        <span class="diff-line add">}</span>
+        <span class="diff-line neu"> </span>
+        <span class="diff-line add">variable "max_allocated_storage" {   # new — not in naive</span>
+        <span class="diff-line add">  type        = number</span>
+        <span class="diff-line add">  description = "Maximum storage for autoscaling. null = disabled."</span>
+        <span class="diff-line add">  default     = null</span>
+        <span class="diff-line add">  validation { ... cross-variable guard ... }</span>
+        <span class="diff-line add">}</span>
+      </div>
+    </div>
+
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ══ STEP 5: WATCH OUT ══ -->
+  <section class="step-section" id="step-5">
+    <div class="step-header">
+      <div class="step-number">5</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 5 of 5</div>
+        <div class="step-title">Watch out</div>
+      </div>
+<div class="reviewer-bar" id="rev-bar-5">
+  <input type="checkbox" class="rev-checkbox" id="rev-cb-5" data-step="5">
+  <label for="rev-cb-5">Mark step as reviewed</label>
+</div>
+
+    </div>
+
+    <p class="prose">
+      Claude Code handled the types, descriptions, validation blocks, and convention alignment correctly. Here are the things it cannot verify or get right without your specific context.
+    </p>
+
+    <div class="callout good">
+      <div class="callout-label">What Claude Code handled well</div>
+      Full type coverage, sensitive flag, four validation blocks with human-readable error messages, cross-variable validation with null short-circuit, convention detection from the reference file (ordering, attribute sequence, description punctuation). All of this is replicable across any module with a well-specified prompt.
+    </div>
+
+    <ul class="annotation-list" style="margin-top:24px;">
+      <li>
+        <span class="ann-badge ann-warn">Verify</span>
+        <div><strong>Cross-variable validation requires Terraform ≥ 1.3.</strong> Claude Code flagged this correctly, but verify your <code>required_version</code> in <code>versions.tf</code> before merging. If your team pins <code>~> 1.2</code>, the <code>max_allocated_storage</code> validation will fail silently or produce a confusing error at plan time. Move it to a <code>precondition</code> block on the <code>aws_db_instance</code> resource instead.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Verify</span>
+        <div><strong><code>sensitive = true</code> does not secure the state file.</strong> The password is still stored in plain text in <code>terraform.tfstate</code>. If your state backend is S3, ensure the bucket has encryption at rest and access logging enabled. The better pattern is to pass an SSM Parameter Store or Secrets Manager ARN and have the module retrieve the value — but that requires changing the module's <code>main.tf</code>, not just <code>variables.tf</code>.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Verify</span>
+        <div><strong>CIDR validation is a format check, not a security check.</strong> <code>0.0.0.0/0</code> passes validation. If your security policy prohibits open CIDR ranges on database security groups — which it should — enforce this in Sentinel, OPA, or Checkov, not in the validation block. Claude Code correctly noted this, but it's worth verifying your policy tooling actually covers it.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Verify</span>
+        <div><strong>Convention alignment was inferred from one reference file.</strong> Claude Code detected four conventions from the VPC module. If other modules in the repo use a different ordering or description style, the output may not be fully aligned. Always run <code>terraform-docs</code> and compare with an existing module's rendered output before merging.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-info">Note</span>
+        <div><strong>Variable validation blocks do not catch all AWS API constraints.</strong> For example, <code>db_name</code> must be a valid PostgreSQL identifier — no hyphens, no reserved words, max 63 characters. Claude Code did not add a validation block for this because the regex would be complex and the description signals the constraint. If your team wants hard enforcement, add a <code>can(regex(...))</code> validation block for <code>db_name</code> explicitly.</div>
+      </li>
+    </ul>
+
+    <div class="callout tip">
+      <div class="callout-label">Prompting tip for future variables.tf files</div>
+      The Turn 3 pattern — sharing existing module files as convention references — is the highest-leverage input you can give Claude Code for any file that needs to match repo style. You do not need to enumerate the conventions explicitly; Claude Code will infer them from examples. Two or three representative files produce better alignment than a written style guide.
+    </div>
+
+  </section>
+
+  
+<div class="reviewer-panel">
+  <div class="reviewer-panel-label">🔍 Reviewer question — E2-1</div>
+  <div class="reviewer-q-text">In Example 2, Claude Code marked the `password` variable as `sensitive = true` and immediately noted a limitation. What was that limitation?</div>
+  <div class="reviewer-options">
+    <div class="reviewer-option" data-key="A" onclick="selectRevOption('A',this)"><span class="reviewer-option-key">A</span><span>Sensitive variables cannot have default values in Terraform</span></div>
+    <div class="reviewer-option" data-key="B" onclick="selectRevOption('B',this)"><span class="reviewer-option-key">B</span><span>Sensitive variables are encrypted at rest in the state file</span></div>
+    <div class="reviewer-option" data-key="C" onclick="selectRevOption('C',this)"><span class="reviewer-option-key">C</span><span>Marking a variable sensitive suppresses it from plan output but does not encrypt it in the state file</span></div>
+    <div class="reviewer-option" data-key="D" onclick="selectRevOption('D',this)"><span class="reviewer-option-key">D</span><span>Sensitive variables require a minimum length validation rule</span></div>
+  </div>
+  <button class="reviewer-reveal" id="rev-reveal-btn" onclick="revealRevAnswer()">Check answer</button>
+  <div class="reviewer-explanation" id="rev-explanation">
+    <div class="reviewer-exp-label"></div>
+    `sensitive = true` suppresses the variable's value from `terraform plan` and `terraform apply` output — it will not appear in logs. However, the value is still stored in plaintext in the Terraform state file. Engineers who believe `sensitive = true` secures the state backend are mistaken.
+  </div>
+  <div class="reviewer-comment-label">Reviewer notes</div>
+  <textarea class="reviewer-comment" id="rev-comment" placeholder="Add your review notes for this example…"></textarea>
+  <div class="reviewer-save-note">Notes are auto-saved in your browser.</div>
+</div>
+<script>window.REV_CORRECT = "C";</script>
+
+<div class="bottom-nav">
+    <a class="nav-btn secondary" href="../example-1-dockerfile.html">← Example 1 — Dockerfile</a>
+    <a class="nav-btn" href="../example-3-github-actions-job.html">Example 3 — GitHub Actions job →</a>
+  </div>
+
+</div>
+
+<footer>
+  <span>AIOps &amp; DevOps Learning Path · SourceFuse L&amp;D</span>
+  <span>Example 2 of 4 · Tier 1 · Terraform variables.tf</span>
+</footer>
+
+<script>
+  const sections = document.querySelectorAll('.step-section');
+  const navItems = document.querySelectorAll('.stepnav-item');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const id = entry.target.id;
+        navItems.forEach(item => {
+          item.classList.toggle('active', item.getAttribute('href') === '#' + id);
+        });
+      }
+    });
+  }, { rootMargin: '-30% 0px -60% 0px', threshold: 0 });
+  sections.forEach(s => observer.observe(s));
+
+  function copyCode(btn) {
+    const pre = btn.closest('.code-wrap').querySelector('pre');
+    navigator.clipboard.writeText(pre.innerText).then(() => {
+      btn.textContent = 'copied!';
+      setTimeout(() => btn.textContent = 'copy', 2000);
+    });
+  }
+</script>
+
+<script>
+// ── Reviewer persistence ─────────────────────────────────────────────────────
+const REV_KEY = 'reviewer_example-2';
+
+function revLoad() {
+  try { return JSON.parse(localStorage.getItem(REV_KEY)) || {}; } catch(e) { return {}; }
+}
+
+function revSave(state) {
+  localStorage.setItem(REV_KEY, JSON.stringify(state));
+}
+
+// Restore checkboxes
+document.querySelectorAll('.rev-checkbox').forEach(cb => {
+  const state = revLoad();
+  if (state['cb_' + cb.dataset.step]) {
+    cb.checked = true;
+    cb.closest('.reviewer-bar').classList.add('checked');
+    cb.closest('.reviewer-bar').querySelector('label').textContent = '✓ Step reviewed';
+  }
+  cb.addEventListener('change', () => {
+    const s = revLoad();
+    s['cb_' + cb.dataset.step] = cb.checked;
+    revSave(s);
+    const bar = cb.closest('.reviewer-bar');
+    bar.classList.toggle('checked', cb.checked);
+    bar.querySelector('label').textContent = cb.checked ? '✓ Step reviewed' : 'Mark step as reviewed';
+  });
+});
+
+// Restore comment
+const commentEl = document.getElementById('rev-comment');
+if (commentEl) {
+  const state = revLoad();
+  if (state.comment) commentEl.value = state.comment;
+  commentEl.addEventListener('input', () => {
+    const s = revLoad();
+    s.comment = commentEl.value;
+    revSave(s);
+  });
+}
+
+// Reviewer question logic
+let revAnswer = null;
+let revSubmitted = false;
+
+(function restoreRevQ() {
+  const state = revLoad();
+  if (state.revAnswer !== undefined) {
+    revAnswer = state.revAnswer;
+    revSubmitted = state.revSubmitted || false;
+    if (revAnswer !== null) applyRevAnswer(revAnswer, revSubmitted);
+  }
+})();
+
+function selectRevOption(key, el) {
+  if (revSubmitted) return;
+  revAnswer = key;
+  document.querySelectorAll('.reviewer-option').forEach(o => o.classList.toggle('selected', o.dataset.key === key));
+  const s = revLoad(); s.revAnswer = key; revSave(s);
+}
+
+function selectRevTF(val, el) {
+  if (revSubmitted) return;
+  revAnswer = val;
+  document.querySelectorAll('.reviewer-tf-btn').forEach(b => {
+    b.classList.toggle('selected', (b.dataset.val === 'true') === val);
+  });
+  const s = revLoad(); s.revAnswer = val; revSave(s);
+}
+
+function revealRevAnswer() {
+  if (revAnswer === null) { alert('Please select an answer first.'); return; }
+  revSubmitted = true;
+  const s = revLoad(); s.revSubmitted = true; revSave(s);
+  applyRevAnswer(revAnswer, true);
+}
+
+function applyRevAnswer(ans, showResult) {
+  const correctVal = window.REV_CORRECT;
+  // MCQ
+  document.querySelectorAll('.reviewer-option').forEach(o => {
+    o.classList.remove('selected','correct','wrong');
+    if (showResult) {
+      if (o.dataset.key === correctVal) o.classList.add('correct');
+      else if (o.dataset.key === ans && o.dataset.key !== correctVal) o.classList.add('wrong');
+    } else {
+      if (o.dataset.key === ans) o.classList.add('selected');
+    }
+  });
+  // T/F
+  document.querySelectorAll('.reviewer-tf-btn').forEach(b => {
+    b.classList.remove('selected','correct','wrong');
+    const bVal = b.dataset.val === 'true';
+    if (showResult) {
+      if (bVal === correctVal) b.classList.add('correct');
+      else if (bVal === ans && bVal !== correctVal) b.classList.add('wrong');
+    } else {
+      if (bVal === ans) b.classList.add('selected');
+    }
+  });
+  if (showResult) {
+    const expEl = document.getElementById('rev-explanation');
+    const btnEl = document.getElementById('rev-reveal-btn');
+    if (expEl) {
+      const isCorrect = (ans === correctVal) || (ans === correctVal);
+      expEl.classList.add('visible');
+      const lbl = expEl.querySelector('.reviewer-exp-label');
+      if (lbl) { lbl.textContent = isCorrect ? '✓ Correct' : '✗ Incorrect'; lbl.className = 'reviewer-exp-label ' + (isCorrect ? 'correct' : 'wrong'); }
+    }
+    if (btnEl) btnEl.style.display = 'none';
+  }
+}
+</script>
+
+</body>
+</html>

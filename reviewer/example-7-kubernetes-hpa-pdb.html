@@ -1,0 +1,1117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>[Reviewer] Example 7 — Kubernetes Deployment with HPA and PDB</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Merriweather+Sans:wght@300;400;600;700&family=Source+Code+Pro:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+  :root {
+    --bg:#eef2f7; --bg2:#ffffff; --bg3:#f0f4f9; --border:#d0dae8;
+    --text:#1a2332; --text-dim:#4a5568; --text-dimmer:#8fa3bc;
+    --blue:#1a6eb5; --blue-light:#e8f1fb; --blue-mid:#b8d0ed; --blue-dark:#0f4a7a;
+    --teal:#0e7a6b; --teal-light:#e6f4f2;
+    --coral:#c0392b; --coral-light:#fdf0ee; --coral-mid:#f0b8b2;
+    --green:#1a6b3a; --green-light:#e8f5ed;
+    --amber:#92600a; --amber-light:#fdf3e3;
+    --purple:#5b4fcf; --purple-light:#f0effe;
+    --code-bg:#1e2433; --code-text:#cdd6f4; --radius:12px;
+  }
+  html,body { min-height:100%; background:var(--bg); color:var(--text); font-family:'Merriweather Sans',sans-serif; font-size:15px; line-height:1.6; }
+  .topnav { background:var(--bg2); border-bottom:1px solid var(--border); padding:0 40px; height:52px; display:flex; align-items:center; gap:8px; font-size:12px; color:var(--text-dimmer); font-family:'Source Code Pro',monospace; position:sticky; top:0; z-index:100; }
+  .topnav a { color:var(--blue); text-decoration:none; } .topnav a:hover { text-decoration:underline; }
+  .topnav .sep { margin:0 4px; color:var(--text-dimmer); }
+  .stepnav { background:var(--bg2); border-bottom:1px solid var(--border); padding:0 40px; display:flex; align-items:stretch; position:sticky; top:52px; z-index:99; overflow-x:auto; }
+  .stepnav-item { display:flex; align-items:center; gap:8px; padding:14px 20px; font-size:12px; font-family:'Source Code Pro',monospace; color:var(--text-dimmer); cursor:pointer; border-bottom:3px solid transparent; white-space:nowrap; transition:color .15s,border-color .15s; text-decoration:none; }
+  .stepnav-item:hover { color:var(--text-dim); }
+  .stepnav-item.active { color:var(--blue); border-bottom-color:var(--blue); font-weight:600; }
+  .stepnav-num { width:20px; height:20px; border-radius:50%; background:var(--bg3); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; flex-shrink:0; }
+  .stepnav-item.active .stepnav-num { background:var(--blue); border-color:var(--blue); color:white; }
+  .hero { background:var(--bg2); border-bottom:2px solid var(--border); padding:40px 40px 32px; }
+  .hero-inner { max-width:900px; margin:0 auto; }
+  .hero-eyebrow { font-size:10px; letter-spacing:.2em; text-transform:uppercase; color:var(--blue); font-weight:600; margin-bottom:10px; font-family:'Source Code Pro',monospace; }
+  .hero h1 { font-size:clamp(18px,2.5vw,26px); font-weight:700; color:var(--text); line-height:1.25; }
+  .hero h1 span { color:var(--blue); }
+  .hero-meta { margin-top:14px; display:flex; flex-wrap:wrap; gap:8px; }
+  .meta-pill { font-size:10.5px; font-family:'Source Code Pro',monospace; padding:3px 10px; border-radius:20px; font-weight:600; }
+  .pill-tier { background:var(--purple-light); color:var(--purple); border:1px solid #c4bdf0; }
+  .pill-topic { background:var(--teal-light); color:var(--teal); border:1px solid #a3d4ce; }
+  .pill-turns { background:var(--bg3); color:var(--text-dim); border:1px solid var(--border); font-weight:400; }
+  .main { max-width:900px; margin:0 auto; padding:40px 40px 80px; }
+  .step-section { margin-bottom:56px; scroll-margin-top:120px; }
+  .step-header { display:flex; align-items:center; gap:14px; margin-bottom:20px; padding-bottom:16px; border-bottom:2px solid var(--border); }
+  .step-number { width:40px; height:40px; border-radius:50%; background:var(--blue); color:white; display:flex; align-items:center; justify-content:center; font-size:16px; font-weight:700; font-family:'Source Code Pro',monospace; flex-shrink:0; }
+  .step-label { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:.18em; text-transform:uppercase; color:var(--blue); font-weight:600; margin-bottom:3px; }
+  .step-title { font-size:18px; font-weight:700; color:var(--text); line-height:1.25; }
+  .prose { font-size:14.5px; color:var(--text-dim); line-height:1.8; margin-bottom:20px; }
+  .prose strong { color:var(--text); font-weight:600; }
+  .prose code { font-family:'Source Code Pro',monospace; font-size:13px; background:var(--bg3); border:1px solid var(--border); padding:1px 5px; border-radius:4px; color:var(--blue-dark); }
+  .file-map { background:var(--bg2); border:1px solid var(--border); border-top:3px solid var(--blue); border-radius:var(--radius); overflow:hidden; margin:20px 0; }
+  .file-map-header { padding:12px 18px; background:var(--blue-light); border-bottom:1px solid var(--border); font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:.18em; text-transform:uppercase; color:var(--blue); font-weight:600; }
+  .file-map table { width:100%; border-collapse:collapse; }
+  .file-map th { padding:10px 16px; font-size:11px; font-family:'Source Code Pro',monospace; color:var(--text-dimmer); font-weight:600; text-align:left; border-bottom:1px solid var(--border); background:var(--bg3); }
+  .file-map td { padding:10px 16px; font-size:13px; color:var(--text-dim); border-bottom:1px solid var(--border); vertical-align:top; }
+  .file-map tr:last-child td { border-bottom:none; }
+  .file-map td:first-child { font-family:'Source Code Pro',monospace; font-size:12px; color:var(--blue-dark); font-weight:600; white-space:nowrap; }
+  .stage-pill { font-size:9.5px; font-family:'Source Code Pro',monospace; padding:2px 8px; border-radius:20px; font-weight:600; white-space:nowrap; }
+  .stage-workload { background:var(--blue-light); color:var(--blue); border:1px solid var(--blue-mid); }
+  .stage-scaling  { background:var(--teal-light); color:var(--teal); border:1px solid #a3d4ce; }
+  .stage-policy   { background:var(--purple-light); color:var(--purple); border:1px solid #c4bdf0; }
+  .stage-traffic  { background:var(--amber-light); color:var(--amber); border:1px solid #f0d4a0; }
+  .callout { border-radius:var(--radius); padding:16px 18px; margin:20px 0; font-size:13.5px; line-height:1.7; }
+  .callout-label { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:.15em; text-transform:uppercase; font-weight:700; margin-bottom:6px; }
+  .callout.info { background:var(--blue-light); border:1px solid var(--blue-mid); border-left:3px solid var(--blue); color:var(--text-dim); }
+  .callout.info .callout-label { color:var(--blue); }
+  .callout.warn { background:#fdf5f5; border:1px solid var(--coral-mid); border-left:3px solid var(--coral); color:var(--text-dim); }
+  .callout.warn .callout-label { color:var(--coral); }
+  .callout.good { background:var(--green-light); border:1px solid #a3d4b8; border-left:3px solid var(--green); color:var(--text-dim); }
+  .callout.good .callout-label { color:var(--green); }
+  .callout.tip  { background:var(--amber-light); border:1px solid #f0d4a0; border-left:3px solid var(--amber); color:var(--text-dim); }
+  .callout.tip  .callout-label { color:var(--amber); }
+  .callout strong { color:var(--text); font-weight:600; }
+  .callout code { font-family:'Source Code Pro',monospace; font-size:12.5px; background:rgba(0,0,0,.06); padding:1px 5px; border-radius:4px; }
+  .code-wrap { margin:20px 0; border-radius:0; overflow:hidden; border:1px solid #2a3144; background:#1e2433; }
+  .code-header { background:#252b3b; padding:10px 16px; display:flex; align-items:center; justify-content:space-between; }
+  .code-filename { font-size:11px; font-family:'Source Code Pro',monospace; color:#ffffff; letter-spacing:.05em; }
+  .code-copy { font-size:10px; font-family:'Source Code Pro',monospace; color:#7a8ab0; background:none; border:1px solid #3a4155; border-radius:4px; padding:2px 8px; cursor:pointer; transition:color .15s,border-color .15s; }
+  .code-copy:hover { color:#cdd6f4; border-color:#6a7ab0; }
+  pre { background:#1e2433 !important; padding:20px; overflow-x:auto; margin:0; }
+  code.block { font-family:'Source Code Pro',monospace; font-size:13px; line-height:1.7; color:var(--code-text); background:none; border:none; padding:0; display:block; }
+  .kw{color:#cba6f7;} .cm{color:#6c7086;font-style:italic;} .st{color:#a6e3a1;}
+  .nm{color:#fab387;} .op{color:#89dceb;} .an{color:#f38ba8;} .fn{color:#89b4fa;}
+  .diff-wrap { margin:20px 0; border-radius:0; overflow:hidden; border:1px solid #2a3144; background:#1e2433; }
+  .diff-header { background:#252b3b; padding:10px 16px; font-size:11px; font-family:'Source Code Pro',monospace; color:#ffffff; }
+  .diff-body { background:#1e2433 !important; padding:16px 0; overflow-x:auto; }
+  .diff-line { padding:1px 20px; font-family:'Source Code Pro',monospace; font-size:13px; line-height:1.65; color:var(--code-text); display:block; }
+  .diff-line.add { background:rgba(166,227,161,.12); color:#a6e3a1; }
+  .diff-line.add::before { content:'+  '; color:#a6e3a1; }
+  .diff-line.rem { background:rgba(243,139,168,.12); color:#f38ba8; }
+  .diff-line.rem::before { content:'-  '; color:#f38ba8; }
+  .diff-line.neu::before { content:'   '; }
+  .annotation-list { list-style:none; display:flex; flex-direction:column; gap:12px; margin:20px 0; }
+  .annotation-list li { display:flex; gap:12px; align-items:flex-start; font-size:13.5px; color:var(--text-dim); line-height:1.7; }
+  .ann-badge { flex-shrink:0; font-size:10px; font-family:'Source Code Pro',monospace; font-weight:700; padding:2px 8px; border-radius:4px; margin-top:2px; }
+  .ann-good { background:var(--green-light); color:var(--green); border:1px solid #a3d4b8; }
+  .ann-warn { background:var(--coral-light); color:var(--coral); border:1px solid var(--coral-mid); }
+  .ann-info { background:var(--blue-light); color:var(--blue); border:1px solid var(--blue-mid); }
+  .annotation-list li strong { color:var(--text); font-weight:600; }
+  .annotation-list li code { font-family:'Source Code Pro',monospace; font-size:12.5px; background:var(--bg3); border:1px solid var(--border); padding:1px 5px; border-radius:4px; color:var(--blue-dark); }
+  .conversation { display:flex; flex-direction:column; gap:0; margin:16px 0; border:1px solid #2a3144; border-radius:var(--radius); overflow:hidden; }
+  .conv-turn { padding:18px 22px; }
+  .conv-turn + .conv-turn { border-top:1px solid #2a3144; }
+  .conv-turn.engineer { background:var(--bg3); }
+  .conv-turn.claude   { background:#1e2433; }
+  .conv-role { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:.18em; text-transform:uppercase; font-weight:700; margin-bottom:8px; }
+  .conv-turn.engineer .conv-role { color:var(--teal); }
+  .conv-turn.claude   .conv-role { color:#7a8ab0; }
+  .conv-body { font-size:13.5px; line-height:1.75; }
+  .conv-turn.engineer .conv-body { color:var(--text-dim); }
+  .conv-turn.claude   .conv-body { color:#cdd6f4; }
+  .conv-turn.engineer .conv-body strong { color:var(--text); font-weight:600; }
+  .conv-turn.claude   .conv-body strong { color:#ffffff; font-weight:600; }
+  .conv-turn.engineer .conv-body code { font-family:'Source Code Pro',monospace; font-size:12.5px; background:var(--bg3); border:1px solid var(--border); padding:1px 5px; border-radius:4px; color:var(--blue-dark); }
+  .conv-turn.claude   .conv-body code { font-family:'Source Code Pro',monospace; font-size:12.5px; background:#252b3b; border:1px solid #3a4155; padding:1px 5px; border-radius:4px; color:#89dceb; }
+  .conv-turn.claude   .conv-body em { font-style:italic; color:#6c7086; }
+  .conv-turn.claude   .code-wrap { margin:12px 0; }
+  .turn-nav { display:flex; align-items:center; gap:6px; margin-bottom:16px; flex-wrap:wrap; }
+  .turn-nav-label { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:.15em; text-transform:uppercase; color:var(--text-dimmer); font-weight:600; margin-right:4px; }
+  .turn-pip { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; font-family:'Source Code Pro',monospace; border:1px solid var(--border); background:var(--bg3); color:var(--text-dimmer); }
+  .turn-pip.active { background:var(--blue); border-color:var(--blue); color:#fff; }
+  .turn-pip.done   { background:var(--green-light); border-color:#a3d4b8; color:var(--green); }
+  .turn-connector  { width:20px; height:1px; background:var(--border); }
+  .file-connect { background:var(--bg2); border:1px solid var(--border); border-radius:var(--radius); padding:20px 24px; margin:24px 0; }
+  .file-connect-label { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:.18em; text-transform:uppercase; color:var(--blue); font-weight:600; margin-bottom:14px; }
+  .fc-row { display:flex; align-items:flex-start; gap:12px; margin-bottom:12px; }
+  .fc-row:last-child { margin-bottom:0; }
+  .fc-file { font-family:'Source Code Pro',monospace; font-size:11.5px; font-weight:600; color:var(--blue-dark); background:var(--blue-light); border:1px solid var(--blue-mid); border-radius:6px; padding:4px 10px; white-space:nowrap; flex-shrink:0; }
+  .fc-arrow { color:var(--text-dimmer); font-size:14px; margin-top:3px; flex-shrink:0; }
+  .fc-desc { font-size:13px; color:var(--text-dim); line-height:1.6; padding-top:2px; }
+  .fc-desc strong { color:var(--text); font-weight:600; }
+  .turn-label { display:inline-flex; align-items:center; gap:6px; font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:.12em; text-transform:uppercase; color:var(--text-dimmer); background:var(--bg3); border:1px solid var(--border); border-radius:20px; padding:3px 10px; margin-bottom:14px; font-weight:600; }
+  .section-divider { height:1px; background:var(--border); margin:40px 0; }
+  .bottom-nav { display:flex; justify-content:space-between; align-items:center; padding:20px 0 0; border-top:1px solid var(--border); margin-top:40px; }
+  .nav-btn { display:inline-flex; align-items:center; gap:8px; font-size:13px; font-family:'Source Code Pro',monospace; color:var(--blue); text-decoration:none; padding:10px 18px; border:1px solid var(--blue-mid); border-radius:8px; background:var(--blue-light); transition:background .15s,border-color .15s; font-weight:600; }
+  .nav-btn:hover { background:var(--blue-mid); border-color:var(--blue); }
+  .nav-btn.secondary { background:var(--bg2); color:var(--text-dim); border-color:var(--border); }
+  .nav-btn.secondary:hover { background:var(--bg3); }
+  footer { background:var(--bg2); border-top:1px solid var(--border); padding:14px 40px; font-size:11px; font-family:'Source Code Pro',monospace; color:var(--text-dimmer); display:flex; justify-content:space-between; align-items:center; }
+  @media(max-width:640px){.topnav,.main,footer{padding-left:20px;padding-right:20px;}.hero{padding:28px 20px;}.stepnav{padding:0 20px;}}
+
+  /* ── Reviewer additions ──────────────────────────────────────────────────── */
+  .reviewer-bar {
+    background: #fff8e6;
+    border: 1px solid #f0d4a0;
+    border-left: 3px solid #92600a;
+    border-radius: 8px;
+    padding: 10px 16px;
+    margin-top: 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: #92600a;
+    font-family: 'Source Code Pro', monospace;
+  }
+  .reviewer-bar input[type="checkbox"] {
+    width: 16px; height: 16px; cursor: pointer; flex-shrink: 0;
+    accent-color: #1a6b3a;
+  }
+  .reviewer-bar label { cursor: pointer; font-weight: 600; user-select: none; }
+  .reviewer-bar.checked { background: #e8f5ed; border-color: #a3d4b8; border-left-color: #1a6b3a; color: #1a6b3a; }
+
+  .reviewer-panel {
+    background: #f5f0ff;
+    border: 1px solid #c4bdf0;
+    border-top: 3px solid #5b4fcf;
+    border-radius: 12px;
+    padding: 24px 28px;
+    margin: 32px 0;
+  }
+  .reviewer-panel-label {
+    font-size: 9px; font-family: 'Source Code Pro', monospace;
+    letter-spacing: .18em; text-transform: uppercase;
+    color: #5b4fcf; font-weight: 600; margin-bottom: 16px;
+  }
+  .reviewer-q-text {
+    font-size: 14px; font-weight: 600; color: #1a2332;
+    line-height: 1.65; margin-bottom: 14px;
+  }
+  .reviewer-options { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
+  .reviewer-option {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 10px 14px; border: 1px solid #d0dae8;
+    border-radius: 8px; cursor: pointer;
+    font-size: 13.5px; color: #4a5568; line-height: 1.5;
+    transition: background .12s, border-color .12s;
+    background: #ffffff;
+  }
+  .reviewer-option:hover { background: #f0f4f9; border-color: #b8d0ed; }
+  .reviewer-option.selected { background: #e8f1fb; border-color: #1a6eb5; color: #1a2332; }
+  .reviewer-option.correct  { background: #e8f5ed; border-color: #a3d4b8; color: #1a6b3a; }
+  .reviewer-option.wrong    { background: #fdf0ee; border-color: #f0b8b2; color: #c0392b; }
+  .reviewer-option-key { font-family: 'Source Code Pro', monospace; font-size: 11px; font-weight: 700; color: #8fa3bc; flex-shrink: 0; margin-top: 1px; }
+
+  .reviewer-tf { display: flex; gap: 10px; margin-bottom: 18px; }
+  .reviewer-tf-btn {
+    flex: 1; padding: 10px; border: 1px solid #d0dae8;
+    border-radius: 8px; cursor: pointer; text-align: center;
+    font-size: 13.5px; font-weight: 600;
+    font-family: 'Source Code Pro', monospace; color: #4a5568;
+    background: #ffffff; transition: background .12s;
+  }
+  .reviewer-tf-btn:hover { background: #f0f4f9; border-color: #b8d0ed; }
+  .reviewer-tf-btn.selected { background: #e8f1fb; border-color: #1a6eb5; color: #1a6eb5; }
+  .reviewer-tf-btn.correct  { background: #e8f5ed; border-color: #a3d4b8; color: #1a6b3a; }
+  .reviewer-tf-btn.wrong    { background: #fdf0ee; border-color: #f0b8b2; color: #c0392b; }
+
+  .reviewer-reveal {
+    font-size: 12px; font-family: 'Source Code Pro', monospace;
+    color: #5b4fcf; cursor: pointer; text-decoration: underline;
+    background: none; border: none; padding: 0; margin-bottom: 14px; display: block;
+  }
+  .reviewer-explanation {
+    font-size: 13px; color: #4a5568; line-height: 1.7;
+    padding: 12px 14px; background: #eef2f7; border-radius: 8px;
+    margin-bottom: 16px; display: none;
+  }
+  .reviewer-explanation.visible { display: block; }
+  .reviewer-exp-label { font-size: 9px; font-family: 'Source Code Pro', monospace; letter-spacing: .15em; text-transform: uppercase; font-weight: 700; margin-bottom: 4px; }
+  .reviewer-exp-label.correct { color: #1a6b3a; }
+  .reviewer-exp-label.wrong   { color: #c0392b; }
+
+  .reviewer-comment-label {
+    font-size: 11px; font-family: 'Source Code Pro', monospace;
+    letter-spacing: .12em; text-transform: uppercase;
+    color: #8fa3bc; font-weight: 600; margin-bottom: 6px;
+  }
+  .reviewer-comment {
+    width: 100%; min-height: 80px; padding: 10px 12px;
+    border: 1px solid #c4bdf0; border-radius: 8px;
+    font-family: 'Merriweather Sans', sans-serif; font-size: 13.5px;
+    color: #1a2332; background: #ffffff; resize: vertical;
+    line-height: 1.6; transition: border-color .15s;
+  }
+  .reviewer-comment:focus { outline: none; border-color: #5b4fcf; }
+  .reviewer-save-note {
+    font-size: 11px; font-family: 'Source Code Pro', monospace;
+    color: #8fa3bc; margin-top: 6px;
+  }
+
+  .reviewer-topbanner {
+    background: #f5f0ff; border-bottom: 2px solid #c4bdf0;
+    padding: 10px 40px; font-size: 12px;
+    font-family: 'Source Code Pro', monospace; color: #5b4fcf;
+    display: flex; align-items: center; gap: 8px;
+  }
+
+</style>
+</head>
+<body>
+<div class="reviewer-topbanner">
+  <span>👁</span>
+  <span><strong>Reviewer mode</strong> — checkboxes, question answers, and notes are saved in your browser.</span>
+</div>
+
+
+<nav class="topnav">
+  <a href="../course-map.html">Course map</a>
+  <span class="sep">/</span>
+  <a href="../course-map.html">Tier 2 examples</a>
+  <span class="sep">/</span>
+  <span>Example 7 — Kubernetes deployment with HPA and PDB</span>
+</nav>
+
+<nav class="stepnav" id="stepnav">
+  <a class="stepnav-item active" href="#step-1"><span class="stepnav-num">1</span>Problem</a>
+  <a class="stepnav-item" href="#step-2"><span class="stepnav-num">2</span>Naive approach</a>
+  <a class="stepnav-item" href="#step-3"><span class="stepnav-num">3</span>Claude Code interaction</a>
+  <a class="stepnav-item" href="#step-4"><span class="stepnav-num">4</span>Refined output</a>
+  <a class="stepnav-item" href="#step-5"><span class="stepnav-num">5</span>Watch out</a>
+</nav>
+
+<div class="hero">
+  <div class="hero-inner">
+    <div class="hero-eyebrow">Example 7 of 13 · Tier 2 · Multi-step workflow</div>
+    <h1>Kubernetes deployment with <span>HPA and PDB</span></h1>
+    <div class="hero-meta">
+      <span class="meta-pill pill-tier">Tier 2 — Multi-step workflow</span>
+      <span class="meta-pill pill-topic">Kubernetes · Workload operations</span>
+      <span class="meta-pill pill-turns">5-turn interaction</span>
+      <span class="meta-pill pill-turns">4 manifests · autoscaling · disruption budget</span>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- ══ STEP 1 ══ -->
+  <section class="step-section" id="step-1">
+    <div class="step-header">
+      <div class="step-number">1</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 1 of 5</div>
+        <div class="step-title">The problem</div>
+      </div>
+<div class="reviewer-bar" id="rev-bar-1">
+  <input type="checkbox" class="rev-checkbox" id="rev-cb-1" data-step="1">
+  <label for="rev-cb-1">Mark step as reviewed</label>
+</div>
+
+    </div>
+
+    <p class="prose">
+      The <code>payment-api</code> deployment (introduced in Example 5) needs to be made operationally complete. The current deployment manifest handles the basic workload spec — replicas, probes, security context — but it has no autoscaling, no disruption budget, and no way for the cluster to distribute pods safely across availability zones. During a recent node maintenance window, all three replicas landed on the same node being drained, causing a complete service outage for four minutes.
+    </p>
+
+    <p class="prose">
+      The task is to produce a full Kubernetes workload spec: the deployment (updated from Example 5), a Horizontal Pod Autoscaler, a PodDisruptionBudget, and a Service. Together these four manifests define not just how the application runs but how it scales, how it tolerates disruption, and how traffic reaches it.
+    </p>
+
+    <div class="callout info">
+      <div class="callout-label">Requirements</div>
+      — <strong>Deployment:</strong> extend Example 5's manifest — add topology spread constraints to distribute pods across AZs, add <code>topologySpreadConstraints</code>, retain all existing security context and probe config<br>
+      — <strong>HPA:</strong> scale between 3 and 10 replicas based on CPU (70%) and memory (80%) utilisation<br>
+      — <strong>PDB:</strong> minimum 2 pods available at all times — node drains must not reduce available replicas below 2<br>
+      — <strong>Service:</strong> ClusterIP service exposing port 3000, selector aligned to deployment labels<br>
+      — All four manifests in a single <code>k8s/</code> directory, applicable with <code>kubectl apply -f k8s/</code><br>
+      — Metrics server must be present in the cluster for HPA to function — document this dependency
+    </div>
+
+    <div class="file-map">
+      <div class="file-map-header">Files involved in this example</div>
+      <table>
+        <thead><tr><th>File</th><th>Purpose</th><th>Concern</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>k8s/deployment.yaml</td>
+            <td>Updated workload spec — extends Example 5 with topology spread constraints</td>
+            <td><span class="stage-pill stage-workload">Workload</span></td>
+          </tr>
+          <tr>
+            <td>k8s/hpa.yaml</td>
+            <td>Horizontal Pod Autoscaler — CPU and memory based scaling, 3–10 replicas</td>
+            <td><span class="stage-pill stage-scaling">Scaling</span></td>
+          </tr>
+          <tr>
+            <td>k8s/pdb.yaml</td>
+            <td>PodDisruptionBudget — ensures minimum 2 pods available during node maintenance</td>
+            <td><span class="stage-pill stage-policy">Policy</span></td>
+          </tr>
+          <tr>
+            <td>k8s/service.yaml</td>
+            <td>ClusterIP service — exposes port 3000, selector aligned to deployment labels</td>
+            <td><span class="stage-pill stage-traffic">Traffic</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ══ STEP 2 ══ -->
+  <section class="step-section" id="step-2">
+    <div class="step-header">
+      <div class="step-number">2</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 2 of 5</div>
+        <div class="step-title">The naive approach</div>
+      </div>
+<div class="reviewer-bar" id="rev-bar-2">
+  <input type="checkbox" class="rev-checkbox" id="rev-cb-2" data-step="2">
+  <label for="rev-cb-2">Mark step as reviewed</label>
+</div>
+
+    </div>
+
+    <p class="prose">
+      The naive Kubernetes workload for a production service is often just a Deployment and a Service — the minimum that makes the application reachable. HPA and PDB are added "later when needed." The four-minute outage during node maintenance is what "later" looks like.
+    </p>
+
+    <div class="code-wrap">
+      <div class="code-header"><span class="code-filename">k8s/deployment.yaml (naive — from Example 5, no topology constraints)</span></div>
+      <pre><code class="block"><span class="kw">apiVersion:</span> <span class="st">apps/v1</span>
+<span class="kw">kind:</span> <span class="st">Deployment</span>
+<span class="kw">metadata:</span>
+  <span class="kw">name:</span> <span class="st">payment-api</span>
+  <span class="kw">namespace:</span> <span class="st">payment</span>
+<span class="kw">spec:</span>
+  <span class="kw">replicas:</span> <span class="nm">3</span>
+  <span class="kw">selector:</span>
+    <span class="kw">matchLabels:</span>
+      <span class="kw">app:</span> <span class="st">payment-api</span>
+  <span class="kw">template:</span>
+    <span class="kw">metadata:</span>
+      <span class="kw">labels:</span>
+        <span class="kw">app:</span> <span class="st">payment-api</span>
+    <span class="kw">spec:</span>
+      <span class="cm"># No topologySpreadConstraints — all pods may schedule on one node</span>
+      <span class="kw">containers:</span>
+        - <span class="kw">name:</span> <span class="st">payment-api</span>
+          <span class="kw">image:</span> <span class="st">REGISTRY/payment-api:latest</span>
+          <span class="cm"># ... probes, resources, securityContext from Example 5 ...</span></code></pre>
+    </div>
+
+    <div class="code-wrap">
+      <div class="code-header"><span class="code-filename">k8s/ directory — what is missing</span></div>
+      <pre><code class="block">k8s/
+├── deployment.yaml    <span class="an"># Present — but no topology constraints</span>
+└── (nothing else)
+
+<span class="an"># Missing:</span>
+<span class="an"># hpa.yaml    — no autoscaling; traffic spikes cause pod crashes or 503s</span>
+<span class="an"># pdb.yaml    — no disruption budget; node drain can take all pods offline</span>
+<span class="an"># service.yaml — no service; traffic routing depends on ad-hoc port-forward</span></code></pre>
+    </div>
+
+    <p class="prose">Four distinct operational gaps — each one a production incident waiting to happen:</p>
+
+    <ul class="annotation-list">
+      <li>
+        <span class="ann-badge ann-warn">Availability</span>
+        <div><strong>No topology spread constraints.</strong> Kubernetes schedules pods on available nodes without any affinity or spread rules. Under normal conditions, all three replicas may land on the same node. When that node is drained for maintenance, a rolling eviction removes all pods simultaneously — exactly what caused the four-minute outage. Three replicas on three nodes is not guaranteed without <code>topologySpreadConstraints</code>.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Availability</span>
+        <div><strong>No PodDisruptionBudget.</strong> Without a PDB, Kubernetes permits draining a node by evicting every pod on it simultaneously, regardless of how many replicas are available. A PDB with <code>minAvailable: 2</code> prevents any drain from proceeding if it would reduce available replicas below 2 — the drain blocks until a replacement pod is scheduled and ready on another node.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Scalability</span>
+        <div><strong>No Horizontal Pod Autoscaler.</strong> The deployment is pinned at 3 replicas regardless of load. A payment processing spike that doubles CPU usage will not trigger additional pods — it will degrade response times and eventually cause pod crashes due to resource limit exhaustion. The HPA from this example was the reason the previous Dockerfile had memory limits set to 512Mi (later found to be too low in Example 5).</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Connectivity</span>
+        <div><strong>No Service manifest.</strong> Without a Service object, traffic reaches pods only via <code>kubectl port-forward</code> or direct pod IP. Pod IPs change on every restart. Any other service in the cluster that needs to call <code>payment-api</code> has no stable DNS name to target. The Service manifest is the Kubernetes-native mechanism for stable internal DNS and load balancing across pod replicas.</div>
+      </li>
+    </ul>
+
+    <div class="callout warn">
+      <div class="callout-label">The core problem</div>
+      A Deployment alone describes how an application runs. A complete workload spec describes how it runs, how it scales, how it tolerates disruption, and how it is reached. The gap between the two is invisible in normal operations and catastrophic during the first node maintenance window, traffic spike, or cluster upgrade.
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ══ STEP 3 ══ -->
+  <section class="step-section" id="step-3">
+    <div class="step-header">
+      <div class="step-number">3</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 3 of 5</div>
+        <div class="step-title">The Claude Code interaction</div>
+      </div>
+<div class="reviewer-bar" id="rev-bar-3">
+  <input type="checkbox" class="rev-checkbox" id="rev-cb-3" data-step="3">
+  <label for="rev-cb-3">Mark step as reviewed</label>
+</div>
+
+    </div>
+
+    <p class="prose">Five turns. Turn 1 updates the Deployment with topology spread constraints. Turn 2 generates the HPA with CPU and memory metrics. Turn 3 generates the PDB with the correct minimum availability constraint. Turn 4 pastes a real HPA "unknown" metrics error and resolves it. Turn 5 generates the Service and audits label alignment across all four manifests.</p>
+
+    <!-- Turn 1 -->
+    <div class="turn-nav">
+      <span class="turn-nav-label">Turns</span>
+      <span class="turn-pip active">1</span><span class="turn-connector"></span>
+      <span class="turn-pip">2</span><span class="turn-connector"></span>
+      <span class="turn-pip">3</span><span class="turn-connector"></span>
+      <span class="turn-pip">4</span><span class="turn-connector"></span>
+      <span class="turn-pip">5</span>
+    </div>
+
+    <div class="turn-label">Turn 1 of 5 — Deployment updated with topology spread constraints</div>
+    <div class="conversation">
+      <div class="conv-turn engineer">
+        <div class="conv-role">Engineer → Claude Code</div>
+        <div class="conv-body">
+          <p>Update the deployment from Example 5 to add topology spread constraints. Requirements:</p>
+          <p style="margin-top:10px;">
+          — Spread pods across availability zones using the <code>topology.kubernetes.io/zone</code> label<br>
+          — Also spread across nodes using <code>kubernetes.io/hostname</code><br>
+          — <code>whenUnsatisfiable: DoNotSchedule</code> — hard constraint, do not schedule pods that would violate spread<br>
+          — <code>maxSkew: 1</code> for both constraints<br>
+          — Retain all existing config from Example 5 (security context, probes, resources, emptyDir volume)
+          </p>
+        </div>
+      </div>
+      <div class="conv-turn claude">
+        <div class="conv-role">Claude Code</div>
+        <div class="conv-body">
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">k8s/deployment.yaml (turn 1 — topology spread added)</span><button class="code-copy" onclick="copyCode(this)">copy</button></div>
+            <pre><code class="block"><span class="kw">apiVersion:</span> <span class="st">apps/v1</span>
+<span class="kw">kind:</span> <span class="st">Deployment</span>
+<span class="kw">metadata:</span>
+  <span class="kw">name:</span> <span class="st">payment-api</span>
+  <span class="kw">namespace:</span> <span class="st">payment</span>
+  <span class="kw">labels:</span>
+    <span class="kw">app:</span> <span class="st">payment-api</span>
+    <span class="kw">app.kubernetes.io/name:</span> <span class="st">payment-api</span>
+    <span class="kw">app.kubernetes.io/managed-by:</span> <span class="st">ci</span>
+<span class="kw">spec:</span>
+  <span class="kw">replicas:</span> <span class="nm">3</span>
+  <span class="kw">selector:</span>
+    <span class="kw">matchLabels:</span>
+      <span class="kw">app:</span> <span class="st">payment-api</span>
+  <span class="kw">strategy:</span>
+    <span class="kw">type:</span> <span class="st">RollingUpdate</span>
+    <span class="kw">rollingUpdate:</span>
+      <span class="kw">maxSurge:</span> <span class="nm">1</span>
+      <span class="kw">maxUnavailable:</span> <span class="nm">0</span>
+  <span class="kw">template:</span>
+    <span class="kw">metadata:</span>
+      <span class="kw">labels:</span>
+        <span class="kw">app:</span> <span class="st">payment-api</span>
+    <span class="kw">spec:</span>
+      <span class="cm"># ── Topology spread ──────────────────────────────────────────────────</span>
+      <span class="kw">topologySpreadConstraints:</span>
+        - <span class="kw">maxSkew:</span> <span class="nm">1</span>
+          <span class="kw">topologyKey:</span> <span class="st">topology.kubernetes.io/zone</span>
+          <span class="kw">whenUnsatisfiable:</span> <span class="st">DoNotSchedule</span>
+          <span class="kw">labelSelector:</span>
+            <span class="kw">matchLabels:</span>
+              <span class="kw">app:</span> <span class="st">payment-api</span>
+        - <span class="kw">maxSkew:</span> <span class="nm">1</span>
+          <span class="kw">topologyKey:</span> <span class="st">kubernetes.io/hostname</span>
+          <span class="kw">whenUnsatisfiable:</span> <span class="st">DoNotSchedule</span>
+          <span class="kw">labelSelector:</span>
+            <span class="kw">matchLabels:</span>
+              <span class="kw">app:</span> <span class="st">payment-api</span>
+      <span class="kw">securityContext:</span>
+        <span class="kw">runAsNonRoot:</span> <span class="nm">true</span>
+        <span class="kw">runAsUser:</span> <span class="nm">1000</span>
+      <span class="kw">containers:</span>
+        - <span class="kw">name:</span> <span class="st">payment-api</span>
+          <span class="kw">image:</span> <span class="st">REGISTRY/payment-api:latest</span>
+          <span class="kw">ports:</span>
+            - <span class="kw">containerPort:</span> <span class="nm">3000</span>
+          <span class="kw">resources:</span>
+            <span class="kw">requests:</span>
+              <span class="kw">memory:</span> <span class="st">256Mi</span>
+              <span class="kw">cpu:</span> <span class="st">250m</span>
+            <span class="kw">limits:</span>
+              <span class="kw">memory:</span> <span class="st">768Mi</span>   <span class="cm"># Increased from 512Mi — OOMKilled in Example 5</span>
+              <span class="kw">cpu:</span> <span class="st">500m</span>
+          <span class="kw">securityContext:</span>
+            <span class="kw">readOnlyRootFilesystem:</span> <span class="nm">true</span>
+            <span class="kw">allowPrivilegeEscalation:</span> <span class="nm">false</span>
+            <span class="kw">capabilities:</span>
+              <span class="kw">drop:</span> <span class="st">[ ALL ]</span>
+          <span class="kw">livenessProbe:</span>
+            <span class="kw">httpGet:</span>
+              <span class="kw">path:</span> <span class="st">/health</span>
+              <span class="kw">port:</span> <span class="nm">3000</span>
+            <span class="kw">initialDelaySeconds:</span> <span class="nm">15</span>
+            <span class="kw">periodSeconds:</span> <span class="nm">20</span>
+            <span class="kw">failureThreshold:</span> <span class="nm">3</span>
+          <span class="kw">readinessProbe:</span>
+            <span class="kw">httpGet:</span>
+              <span class="kw">path:</span> <span class="st">/health</span>
+              <span class="kw">port:</span> <span class="nm">3000</span>
+            <span class="kw">initialDelaySeconds:</span> <span class="nm">5</span>
+            <span class="kw">periodSeconds:</span> <span class="nm">10</span>
+            <span class="kw">failureThreshold:</span> <span class="nm">3</span>
+          <span class="kw">volumeMounts:</span>
+            - <span class="kw">name:</span> <span class="st">logs</span>
+              <span class="kw">mountPath:</span> <span class="st">/app/logs</span>
+      <span class="kw">volumes:</span>
+        - <span class="kw">name:</span> <span class="st">logs</span>
+          <span class="kw">emptyDir:</span> {}</code></pre>
+          </div>
+          <p style="margin-top:10px;">Two notes on <code>DoNotSchedule</code>: this is a hard constraint — if the cluster does not have enough nodes across the required zones to satisfy <code>maxSkew: 1</code>, the scheduler will leave pods in <code>Pending</code> state rather than violating the spread. If you have a 3-replica deployment and only 2 AZs, the constraint can be satisfied (2 in one AZ, 1 in another, skew = 1). If you have fewer nodes than replicas, pods will be pending — which is preferable to silently concentrating all replicas on one node.</p>
+          <p style="margin-top:8px;">Also updated: memory limit raised from 512Mi to 768Mi to address the OOMKilled root cause from Example 5, Turn 4.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Turn 2 -->
+    <div class="turn-nav" style="margin-top:28px;">
+      <span class="turn-nav-label">Turns</span>
+      <span class="turn-pip done">1</span><span class="turn-connector"></span>
+      <span class="turn-pip active">2</span><span class="turn-connector"></span>
+      <span class="turn-pip">3</span><span class="turn-connector"></span>
+      <span class="turn-pip">4</span><span class="turn-connector"></span>
+      <span class="turn-pip">5</span>
+    </div>
+
+    <div class="turn-label">Turn 2 of 5 — HPA with CPU and memory metrics</div>
+    <div class="conversation">
+      <div class="conv-turn engineer">
+        <div class="conv-role">Engineer → Claude Code</div>
+        <div class="conv-body">
+          <p>Generate <code>k8s/hpa.yaml</code>. Requirements:</p>
+          <p style="margin-top:10px;">
+          — Target: <code>payment-api</code> Deployment in <code>payment</code> namespace<br>
+          — Min replicas: 3 (matches Deployment spec), max: 10<br>
+          — Scale up on average CPU utilisation &gt; 70%<br>
+          — Scale up on average memory utilisation &gt; 80%<br>
+          — Use <code>autoscaling/v2</code> API (not v1 — v1 only supports CPU)<br>
+          — Scale-down stabilisation: 5 minutes (prevent thrashing after a traffic spike)
+          </p>
+        </div>
+      </div>
+      <div class="conv-turn claude">
+        <div class="conv-role">Claude Code</div>
+        <div class="conv-body">
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">k8s/hpa.yaml (turn 2)</span><button class="code-copy" onclick="copyCode(this)">copy</button></div>
+            <pre><code class="block"><span class="kw">apiVersion:</span> <span class="st">autoscaling/v2</span>
+<span class="kw">kind:</span> <span class="st">HorizontalPodAutoscaler</span>
+<span class="kw">metadata:</span>
+  <span class="kw">name:</span> <span class="st">payment-api</span>
+  <span class="kw">namespace:</span> <span class="st">payment</span>
+<span class="kw">spec:</span>
+  <span class="kw">scaleTargetRef:</span>
+    <span class="kw">apiVersion:</span> <span class="st">apps/v1</span>
+    <span class="kw">kind:</span> <span class="st">Deployment</span>
+    <span class="kw">name:</span> <span class="st">payment-api</span>   <span class="cm"># Must match deployment name exactly</span>
+  <span class="kw">minReplicas:</span> <span class="nm">3</span>
+  <span class="kw">maxReplicas:</span> <span class="nm">10</span>
+  <span class="kw">metrics:</span>
+    - <span class="kw">type:</span> <span class="st">Resource</span>
+      <span class="kw">resource:</span>
+        <span class="kw">name:</span> <span class="st">cpu</span>
+        <span class="kw">target:</span>
+          <span class="kw">type:</span> <span class="st">Utilization</span>
+          <span class="kw">averageUtilization:</span> <span class="nm">70</span>
+    - <span class="kw">type:</span> <span class="st">Resource</span>
+      <span class="kw">resource:</span>
+        <span class="kw">name:</span> <span class="st">memory</span>
+        <span class="kw">target:</span>
+          <span class="kw">type:</span> <span class="st">Utilization</span>
+          <span class="kw">averageUtilization:</span> <span class="nm">80</span>
+  <span class="kw">behavior:</span>
+    <span class="kw">scaleDown:</span>
+      <span class="kw">stabilizationWindowSeconds:</span> <span class="nm">300</span>   <span class="cm"># 5 minutes — prevents thrashing</span>
+      <span class="kw">policies:</span>
+        - <span class="kw">type:</span> <span class="st">Pods</span>
+          <span class="kw">value:</span> <span class="nm">1</span>
+          <span class="kw">periodSeconds:</span> <span class="nm">60</span>   <span class="cm"># Remove at most 1 pod per minute on scale-down</span>
+    <span class="kw">scaleUp:</span>
+      <span class="kw">stabilizationWindowSeconds:</span> <span class="nm">0</span>     <span class="cm"># Scale up immediately — no delay on traffic spike</span>
+      <span class="kw">policies:</span>
+        - <span class="kw">type:</span> <span class="st">Pods</span>
+          <span class="kw">value:</span> <span class="nm">2</span>
+          <span class="kw">periodSeconds:</span> <span class="nm">60</span>   <span class="cm"># Add at most 2 pods per minute on scale-up</span></code></pre>
+          </div>
+          <p style="margin-top:10px;"><strong>On the asymmetric scale-up/scale-down behaviour:</strong> scale-up is immediate with no stabilisation window because a payment service under load needs new pods quickly. Scale-down has a 5-minute stabilisation window because a brief traffic dip after a spike should not immediately remove pods that may be needed again in the next minute. The 1-pod-per-minute scale-down rate prevents a large fleet from collapsing too quickly after a sustained traffic reduction.</p>
+          <p style="margin-top:8px;"><strong>Prerequisite:</strong> HPA resource metrics require the <a href="https://kubernetes-sigs.github.io/metrics-server/" style="color:#89dceb;">Kubernetes metrics-server</a> to be installed in the cluster. Without it, <code>kubectl get hpa</code> will show <code>&lt;unknown&gt;</code> for current metrics and the HPA will not scale. Verify with: <code>kubectl top pods -n payment</code> — if this returns data, metrics-server is installed and functioning.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Turn 3 -->
+    <div class="turn-nav" style="margin-top:28px;">
+      <span class="turn-nav-label">Turns</span>
+      <span class="turn-pip done">1</span><span class="turn-connector"></span>
+      <span class="turn-pip done">2</span><span class="turn-connector"></span>
+      <span class="turn-pip active">3</span><span class="turn-connector"></span>
+      <span class="turn-pip">4</span><span class="turn-connector"></span>
+      <span class="turn-pip">5</span>
+    </div>
+
+    <div class="turn-label">Turn 3 of 5 — PodDisruptionBudget</div>
+    <div class="conversation">
+      <div class="conv-turn engineer">
+        <div class="conv-role">Engineer → Claude Code</div>
+        <div class="conv-body">
+          <p>Generate <code>k8s/pdb.yaml</code>. Minimum 2 pods must be available at all times. The PDB must account for the fact that HPA may scale the deployment up to 10 replicas — at 10 replicas, the PDB should still allow some disruption, not block all node drains. Explain the <code>minAvailable</code> vs <code>maxUnavailable</code> choice.</p>
+        </div>
+      </div>
+      <div class="conv-turn claude">
+        <div class="conv-role">Claude Code</div>
+        <div class="conv-body">
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">k8s/pdb.yaml (turn 3)</span><button class="code-copy" onclick="copyCode(this)">copy</button></div>
+            <pre><code class="block"><span class="kw">apiVersion:</span> <span class="st">policy/v1</span>
+<span class="kw">kind:</span> <span class="st">PodDisruptionBudget</span>
+<span class="kw">metadata:</span>
+  <span class="kw">name:</span> <span class="st">payment-api</span>
+  <span class="kw">namespace:</span> <span class="st">payment</span>
+<span class="kw">spec:</span>
+  <span class="kw">minAvailable:</span> <span class="nm">2</span>
+  <span class="kw">selector:</span>
+    <span class="kw">matchLabels:</span>
+      <span class="kw">app:</span> <span class="st">payment-api</span></code></pre>
+          </div>
+          <p style="margin-top:10px;"><strong><code>minAvailable: 2</code> vs <code>maxUnavailable: 1</code> — why <code>minAvailable</code> is correct here:</strong></p>
+          <p style="margin-top:8px;"><code>maxUnavailable: 1</code> means at most 1 pod may be unavailable at any time. At 3 replicas this is equivalent to <code>minAvailable: 2</code>. But at 10 replicas (HPA maximum), <code>maxUnavailable: 1</code> still allows only 1 pod to be drained at a time — making node maintenance very slow when the deployment is scaled up under load.</p>
+          <p style="margin-top:8px;"><code>minAvailable: 2</code> is an absolute floor regardless of the current replica count. At 3 replicas it prevents draining below 2. At 10 replicas it allows 8 pods to be evicted simultaneously — node maintenance proceeds quickly during high-traffic periods. This is the correct production behaviour: protect a meaningful minimum while not over-constraining operational work at scale.</p>
+          <p style="margin-top:8px;"><strong>Important:</strong> if <code>minReplicas</code> on the HPA is ever reduced below 2, the PDB will block all node drains entirely — the HPA could scale down to 2 pods, and the PDB's <code>minAvailable: 2</code> means zero evictions are permitted. Keep <code>minReplicas ≥ minAvailable + 1</code> as an operational rule.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Turn 4 -->
+    <div class="turn-nav" style="margin-top:28px;">
+      <span class="turn-nav-label">Turns</span>
+      <span class="turn-pip done">1</span><span class="turn-connector"></span>
+      <span class="turn-pip done">2</span><span class="turn-connector"></span>
+      <span class="turn-pip done">3</span><span class="turn-connector"></span>
+      <span class="turn-pip active">4</span><span class="turn-connector"></span>
+      <span class="turn-pip">5</span>
+    </div>
+
+    <div class="turn-label">Turn 4 of 5 — Real HPA metrics error pasted back verbatim</div>
+    <p class="prose">The manifests are applied. The HPA shows <code>&lt;unknown&gt;</code> for current metrics and has not scaled. The engineer pastes the exact output.</p>
+    <div class="conversation">
+      <div class="conv-turn engineer">
+        <div class="conv-role">Engineer → Claude Code</div>
+        <div class="conv-body">
+          <p>Applied all manifests. HPA is not functioning. Exact output:</p>
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">kubectl get hpa -n payment</span></div>
+            <pre><code class="block">NAME          REFERENCE                TARGETS                        MINPODS   MAXPODS   REPLICAS   AGE
+payment-api   Deployment/payment-api   &lt;unknown&gt;/80%, &lt;unknown&gt;/70%   3         10        3          4m</code></pre>
+          </div>
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">kubectl describe hpa payment-api -n payment (excerpt)</span></div>
+            <pre><code class="block">Conditions:
+  Type            Status  Reason                  Message
+  ----            ------  ------                  -------
+  AbleToScale     True    SucceededGetScale       the HPA controller was able to get the target's current scale
+  ScalingActive   False   FailedGetResourceMetric  the HPA was unable to compute the replica count:
+                                                   unable to get metrics for resource cpu:
+                                                   unable to fetch metrics from resource metrics API:
+                                                   the server could not find the requested resource
+                                                   (get pods.metrics.k8s.io)</code></pre>
+          </div>
+          <p style="margin-top:10px;"><code>kubectl top pods -n payment</code> returns: <code>error: Metrics API not available</code></p>
+        </div>
+      </div>
+      <div class="conv-turn claude">
+        <div class="conv-role">Claude Code</div>
+        <div class="conv-body">
+          <p><strong>The metrics-server is not installed.</strong> The error <code>the server could not find the requested resource (get pods.metrics.k8s.io)</code> confirms that the <code>metrics.k8s.io</code> API is not registered — which means the metrics-server component is missing from the cluster. <code>kubectl top pods</code> failing confirms this independently.</p>
+          <p style="margin-top:10px;">Install metrics-server using the official manifest:</p>
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">Install metrics-server</span><button class="code-copy" onclick="copyCode(this)">copy</button></div>
+            <pre><code class="block"><span class="cm"># Standard installation — works on most clusters</span>
+<span class="fn">kubectl</span> apply -f \
+  https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+
+<span class="cm"># Verify installation (may take 60–90 seconds to become ready)</span>
+<span class="fn">kubectl</span> rollout status deployment/metrics-server -n kube-system
+<span class="fn">kubectl</span> top nodes   <span class="cm"># Should return CPU and memory data</span></code></pre>
+          </div>
+          <p style="margin-top:10px;"><strong>If your cluster uses self-signed TLS certificates (common on EKS with private API endpoints):</strong> the standard metrics-server manifest will fail with a TLS verification error. In that case, patch the deployment to skip TLS verification:</p>
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">Metrics-server with TLS skip (EKS private endpoint)</span><button class="code-copy" onclick="copyCode(this)">copy</button></div>
+            <pre><code class="block"><span class="fn">kubectl</span> patch deployment metrics-server -n kube-system \
+  --type=json \
+  -p='[{"op":"add","path":"/spec/template/spec/containers/0/args/-",
+        "value":"--kubelet-insecure-tls"}]'</code></pre>
+          </div>
+          <p style="margin-top:10px;">After metrics-server is ready, wait 2–3 minutes for the HPA controller to collect initial metrics. The <code>&lt;unknown&gt;</code> values will resolve and scaling will become active.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Turn 5 -->
+    <div class="turn-nav" style="margin-top:28px;">
+      <span class="turn-nav-label">Turns</span>
+      <span class="turn-pip done">1</span><span class="turn-connector"></span>
+      <span class="turn-pip done">2</span><span class="turn-connector"></span>
+      <span class="turn-pip done">3</span><span class="turn-connector"></span>
+      <span class="turn-pip done">4</span><span class="turn-connector"></span>
+      <span class="turn-pip active">5</span>
+    </div>
+
+    <div class="turn-label">Turn 5 of 5 — Service manifest and label alignment audit</div>
+    <div class="conversation">
+      <div class="conv-turn engineer">
+        <div class="conv-role">Engineer → Claude Code</div>
+        <div class="conv-body">
+          <p>Generate <code>k8s/service.yaml</code>. Then audit all four manifests for label alignment — the Service selector, HPA scaleTargetRef, PDB selector, and Deployment labels must all reference the same label. Flag any misalignment.</p>
+        </div>
+      </div>
+      <div class="conv-turn claude">
+        <div class="conv-role">Claude Code</div>
+        <div class="conv-body">
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">k8s/service.yaml (turn 5)</span><button class="code-copy" onclick="copyCode(this)">copy</button></div>
+            <pre><code class="block"><span class="kw">apiVersion:</span> <span class="st">v1</span>
+<span class="kw">kind:</span> <span class="st">Service</span>
+<span class="kw">metadata:</span>
+  <span class="kw">name:</span> <span class="st">payment-api</span>
+  <span class="kw">namespace:</span> <span class="st">payment</span>
+  <span class="kw">labels:</span>
+    <span class="kw">app:</span> <span class="st">payment-api</span>
+<span class="kw">spec:</span>
+  <span class="kw">type:</span> <span class="st">ClusterIP</span>
+  <span class="kw">selector:</span>
+    <span class="kw">app:</span> <span class="st">payment-api</span>   <span class="cm"># Must match pod template labels in Deployment</span>
+  <span class="kw">ports:</span>
+    - <span class="kw">name:</span> <span class="st">http</span>
+      <span class="kw">port:</span> <span class="nm">3000</span>
+      <span class="kw">targetPort:</span> <span class="nm">3000</span>
+      <span class="kw">protocol:</span> <span class="st">TCP</span></code></pre>
+          </div>
+          <p style="margin-top:10px;"><strong>Label alignment audit — all four manifests:</strong></p>
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">Label alignment check</span></div>
+            <pre><code class="block"><span class="cm"># deployment.yaml — pod template labels</span>
+<span class="st">spec.template.metadata.labels.app: payment-api</span>  <span class="an">✓</span>
+
+<span class="cm"># service.yaml — selector</span>
+<span class="st">spec.selector.app: payment-api</span>                   <span class="an">✓ matches Deployment pod labels</span>
+
+<span class="cm"># hpa.yaml — scaleTargetRef</span>
+<span class="st">spec.scaleTargetRef.name: payment-api</span>             <span class="an">✓ matches Deployment metadata.name</span>
+<span class="st">spec.scaleTargetRef.kind: Deployment</span>              <span class="an">✓</span>
+
+<span class="cm"># pdb.yaml — selector</span>
+<span class="st">spec.selector.matchLabels.app: payment-api</span>        <span class="an">✓ matches Deployment pod labels</span>
+
+<span class="cm"># topology spread constraints — labelSelector</span>
+<span class="st">topologySpreadConstraints[*].labelSelector.matchLabels.app: payment-api</span>  <span class="an">✓</span>
+
+<span class="cm"># Result: all five label/name references are aligned.
+# If any of these drift — e.g. if the Deployment is renamed — the following
+# will silently break: Service routes to 0 pods, HPA targets nothing,
+# PDB protects nothing, topology spread applies to no pods.</span></code></pre>
+          </div>
+          <p style="margin-top:10px;">All references are consistent. The label <code>app: payment-api</code> is the single coordination point across all four manifests. Renaming the deployment without updating all four selectors simultaneously will cause silent failures — traffic is not routed, autoscaling does not apply, and the PDB does not protect any pods.</p>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ══ STEP 4 ══ -->
+  <section class="step-section" id="step-4">
+    <div class="step-header">
+      <div class="step-number">4</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 4 of 5</div>
+        <div class="step-title">The refined output</div>
+      </div>
+<div class="reviewer-bar" id="rev-bar-4">
+  <input type="checkbox" class="rev-checkbox" id="rev-cb-4" data-step="4">
+  <label for="rev-cb-4">Mark step as reviewed</label>
+</div>
+
+    </div>
+
+    <p class="prose">Four manifests, each addressing a different operational concern. The diff below shows what changed in the Deployment from Example 5, and the file connection diagram maps how the four manifests coordinate.</p>
+
+    <div class="diff-wrap">
+      <div class="diff-header">Deployment: Example 5 → Example 7</div>
+      <div class="diff-body">
+        <span class="diff-line rem"># No topology constraints — all pods may land on one node</span>
+        <span class="diff-line add">topologySpreadConstraints:</span>
+        <span class="diff-line add">  - maxSkew: 1</span>
+        <span class="diff-line add">    topologyKey: topology.kubernetes.io/zone</span>
+        <span class="diff-line add">    whenUnsatisfiable: DoNotSchedule</span>
+        <span class="diff-line add">    labelSelector: { matchLabels: { app: payment-api } }</span>
+        <span class="diff-line add">  - maxSkew: 1</span>
+        <span class="diff-line add">    topologyKey: kubernetes.io/hostname</span>
+        <span class="diff-line add">    whenUnsatisfiable: DoNotSchedule</span>
+        <span class="diff-line add">    labelSelector: { matchLabels: { app: payment-api } }</span>
+        <span class="diff-line neu"> </span>
+        <span class="diff-line rem">memory limit: 512Mi   # OOMKilled in Example 5</span>
+        <span class="diff-line add">memory limit: 768Mi   # 150% of observed peak usage</span>
+      </div>
+    </div>
+
+    <div class="file-connect">
+      <div class="file-connect-label">How the four manifests coordinate</div>
+
+      <div class="fc-row">
+        <span class="fc-file">deployment.yaml</span>
+        <span class="fc-arrow">→</span>
+        <div class="fc-desc"><strong>Source of truth for the pod template and labels.</strong> The label <code>app: payment-api</code> on the pod template is the single value that all other manifests reference. Topology spread constraints are evaluated by the scheduler at pod creation time — pods are placed on nodes/zones that keep skew ≤ 1.</div>
+      </div>
+
+      <div class="fc-row">
+        <span class="fc-file">hpa.yaml</span>
+        <span class="fc-arrow">→</span>
+        <div class="fc-desc"><strong>References the Deployment by name via <code>scaleTargetRef</code>.</strong> The HPA controller reads CPU and memory metrics from the metrics-server, compares them to the targets, and adjusts the Deployment's <code>spec.replicas</code> field accordingly. The Deployment then schedules new pods within the constraints defined by the topology spread rules.</div>
+      </div>
+
+      <div class="fc-row">
+        <span class="fc-file">pdb.yaml</span>
+        <span class="fc-arrow">→</span>
+        <div class="fc-desc"><strong>Selects pods via label selector — independent of replica count.</strong> The PDB controller intercepts eviction requests (from node drains, cluster upgrades, or manual evictions). It permits eviction only if the result would leave at least 2 pods available. This applies regardless of whether the HPA has scaled to 3 or 10 replicas.</div>
+      </div>
+
+      <div class="fc-row">
+        <span class="fc-file">service.yaml</span>
+        <span class="fc-arrow">→</span>
+        <div class="fc-desc"><strong>Routes traffic to all pods matching <code>app: payment-api</code>.</strong> The Service maintains its endpoint list dynamically — as the HPA adds or removes pods, the Service endpoint list updates automatically. The ClusterIP provides a stable internal DNS name (<code>payment-api.payment.svc.cluster.local</code>) that other services use regardless of how many pods are running.</div>
+      </div>
+    </div>
+  </section>
+
+  <div class="section-divider"></div>
+
+  <!-- ══ STEP 5 ══ -->
+  <section class="step-section" id="step-5">
+    <div class="step-header">
+      <div class="step-number">5</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 5 of 5</div>
+        <div class="step-title">Watch out</div>
+      </div>
+<div class="reviewer-bar" id="rev-bar-5">
+  <input type="checkbox" class="rev-checkbox" id="rev-cb-5" data-step="5">
+  <label for="rev-cb-5">Mark step as reviewed</label>
+</div>
+
+    </div>
+
+    <p class="prose">Claude Code produced four correctly structured manifests with sound reasoning on the HPA behaviour design and PDB constraint choice. Here is what your specific cluster environment must still verify.</p>
+
+    <div class="callout good">
+      <div class="callout-label">What Claude Code handled well</div>
+      Asymmetric HPA scale-up/scale-down behaviour with rationale, correct <code>minAvailable</code> vs <code>maxUnavailable</code> choice for HPA-managed deployments with explanation of the interaction, <code>DoNotSchedule</code> topology spread as a hard constraint explained correctly, metrics-server prerequisite flagged in Turn 2 before the failure in Turn 4, Turn 4 TLS patch for EKS private endpoint clusters included without prompting, label alignment audit across all five reference points in Turn 5, memory limit corrected to address the Example 5 OOMKilled root cause.
+    </div>
+
+    <ul class="annotation-list" style="margin-top:24px;">
+      <li>
+        <span class="ann-badge ann-warn">Verify</span>
+        <div><strong>Topology spread with <code>DoNotSchedule</code> requires enough nodes across zones.</strong> With 3 replicas and a <code>maxSkew: 1</code> zone constraint, the cluster needs nodes in at least 2 zones. With 10 replicas (HPA maximum), at least 2 zones are needed and at least 10 schedulable nodes. If zone capacity is insufficient during a traffic spike, the HPA will attempt to create pods and they will remain in <code>Pending</code> state rather than violating the spread — which is correct behaviour but requires monitoring for pending pods as a capacity signal.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Verify</span>
+        <div><strong>HPA memory metrics require memory <code>requests</code> to be set.</strong> The HPA calculates memory utilisation as <code>current / request</code>. If <code>resources.requests.memory</code> is not set in the Deployment, memory utilisation will always show as 0% and the memory metric will never trigger scaling. The Deployment in this example has <code>requests.memory: 256Mi</code> — verify this is present and accurate for your service's actual idle consumption.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Verify</span>
+        <div><strong>The PDB <code>minReplicas ≥ minAvailable + 1</code> rule must be maintained operationally.</strong> If the HPA <code>minReplicas</code> is ever reduced to 2 and the PDB <code>minAvailable</code> stays at 2, all node drains will be blocked indefinitely. This is a configuration relationship that Kubernetes does not validate — there is no admission webhook that prevents this misconfiguration. Add a comment to both manifests noting the dependency, and include a check in your runbook for any HPA minimum replica changes.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Verify</span>
+        <div><strong>Node labels must be present for topology spread to work.</strong> The zone constraint uses <code>topology.kubernetes.io/zone</code>. Most managed Kubernetes services (EKS, GKE, AKS) apply this label automatically. Self-managed clusters may not. Verify with: <code>kubectl get nodes --show-labels | grep topology.kubernetes.io/zone</code>. If the label is absent, the zone spread constraint will be silently ignored — pods will schedule without zone awareness.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-info">Note</span>
+        <div><strong>The Service DNS name follows a predictable pattern.</strong> Once the Service is applied, other services in the cluster can reach <code>payment-api</code> at <code>payment-api.payment.svc.cluster.local:3000</code> — or simply <code>payment-api.payment:3000</code> from within the same cluster. Services in the same namespace can use just <code>payment-api:3000</code>. This stable DNS name is independent of pod restarts, scaling events, and rolling updates — it is the primary reason to define a Service rather than using pod IPs directly.</div>
+      </li>
+    </ul>
+
+    <div class="callout tip">
+      <div class="callout-label">Prompting tip for Kubernetes workload specs</div>
+      The most effective addition to any Kubernetes prompt is <strong>naming the operational scenario you are guarding against</strong>. In Turn 1, specifying "all replicas landed on one node during a node drain" produced topology spread constraints with <code>DoNotSchedule</code> — the hard constraint appropriate for a payment service. A prompt that only says "spread pods across zones" would likely have produced <code>ScheduleAnyway</code> — the soft constraint that merely attempts spread without enforcing it. The failure mode makes the constraint choice unambiguous.
+    </div>
+  </section>
+
+  
+<div class="reviewer-panel">
+  <div class="reviewer-panel-label">🔍 Reviewer question — E7-1</div>
+  <div class="reviewer-q-text">In Example 7, the PDB used `minAvailable: 2` rather than `maxUnavailable: 1`. Why does this choice matter when the HPA scales the deployment to 10 replicas?</div>
+  <div class="reviewer-options">
+    <div class="reviewer-option" data-key="A" onclick="selectRevOption('A',this)"><span class="reviewer-option-key">A</span><span>At 10 replicas, `maxUnavailable: 1` would allow 9 pods to be evicted simultaneously</span></div>
+    <div class="reviewer-option" data-key="B" onclick="selectRevOption('B',this)"><span class="reviewer-option-key">B</span><span>At 10 replicas, `maxUnavailable: 1` would still only allow 1 pod to be evicted at a time, making node drains very slow; `minAvailable: 2` allows 8 simultaneous evictions</span></div>
+    <div class="reviewer-option" data-key="C" onclick="selectRevOption('C',this)"><span class="reviewer-option-key">C</span><span>At 10 replicas, `minAvailable: 2` prevents the HPA from scaling below 2 replicas</span></div>
+    <div class="reviewer-option" data-key="D" onclick="selectRevOption('D',this)"><span class="reviewer-option-key">D</span><span>`maxUnavailable: 1` is not supported by Kubernetes when HPA is enabled</span></div>
+  </div>
+  <button class="reviewer-reveal" id="rev-reveal-btn" onclick="revealRevAnswer()">Check answer</button>
+  <div class="reviewer-explanation" id="rev-explanation">
+    <div class="reviewer-exp-label"></div>
+    `maxUnavailable: 1` means at most 1 pod may be unavailable at any time — regardless of how many replicas are running. At 10 replicas, this serialises node drains one pod at a time. `minAvailable: 2` is an absolute floor: at 10 replicas, 8 pods can be evicted simultaneously. Node maintenance proceeds much faster during high-traffic periods.
+  </div>
+  <div class="reviewer-comment-label">Reviewer notes</div>
+  <textarea class="reviewer-comment" id="rev-comment" placeholder="Add your review notes for this example…"></textarea>
+  <div class="reviewer-save-note">Notes are auto-saved in your browser.</div>
+</div>
+<script>window.REV_CORRECT = "B";</script>
+
+<div class="bottom-nav">
+    <a class="nav-btn secondary" href="../example-6-terraform-multienv.html">← Example 6 — Multi-environment Terraform</a>
+    <a class="nav-btn" href="../example-8-argocd-promotion.html">Example 8 — Argo CD promotion flow →</a>
+  </div>
+
+</div>
+
+<footer>
+  <span>AIOps &amp; DevOps Learning Path · SourceFuse L&amp;D</span>
+  <span>Example 7 of 13 · Tier 2 · Kubernetes HPA and PDB</span>
+</footer>
+
+<script>
+  const sections = document.querySelectorAll('.step-section');
+  const navItems = document.querySelectorAll('.stepnav-item');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const id = entry.target.id;
+        navItems.forEach(item => {
+          item.classList.toggle('active', item.getAttribute('href') === '#' + id);
+        });
+      }
+    });
+  }, { rootMargin:'-30% 0px -60% 0px', threshold:0 });
+  sections.forEach(s => observer.observe(s));
+
+  function copyCode(btn) {
+    const pre = btn.closest('.code-wrap').querySelector('pre');
+    navigator.clipboard.writeText(pre.innerText).then(() => {
+      btn.textContent = 'copied!';
+      setTimeout(() => btn.textContent = 'copy', 2000);
+    });
+  }
+</script>
+
+<script>
+// ── Reviewer persistence ─────────────────────────────────────────────────────
+const REV_KEY = 'reviewer_example-7';
+
+function revLoad() {
+  try { return JSON.parse(localStorage.getItem(REV_KEY)) || {}; } catch(e) { return {}; }
+}
+
+function revSave(state) {
+  localStorage.setItem(REV_KEY, JSON.stringify(state));
+}
+
+// Restore checkboxes
+document.querySelectorAll('.rev-checkbox').forEach(cb => {
+  const state = revLoad();
+  if (state['cb_' + cb.dataset.step]) {
+    cb.checked = true;
+    cb.closest('.reviewer-bar').classList.add('checked');
+    cb.closest('.reviewer-bar').querySelector('label').textContent = '✓ Step reviewed';
+  }
+  cb.addEventListener('change', () => {
+    const s = revLoad();
+    s['cb_' + cb.dataset.step] = cb.checked;
+    revSave(s);
+    const bar = cb.closest('.reviewer-bar');
+    bar.classList.toggle('checked', cb.checked);
+    bar.querySelector('label').textContent = cb.checked ? '✓ Step reviewed' : 'Mark step as reviewed';
+  });
+});
+
+// Restore comment
+const commentEl = document.getElementById('rev-comment');
+if (commentEl) {
+  const state = revLoad();
+  if (state.comment) commentEl.value = state.comment;
+  commentEl.addEventListener('input', () => {
+    const s = revLoad();
+    s.comment = commentEl.value;
+    revSave(s);
+  });
+}
+
+// Reviewer question logic
+let revAnswer = null;
+let revSubmitted = false;
+
+(function restoreRevQ() {
+  const state = revLoad();
+  if (state.revAnswer !== undefined) {
+    revAnswer = state.revAnswer;
+    revSubmitted = state.revSubmitted || false;
+    if (revAnswer !== null) applyRevAnswer(revAnswer, revSubmitted);
+  }
+})();
+
+function selectRevOption(key, el) {
+  if (revSubmitted) return;
+  revAnswer = key;
+  document.querySelectorAll('.reviewer-option').forEach(o => o.classList.toggle('selected', o.dataset.key === key));
+  const s = revLoad(); s.revAnswer = key; revSave(s);
+}
+
+function selectRevTF(val, el) {
+  if (revSubmitted) return;
+  revAnswer = val;
+  document.querySelectorAll('.reviewer-tf-btn').forEach(b => {
+    b.classList.toggle('selected', (b.dataset.val === 'true') === val);
+  });
+  const s = revLoad(); s.revAnswer = val; revSave(s);
+}
+
+function revealRevAnswer() {
+  if (revAnswer === null) { alert('Please select an answer first.'); return; }
+  revSubmitted = true;
+  const s = revLoad(); s.revSubmitted = true; revSave(s);
+  applyRevAnswer(revAnswer, true);
+}
+
+function applyRevAnswer(ans, showResult) {
+  const correctVal = window.REV_CORRECT;
+  // MCQ
+  document.querySelectorAll('.reviewer-option').forEach(o => {
+    o.classList.remove('selected','correct','wrong');
+    if (showResult) {
+      if (o.dataset.key === correctVal) o.classList.add('correct');
+      else if (o.dataset.key === ans && o.dataset.key !== correctVal) o.classList.add('wrong');
+    } else {
+      if (o.dataset.key === ans) o.classList.add('selected');
+    }
+  });
+  // T/F
+  document.querySelectorAll('.reviewer-tf-btn').forEach(b => {
+    b.classList.remove('selected','correct','wrong');
+    const bVal = b.dataset.val === 'true';
+    if (showResult) {
+      if (bVal === correctVal) b.classList.add('correct');
+      else if (bVal === ans && bVal !== correctVal) b.classList.add('wrong');
+    } else {
+      if (bVal === ans) b.classList.add('selected');
+    }
+  });
+  if (showResult) {
+    const expEl = document.getElementById('rev-explanation');
+    const btnEl = document.getElementById('rev-reveal-btn');
+    if (expEl) {
+      const isCorrect = (ans === correctVal) || (ans === correctVal);
+      expEl.classList.add('visible');
+      const lbl = expEl.querySelector('.reviewer-exp-label');
+      if (lbl) { lbl.textContent = isCorrect ? '✓ Correct' : '✗ Incorrect'; lbl.className = 'reviewer-exp-label ' + (isCorrect ? 'correct' : 'wrong'); }
+    }
+    if (btnEl) btnEl.style.display = 'none';
+  }
+}
+</script>
+
+</body>
+</html>
