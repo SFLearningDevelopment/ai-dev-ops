@@ -6,7 +6,7 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>[Reviewer] Example 3 — GitHub Actions Test Pipeline</title>
+<title>[Reviewer] Example 4 — Deployment Health-Check Shell Script</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Merriweather+Sans:wght@300;400;600;700&family=Source+Code+Pro:wght@400;600&display=swap" rel="stylesheet">
 <style>
@@ -98,16 +98,14 @@
   pre { background:#1e2433 !important; padding:20px; overflow-x:auto; margin:0; }
   code.block { font-family:'Source Code Pro',monospace; font-size:13px; line-height:1.7; color:var(--code-text); background:none; border:none; padding:0; display:block; }
 
-  /* Syntax colours */
-  .kw  { color:#cba6f7; }   /* YAML key / keyword */
-  .cm  { color:#6c7086; font-style:italic; }  /* comment */
-  .st  { color:#a6e3a1; }   /* string value */
-  .nm  { color:#fab387; }   /* number / boolean */
-  .op  { color:#89dceb; }   /* operator / special */
-  .an  { color:#f38ba8; }   /* annotation / warning */
-  .ty  { color:#f9e2af; }   /* type / action reference */
-  .fn  { color:#89b4fa; }   /* function / expression */
-  .sc  { color:#cba6f7; }   /* section header */
+  .kw  { color:#cba6f7; }
+  .cm  { color:#6c7086; font-style:italic; }
+  .st  { color:#a6e3a1; }
+  .nm  { color:#fab387; }
+  .op  { color:#89dceb; }
+  .an  { color:#f38ba8; }
+  .fn  { color:#89b4fa; }
+  .va  { color:#cdd6f4; }
 
   .diff-wrap { margin:20px 0; border-radius:0; overflow:hidden; border:1px solid #2a3144; background:#1e2433; }
   .diff-header { background:#252b3b; padding:10px 16px; font-size:11px; font-family:'Source Code Pro',monospace; color:#ffffff; }
@@ -155,6 +153,13 @@
   .nav-btn:hover { background:var(--blue-mid); border-color:var(--blue); }
   .nav-btn.secondary { background:var(--bg2); color:var(--text-dim); border-color:var(--border); }
   .nav-btn.secondary:hover { background:var(--bg3); }
+
+  .tier-complete { background:var(--bg2); border:1px solid var(--border); border-top:3px solid var(--green); border-radius:var(--radius); padding:24px 28px; margin-top:48px; }
+  .tier-complete-label { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:0.18em; text-transform:uppercase; color:var(--green); font-weight:600; margin-bottom:8px; }
+  .tier-complete-title { font-size:17px; font-weight:700; color:var(--text); margin-bottom:8px; }
+  .tier-complete-desc { font-size:13.5px; color:var(--text-dim); line-height:1.7; }
+  .tier-complete-desc a { color:var(--blue); text-decoration:none; }
+  .tier-complete-desc a:hover { text-decoration:underline; }
 
   footer { background:var(--bg2); border-top:1px solid var(--border); padding:14px 40px; font-size:11px; font-family:'Source Code Pro',monospace; color:var(--text-dimmer); display:flex; justify-content:space-between; align-items:center; }
 
@@ -416,7 +421,7 @@
   <span class="sep">/</span>
   <a href="../course-map.html">Tier 1 examples</a>
   <span class="sep">/</span>
-  <span>Example 3 — GitHub Actions test pipeline</span>
+  <span>Example 4 — Deployment health-check script</span>
 </nav>
 
 <nav class="stepnav" id="stepnav">
@@ -429,11 +434,11 @@
 
 <div class="hero">
   <div class="hero-inner">
-    <div class="hero-eyebrow">Example 3 of 4 · Tier 1 · Single-file task</div>
-    <h1>GitHub Actions <span>test pipeline</span></h1>
+    <div class="hero-eyebrow">Example 4 of 4 · Tier 1 · Single-file task</div>
+    <h1>Deployment <span>health-check</span> shell script</h1>
     <div class="hero-meta">
       <span class="meta-pill pill-tier">Tier 1 — Single-file task</span>
-      <span class="meta-pill pill-topic">CI/CD Pipelines</span>
+      <span class="meta-pill pill-topic">Shell automation</span>
       <span class="meta-pill pill-turns">3-turn interaction</span>
       <span class="meta-pill pill-turns">DevOps automation</span>
     </div>
@@ -453,23 +458,22 @@
 </div>
 
     <p class="prose">
-      The <code>payment-api</code> service now has a Dockerfile and a Terraform module. The next step is a CI pipeline that runs on every pull request: install dependencies, run the test suite, build the Docker image, and push to ECR if the branch is <code>main</code>. The pipeline needs to be production-grade from day one because three other teams will be using the same pattern for their own services.
+      The <code>payment-api</code> service is now containerised and has a CI/CD pipeline. The final missing piece is a pre-deployment health check script — a bash script that runs before the new version is cut over in the CD pipeline, verifies the new pods are healthy, and blocks the cutover if they are not. If it blocks, it should not leave the cluster in a partially modified state.
     </p>
 
     <div class="callout info">
       <div class="callout-label">Requirements</div>
-      — Trigger on push to <code>main</code> and on all pull requests<br>
-      — Jobs: <strong>test</strong> (install, lint, unit tests) and <strong>build-push</strong> (Docker build + ECR push, main branch only)<br>
-      — Node.js version matrix: test against <strong>18.x and 20.x</strong><br>
-      — Dependency caching: <code>npm</code> cache keyed on <code>package-lock.json</code><br>
-      — AWS auth via <strong>OIDC</strong> — no long-lived credentials stored as secrets<br>
-      — ECR region: <code>ap-south-1</code>, image tagged with git SHA<br>
-      — <code>build-push</code> must only run after <code>test</code> passes on both Node versions<br>
-      — The workflow must be <strong>reusable</strong> — callable from other repos via <code>workflow_call</code>
+      — Check that a given Kubernetes deployment reaches <code>Available</code> status within a configurable timeout<br>
+      — Poll the <code>/health</code> endpoint of each new pod directly to confirm application-level readiness<br>
+      — Accept deployment name, namespace, and timeout as arguments with sensible defaults<br>
+      — Output structured <code>PASS</code> / <code>FAIL</code> per check with a timestamp<br>
+      — Exit with code <code>0</code> only if all checks pass — exit <code>1</code> on any failure<br>
+      — Be idempotent — safe to run multiple times without side effects<br>
+      — Run on both macOS and Linux (the script is used locally by engineers and in CI)
     </div>
 
     <p class="prose">
-      The reusability requirement is what makes this non-trivial. A standard workflow that just runs tests is straightforward. A reusable workflow with OIDC authentication, matrix testing, and conditional ECR push requires understanding several GitHub Actions patterns that interact in non-obvious ways.
+      The idempotency and cross-platform requirements are what separate this from a quick one-off script. A script that works once in CI but breaks on a re-run or behaves differently on a developer's MacBook is worse than no script at all — it breeds distrust in the tooling.
     </p>
   
 <div class="reviewer-bar" id="rev-bar-1">
@@ -491,88 +495,69 @@
 </div>
 
     <p class="prose">
-      Here is the workflow an engineer under time pressure typically writes — referencing a previous project's CI config, adapting it quickly, and calling it done when the first run goes green.
+      Here is the script most engineers write from memory when they need a deployment check quickly. It works on a happy path, fails unpredictably everywhere else.
     </p>
 
     <div class="code-wrap">
       <div class="code-header">
-        <span class="code-filename">.github/workflows/ci.yml (naive)</span>
-        <span class="code-lang">yaml</span>
+        <span class="code-filename">check-deployment.sh (naive)</span>
+        <span class="code-lang">bash</span>
       </div>
-      <pre><code class="block"><span class="kw">name:</span> <span class="st">CI</span>
+      <pre><code class="block"><span class="cm">#!/bin/bash</span>
 
-<span class="kw">on:</span>
-  <span class="kw">push:</span>
-    <span class="kw">branches:</span> <span class="st">[ main ]</span>
-  <span class="kw">pull_request:</span>
+<span class="va">DEPLOYMENT</span>=<span class="st">$1</span>
+<span class="va">NAMESPACE</span>=<span class="st">$2</span>
+<span class="va">TIMEOUT</span>=<span class="nm">60</span>
 
-<span class="kw">jobs:</span>
-  <span class="kw">test:</span>
-    <span class="kw">runs-on:</span> <span class="st">ubuntu-latest</span>
-    <span class="kw">steps:</span>
-      <span class="cm"># Hardcoded Node version — no matrix</span>
-      - <span class="kw">uses:</span> <span class="ty">actions/checkout@v3</span>
-      - <span class="kw">uses:</span> <span class="ty">actions/setup-node@v3</span>
-        <span class="kw">with:</span>
-          <span class="kw">node-version:</span> <span class="st">'18'</span>
-      <span class="cm"># No caching — full reinstall every run</span>
-      - <span class="kw">run:</span> <span class="st">npm install</span>
-      - <span class="kw">run:</span> <span class="st">npm test</span>
+<span class="cm"># Wait for rollout</span>
+<span class="fn">kubectl</span> rollout status deployment/<span class="va">$DEPLOYMENT</span> \
+  -n <span class="va">$NAMESPACE</span> \
+  --timeout=<span class="st">${TIMEOUT}s</span>
 
-  <span class="kw">build-push:</span>
-    <span class="kw">runs-on:</span> <span class="st">ubuntu-latest</span>
-    <span class="cm"># No dependency on test job — runs in parallel</span>
-    <span class="kw">steps:</span>
-      - <span class="kw">uses:</span> <span class="ty">actions/checkout@v3</span>
-      <span class="cm"># Long-lived AWS credentials stored as secrets</span>
-      - <span class="kw">name:</span> <span class="st">Configure AWS credentials</span>
-        <span class="kw">uses:</span> <span class="ty">aws-actions/configure-aws-credentials@v2</span>
-        <span class="kw">with:</span>
-          <span class="kw">aws-access-key-id:</span> <span class="an">${{ secrets.AWS_ACCESS_KEY_ID }}</span>
-          <span class="kw">aws-secret-access-key:</span> <span class="an">${{ secrets.AWS_SECRET_ACCESS_KEY }}</span>
-          <span class="kw">aws-region:</span> <span class="st">ap-south-1</span>
-      - <span class="kw">name:</span> <span class="st">Login to ECR</span>
-        <span class="kw">id:</span> <span class="st">login-ecr</span>
-        <span class="kw">uses:</span> <span class="ty">aws-actions/amazon-ecr-login@v1</span>
-      - <span class="kw">name:</span> <span class="st">Build and push</span>
-        <span class="cm"># Pushes on every branch, not just main</span>
-        <span class="kw">run:</span> |
-          docker build -t <span class="an">${{ steps.login-ecr.outputs.registry }}</span>/payment-api:<span class="an">${{ github.sha }}</span> .
-          docker push <span class="an">${{ steps.login-ecr.outputs.registry }}</span>/payment-api:<span class="an">${{ github.sha }}</span></code></pre>
+<span class="cm"># Get pod IPs and check /health on each</span>
+<span class="va">PODS</span>=$(<span class="fn">kubectl</span> get pods -n <span class="va">$NAMESPACE</span> \
+  -l app=<span class="va">$DEPLOYMENT</span> \
+  -o jsonpath=<span class="st">'{.items[*].status.podIP}'</span>)
+
+<span class="kw">for</span> <span class="va">pod</span> <span class="kw">in</span> <span class="va">$PODS</span>; <span class="kw">do</span>
+  <span class="fn">curl</span> http://<span class="va">$pod</span>:3000/health
+<span class="kw">done</span>
+
+<span class="fn">echo</span> <span class="st">"Deployment check complete"</span></code></pre>
     </div>
 
-    <p class="prose">This workflow runs. Tests pass, image gets pushed, the team moves on. But it has six problems that will cost real time and money:</p>
+    <p class="prose">This script will silently succeed in situations where it should fail. Here are its six critical problems:</p>
 
     <ul class="annotation-list">
       <li>
-        <span class="ann-badge ann-warn">Security</span>
-        <div><strong>Long-lived AWS credentials stored as repository secrets.</strong> <code>AWS_ACCESS_KEY_ID</code> and <code>AWS_SECRET_ACCESS_KEY</code> are static credentials that never expire. If the repository is compromised, or if the secrets are accidentally logged, those credentials remain valid until manually rotated. OIDC eliminates this entirely — no credentials are stored anywhere.</div>
+        <span class="ann-badge ann-warn">Safety</span>
+        <div><strong>No <code>set -euo pipefail</code>.</strong> Without these flags: <code>-e</code> means the script continues executing after any command fails; <code>-u</code> means unset variables expand to empty string silently (so <code>kubectl ... -n ""</code> queries the wrong namespace without error); <code>-o pipefail</code> means a failed command in a pipeline is hidden by a succeeding one. A script without these three flags can exit 0 while having done nothing useful.</div>
       </li>
       <li>
         <span class="ann-badge ann-warn">Correctness</span>
-        <div><strong><code>build-push</code> has no dependency on <code>test</code>.</strong> Without <code>needs: test</code>, both jobs run in parallel. A broken commit that fails tests will still push a broken image to ECR. Any downstream system that pulls <code>latest</code> or the SHA tag will pick up the broken image.</div>
+        <div><strong>No argument validation.</strong> If called without arguments, <code>DEPLOYMENT</code> and <code>NAMESPACE</code> are empty strings. <code>kubectl rollout status deployment/</code> returns a confusing API error. The script should validate required arguments before doing any work and print a usage message on failure.</div>
       </li>
       <li>
         <span class="ann-badge ann-warn">Correctness</span>
-        <div><strong>Image is pushed on every branch, not just <code>main</code>.</strong> Every PR that touches Docker will push an image to ECR. Over time this floods ECR with images from feature branches that were never merged, bloating storage costs and making it impossible to identify what's actually running in production.</div>
+        <div><strong>Pod IP loop is fragile.</strong> <code>kubectl get pods ... -o jsonpath='{.items[*].status.podIP}'</code> returns IPs space-separated on a single line. The <code>for pod in $PODS</code> loop works — but only because of unquoted variable expansion. If any pod IP contains spaces (it won't, but the pattern is fragile), or if the list is empty, the loop silently skips. More importantly: pod IPs are not directly accessible from outside the cluster. This will always fail in CI.</div>
       </li>
       <li>
-        <span class="ann-badge ann-warn">Cost</span>
-        <div><strong>No dependency caching.</strong> <code>npm install</code> downloads all dependencies from scratch on every run. For a large <code>node_modules</code>, this adds 2–4 minutes per run and increases network egress costs. At 50 PRs/week, this is 100–200 minutes of avoidable runtime per week.</div>
+        <span class="ann-badge ann-warn">Correctness</span>
+        <div><strong><code>curl</code> exit code is ignored.</strong> Even if <code>curl</code> returns a non-200 response or times out, the script continues and exits 0. The health check result is printed to stdout but never acted on. The script reports "complete" regardless of whether any pod is actually healthy.</div>
       </li>
       <li>
-        <span class="ann-badge ann-warn">Coverage</span>
-        <div><strong>Tests only run on Node 18.</strong> The service targets Node 20 in production. Compatibility regressions between Node versions — particularly around native modules, crypto APIs, and fs behaviour changes — will not be caught until they appear in staging or production.</div>
+        <span class="ann-badge ann-warn">Portability</span>
+        <div><strong>Not cross-platform.</strong> GNU <code>date</code>, GNU <code>timeout</code>, and several <code>kubectl</code> jsonpath expressions behave differently on macOS (BSD tools). The script will work in Linux CI but fail on a developer's MacBook without a clear error message.</div>
       </li>
       <li>
-        <span class="ann-badge ann-warn">Reusability</span>
-        <div><strong>Not reusable across repos.</strong> The workflow uses <code>on: push</code> and <code>on: pull_request</code> triggers only. Other teams cannot call it via <code>workflow_call</code>. Each team will copy-paste and diverge, making future security or tooling updates require changes across every repo.</div>
+        <span class="ann-badge ann-warn">Observability</span>
+        <div><strong>No structured output.</strong> "Deployment check complete" is printed regardless of outcome. There is no per-check PASS/FAIL, no timestamp, no exit code reflecting actual health. A CD pipeline using this script has no way to distinguish a healthy deployment from a failed one.</div>
       </li>
     </ul>
 
     <div class="callout warn">
       <div class="callout-label">The core problem</div>
-      The naive workflow optimises for getting the first run green as fast as possible. Production-grade CI optimises for correctness, security, cost efficiency, and maintainability across all future runs. These are different objectives — and the gap between them only becomes visible when something goes wrong.
+      The naive script gives the <em>appearance</em> of verification without actually verifying anything. It will exit 0 on an unhealthy deployment, a missing deployment, an empty pod list, and a timed-out rollout — as long as <code>kubectl rollout status</code> doesn't fail. That is the worst kind of script: it provides false confidence.
     </div>
   
 <div class="reviewer-bar" id="rev-bar-2">
@@ -594,7 +579,7 @@
 </div>
 
     <p class="prose">
-      Three turns. Turn 1 generates the initial workflow with OIDC, caching, and matrix. Turn 2 pastes a real permissions error from the first run. Turn 3 adds the <code>workflow_call</code> trigger and input parameters to make it reusable.
+      Three turns. Turn 1 generates the initial script with proper error handling. Turn 2 pastes a real failure from a macOS developer machine. Turn 3 adds explicit idempotency guarantees after a requirement surfaces mid-sprint.
     </p>
 
     <!-- Turn 1 -->
@@ -604,13 +589,16 @@
       <div class="conv-turn engineer">
         <div class="conv-role">Engineer → Claude Code</div>
         <div class="conv-body">
-          <p>Generate a GitHub Actions workflow for the payment-api Node.js service with these requirements:</p>
+          <p>Write a bash script called <code>check-deployment.sh</code> that verifies a Kubernetes deployment is healthy before a CD pipeline proceeds with cutover. Requirements:</p>
           <p style="margin-top:10px;">
-          Triggers: push to main, all pull_requests<br>
-          Jobs: (1) test — runs on Node 18.x and 20.x matrix, installs with npm ci, runs npm run lint and npm test, npm cache keyed on package-lock.json hash; (2) build-push — Docker build and ECR push, only runs after test matrix passes, only on main branch<br>
-          AWS auth: OIDC, not long-lived credentials. Role ARN from secret: AWS_ROLE_ARN. Region: ap-south-1<br>
-          Image tag: git SHA. ECR registry from aws-actions/amazon-ecr-login output<br>
-          Actions versions: checkout@v4, setup-node@v4, configure-aws-credentials@v4, amazon-ecr-login@v2
+          — Arguments: DEPLOYMENT_NAME (required), NAMESPACE (required), TIMEOUT_SECONDS (optional, default 120)<br>
+          — Check 1: <code>kubectl rollout status</code> succeeds within timeout<br>
+          — Check 2: all pods matching <code>app=DEPLOYMENT_NAME</code> label show <code>Running</code> and <code>Ready</code> status via kubectl, not direct curl (pods are not directly reachable from CI)<br>
+          — Check 3: desired replica count matches ready replica count from deployment status<br>
+          — Output: timestamped PASS/FAIL per check, final summary<br>
+          — Exit 0 only if all checks pass, exit 1 on any failure<br>
+          — Must work on both macOS and Linux<br>
+          — set -euo pipefail, full argument validation, usage message on bad input
           </p>
         </div>
       </div>
@@ -620,296 +608,313 @@
         <div class="conv-body">
           <div class="code-wrap">
             <div class="code-header">
-              <span class="code-filename">.github/workflows/ci.yml (turn 1 output)</span>
+              <span class="code-filename">check-deployment.sh (turn 1 output)</span>
               <button class="code-copy" onclick="copyCode(this)">copy</button>
             </div>
-            <pre><code class="block"><span class="kw">name:</span> <span class="st">CI</span>
+            <pre><code class="block"><span class="cm">#!/usr/bin/env bash</span>
+<span class="cm"># check-deployment.sh — Pre-cutover deployment health verification</span>
+<span class="cm"># Usage: ./check-deployment.sh DEPLOYMENT_NAME NAMESPACE [TIMEOUT_SECONDS]</span>
+<span class="kw">set</span> -euo pipefail
 
-<span class="kw">on:</span>
-  <span class="kw">push:</span>
-    <span class="kw">branches:</span> <span class="st">[ main ]</span>
-  <span class="kw">pull_request:</span>
+<span class="cm"># ── Constants ────────────────────────────────────────────────────────────────</span>
+<span class="kw">readonly</span> <span class="va">SCRIPT_NAME</span>=<span class="st">"$(basename "$0")"</span>
+<span class="kw">readonly</span> <span class="va">DEFAULT_TIMEOUT</span>=<span class="nm">120</span>
+<span class="va">PASS_COUNT</span>=<span class="nm">0</span>
+<span class="va">FAIL_COUNT</span>=<span class="nm">0</span>
 
-<span class="kw">permissions:</span>
-  <span class="kw">contents:</span> <span class="st">read</span>
-  <span class="kw">id-token:</span> <span class="st">write</span>   <span class="cm"># Required for OIDC token request</span>
+<span class="cm"># ── Helpers ──────────────────────────────────────────────────────────────────</span>
+<span class="fn">usage</span>() {
+  <span class="fn">echo</span> <span class="st">"Usage: $SCRIPT_NAME DEPLOYMENT_NAME NAMESPACE [TIMEOUT_SECONDS]"</span>
+  <span class="fn">echo</span> <span class="st">""</span>
+  <span class="fn">echo</span> <span class="st">"  DEPLOYMENT_NAME   Name of the Kubernetes deployment to verify"</span>
+  <span class="fn">echo</span> <span class="st">"  NAMESPACE         Kubernetes namespace containing the deployment"</span>
+  <span class="fn">echo</span> <span class="st">"  TIMEOUT_SECONDS   Rollout wait timeout (default: $DEFAULT_TIMEOUT)"</span>
+  <span class="fn">echo</span> <span class="st">""</span>
+  <span class="fn">echo</span> <span class="st">"Exit codes: 0 = all checks passed, 1 = one or more checks failed"</span>
+  <span class="fn">exit</span> <span class="nm">1</span>
+}
 
-<span class="kw">jobs:</span>
-  <span class="kw">test:</span>
-    <span class="kw">name:</span> <span class="st">Test (Node ${{ matrix.node-version }})</span>
-    <span class="kw">runs-on:</span> <span class="st">ubuntu-latest</span>
-    <span class="kw">strategy:</span>
-      <span class="kw">matrix:</span>
-        <span class="kw">node-version:</span> <span class="st">[ '18.x', '20.x' ]</span>
-      <span class="kw">fail-fast:</span> <span class="nm">false</span>   <span class="cm"># Run all matrix versions even if one fails</span>
+<span class="fn">timestamp</span>() {
+  <span class="cm"># ISO 8601 compatible on both GNU date (Linux) and BSD date (macOS)</span>
+  <span class="fn">date</span> -u <span class="st">'+%Y-%m-%dT%H:%M:%SZ'</span>
+}
 
-    <span class="kw">steps:</span>
-      - <span class="kw">name:</span> <span class="st">Checkout</span>
-        <span class="kw">uses:</span> <span class="ty">actions/checkout@v4</span>
+<span class="fn">log_pass</span>() {
+  <span class="va">PASS_COUNT</span>=$(( PASS_COUNT + 1 ))
+  <span class="fn">echo</span> <span class="st">"[$(timestamp)] PASS  $1"</span>
+}
 
-      - <span class="kw">name:</span> <span class="st">Set up Node.js ${{ matrix.node-version }}</span>
-        <span class="kw">uses:</span> <span class="ty">actions/setup-node@v4</span>
-        <span class="kw">with:</span>
-          <span class="kw">node-version:</span> <span class="st">${{ matrix.node-version }}</span>
-          <span class="kw">cache:</span> <span class="st">'npm'</span>
-          <span class="kw">cache-dependency-path:</span> <span class="st">package-lock.json</span>
+<span class="fn">log_fail</span>() {
+  <span class="va">FAIL_COUNT</span>=$(( FAIL_COUNT + 1 ))
+  <span class="fn">echo</span> <span class="st">"[$(timestamp)] FAIL  $1"</span> >&2
+}
 
-      - <span class="kw">name:</span> <span class="st">Install dependencies</span>
-        <span class="kw">run:</span> <span class="st">npm ci</span>
+<span class="fn">log_info</span>() {
+  <span class="fn">echo</span> <span class="st">"[$(timestamp)] INFO  $1"</span>
+}
 
-      - <span class="kw">name:</span> <span class="st">Lint</span>
-        <span class="kw">run:</span> <span class="st">npm run lint</span>
+<span class="cm"># ── Argument validation ───────────────────────────────────────────────────────</span>
+<span class="kw">if</span> [[ $# -lt 2 ]]; <span class="kw">then</span>
+  <span class="fn">echo</span> <span class="st">"Error: DEPLOYMENT_NAME and NAMESPACE are required." >&2</span>
+  <span class="fn">usage</span>
+<span class="kw">fi</span>
 
-      - <span class="kw">name:</span> <span class="st">Test</span>
-        <span class="kw">run:</span> <span class="st">npm test</span>
+<span class="kw">readonly</span> <span class="va">DEPLOYMENT</span>=<span class="st">"$1"</span>
+<span class="kw">readonly</span> <span class="va">NAMESPACE</span>=<span class="st">"$2"</span>
+<span class="kw">readonly</span> <span class="va">TIMEOUT</span>=<span class="st">"${3:-$DEFAULT_TIMEOUT}"</span>
 
-  <span class="kw">build-push:</span>
-    <span class="kw">name:</span> <span class="st">Build and push to ECR</span>
-    <span class="kw">runs-on:</span> <span class="st">ubuntu-latest</span>
-    <span class="kw">needs:</span> <span class="st">test</span>   <span class="cm"># Waits for all matrix jobs to pass</span>
-    <span class="kw">if:</span> <span class="fn">github.ref == 'refs/heads/main' && github.event_name == 'push'</span>
+<span class="cm"># Validate timeout is a positive integer</span>
+<span class="kw">if</span> ! [[ <span class="st">"$TIMEOUT"</span> =~ ^[0-9]+$ ]] || [[ <span class="st">"$TIMEOUT"</span> -eq 0 ]]; <span class="kw">then</span>
+  <span class="fn">echo</span> <span class="st">"Error: TIMEOUT_SECONDS must be a positive integer, got: '$TIMEOUT'" >&2</span>
+  <span class="fn">usage</span>
+<span class="kw">fi</span>
 
-    <span class="kw">steps:</span>
-      - <span class="kw">name:</span> <span class="st">Checkout</span>
-        <span class="kw">uses:</span> <span class="ty">actions/checkout@v4</span>
+<span class="cm"># Verify kubectl is available</span>
+<span class="kw">if</span> ! <span class="fn">command</span> -v kubectl &>/dev/null; <span class="kw">then</span>
+  <span class="fn">echo</span> <span class="st">"Error: kubectl not found in PATH" >&2</span>
+  <span class="fn">exit</span> <span class="nm">1</span>
+<span class="kw">fi</span>
 
-      - <span class="kw">name:</span> <span class="st">Configure AWS credentials via OIDC</span>
-        <span class="kw">uses:</span> <span class="ty">aws-actions/configure-aws-credentials@v4</span>
-        <span class="kw">with:</span>
-          <span class="kw">role-to-assume:</span> <span class="st">${{ secrets.AWS_ROLE_ARN }}</span>
-          <span class="kw">aws-region:</span> <span class="st">ap-south-1</span>
+<span class="fn">log_info</span> <span class="st">"Checking deployment '$DEPLOYMENT' in namespace '$NAMESPACE' (timeout: ${TIMEOUT}s)"</span>
 
-      - <span class="kw">name:</span> <span class="st">Login to Amazon ECR</span>
-        <span class="kw">id:</span> <span class="st">login-ecr</span>
-        <span class="kw">uses:</span> <span class="ty">aws-actions/amazon-ecr-login@v2</span>
+<span class="cm"># ── Check 1: Rollout status ───────────────────────────────────────────────────</span>
+<span class="fn">log_info</span> <span class="st">"Check 1: kubectl rollout status"</span>
+<span class="kw">if</span> <span class="fn">kubectl</span> rollout status deployment/<span class="st">"$DEPLOYMENT"</span> \
+    -n <span class="st">"$NAMESPACE"</span> \
+    --timeout=<span class="st">"${TIMEOUT}s"</span> &>/dev/null; <span class="kw">then</span>
+  <span class="fn">log_pass</span> <span class="st">"Rollout completed within ${TIMEOUT}s"</span>
+<span class="kw">else</span>
+  <span class="fn">log_fail</span> <span class="st">"Rollout did not complete within ${TIMEOUT}s"</span>
+<span class="kw">fi</span>
 
-      - <span class="kw">name:</span> <span class="st">Build and push Docker image</span>
-        <span class="kw">env:</span>
-          <span class="kw">REGISTRY:</span> <span class="st">${{ steps.login-ecr.outputs.registry }}</span>
-          <span class="kw">IMAGE_TAG:</span> <span class="st">${{ github.sha }}</span>
-        <span class="kw">run:</span> |
-          docker build -t $REGISTRY/payment-api:$IMAGE_TAG .
-          docker push $REGISTRY/payment-api:$IMAGE_TAG
-          echo "image=$REGISTRY/payment-api:$IMAGE_TAG" >> $GITHUB_OUTPUT</code></pre>
+<span class="cm"># ── Check 2: All pods Running and Ready ───────────────────────────────────────</span>
+<span class="fn">log_info</span> <span class="st">"Check 2: Pod readiness"</span>
+<span class="va">NOT_READY</span>=$(<span class="fn">kubectl</span> get pods \
+  -n <span class="st">"$NAMESPACE"</span> \
+  -l <span class="st">"app=$DEPLOYMENT"</span> \
+  --field-selector=<span class="st">'status.phase!=Running'</span> \
+  -o name 2>/dev/null | <span class="fn">wc</span> -l | <span class="fn">tr</span> -d <span class="st">' '</span>)
+
+<span class="kw">if</span> [[ <span class="st">"$NOT_READY"</span> -eq 0 ]]; <span class="kw">then</span>
+  <span class="fn">log_pass</span> <span class="st">"All pods are in Running phase"</span>
+<span class="kw">else</span>
+  <span class="fn">log_fail</span> <span class="st">"$NOT_READY pod(s) not in Running phase"</span>
+<span class="kw">fi</span>
+
+<span class="cm"># Check Ready condition specifically (separate from phase)</span>
+<span class="va">NOT_READY_CONDITION</span>=$(<span class="fn">kubectl</span> get pods \
+  -n <span class="st">"$NAMESPACE"</span> \
+  -l <span class="st">"app=$DEPLOYMENT"</span> \
+  -o jsonpath=<span class="st">'{range .items[*]}{.metadata.name}{"\t"}{range .status.conditions[?(@.type=="Ready")]}{.status}{"\n"}{end}{end}'</span> \
+  2>/dev/null | <span class="fn">grep</span> -c <span class="st">'False'</span> || <span class="nm">true</span>)
+
+<span class="kw">if</span> [[ <span class="st">"$NOT_READY_CONDITION"</span> -eq 0 ]]; <span class="kw">then</span>
+  <span class="fn">log_pass</span> <span class="st">"All pods have Ready=True condition"</span>
+<span class="kw">else</span>
+  <span class="fn">log_fail</span> <span class="st">"$NOT_READY_CONDITION pod(s) have Ready=False condition"</span>
+<span class="kw">fi</span>
+
+<span class="cm"># ── Check 3: Desired vs ready replicas ────────────────────────────────────────</span>
+<span class="fn">log_info</span> <span class="st">"Check 3: Replica count"</span>
+<span class="va">DESIRED</span>=$(<span class="fn">kubectl</span> get deployment <span class="st">"$DEPLOYMENT"</span> \
+  -n <span class="st">"$NAMESPACE"</span> \
+  -o jsonpath=<span class="st">'{.spec.replicas}'</span> 2>/dev/null)
+
+<span class="va">READY</span>=$(<span class="fn">kubectl</span> get deployment <span class="st">"$DEPLOYMENT"</span> \
+  -n <span class="st">"$NAMESPACE"</span> \
+  -o jsonpath=<span class="st">'{.status.readyReplicas}'</span> 2>/dev/null)
+
+<span class="cm"># readyReplicas may be absent (null) if zero pods are ready</span>
+<span class="va">READY</span>=<span class="st">"${READY:-0}"</span>
+
+<span class="kw">if</span> [[ <span class="st">"$DESIRED"</span> -gt 0 ]] && [[ <span class="st">"$READY"</span> -eq <span class="st">"$DESIRED"</span> ]]; <span class="kw">then</span>
+  <span class="fn">log_pass</span> <span class="st">"Ready replicas ($READY) matches desired ($DESIRED)"</span>
+<span class="kw">else</span>
+  <span class="fn">log_fail</span> <span class="st">"Ready replicas ($READY) does not match desired ($DESIRED)"</span>
+<span class="kw">fi</span>
+
+<span class="cm"># ── Summary ───────────────────────────────────────────────────────────────────</span>
+<span class="fn">echo</span> <span class="st">""</span>
+<span class="fn">echo</span> <span class="st">"─────────────────────────────────────────────────"</span>
+<span class="fn">echo</span> <span class="st">"  PASSED: $PASS_COUNT"</span>
+<span class="fn">echo</span> <span class="st">"  FAILED: $FAIL_COUNT"</span>
+<span class="fn">echo</span> <span class="st">"─────────────────────────────────────────────────"</span>
+
+<span class="kw">if</span> [[ <span class="st">"$FAIL_COUNT"</span> -gt 0 ]]; <span class="kw">then</span>
+  <span class="fn">log_info</span> <span class="st">"Result: UNHEALTHY — deployment '$DEPLOYMENT' failed $FAIL_COUNT check(s)"</span>
+  <span class="fn">exit</span> <span class="nm">1</span>
+<span class="kw">fi</span>
+
+<span class="fn">log_info</span> <span class="st">"Result: HEALTHY — all checks passed for deployment '$DEPLOYMENT'"</span>
+<span class="fn">exit</span> <span class="nm">0</span></code></pre>
           </div>
           <p style="margin-top:12px;"><strong>Key decisions:</strong></p>
-          <p style="margin-top:8px;">— <code>permissions: id-token: write</code> is required at the workflow level for OIDC to work. Without it, the token request to GitHub's OIDC provider will be denied and the AWS credentials step will fail with a cryptic error.</p>
-          <p style="margin-top:8px;">— <code>fail-fast: false</code> on the matrix means both Node versions complete their run even if one fails. This gives you the full picture of which versions are broken, rather than stopping at the first failure.</p>
-          <p style="margin-top:8px;">— <code>needs: test</code> on <code>build-push</code> waits for all matrix jobs — not just one. GitHub Actions treats a matrix job as a single job group; <code>needs</code> will block until every matrix variant has a success status.</p>
-          <p style="margin-top:8px;">— The <code>if</code> condition on <code>build-push</code> uses <strong>both</strong> <code>github.ref</code> and <code>github.event_name</code>. Using only <code>github.ref</code> would still trigger on pull requests targeting main from a fork, which could push untrusted code to your ECR. The <code>event_name == 'push'</code> check ensures only merged commits trigger the push.</p>
+          <p style="margin-top:8px;">— <code>#!/usr/bin/env bash</code> instead of <code>#!/bin/bash</code>: on macOS, <code>/bin/bash</code> is Bash 3.2 (2007). <code>/usr/bin/env bash</code> picks up the Homebrew-installed Bash 5.x if present, which supports <code>[[ ]]</code> reliably and handles associative arrays. For a script this simple it doesn't matter — but the pattern is correct and consistent.</p>
+          <p style="margin-top:8px;">— The <code>grep -c ... || true</code> pattern on the Ready condition check: <code>grep -c</code> exits 1 if it finds zero matches, which would trigger <code>set -e</code> and abort the script. The <code>|| true</code> suppresses that exit — we want zero matches to be a valid result (all pods are ready), not an error.</p>
+          <p style="margin-top:8px;">— <code>READY="${READY:-0}"</code>: <code>kubectl</code> omits <code>readyReplicas</code> from the JSON when the value is 0. Without this default, the comparison <code>[[ "$READY" -eq "$DESIRED" ]]</code> would error on an empty string.</p>
+          <p style="margin-top:8px;">— Failure output goes to stderr (<code>>&2</code>) and success to stdout. This means a CI system capturing stdout will get clean structured output, while stderr carries the failure detail that shows up in the job log.</p>
         </div>
       </div>
     </div>
 
     <!-- Turn 2 -->
-    <div class="turn-label" style="margin-top:28px;">Turn 2 of 3 — Real failure pasted back verbatim</div>
+    <div class="turn-label" style="margin-top:28px;">Turn 2 of 3 — macOS failure pasted back verbatim</div>
 
     <p class="prose">
-      The engineer pushes the workflow. The test job passes on both Node versions. The <code>build-push</code> job fails at the AWS credentials step. The exact error is pasted back without paraphrasing.
+      An engineer runs the script on their MacBook before pushing. It fails at the argument validation step with an unexpected error. They paste the exact stderr output.
     </p>
 
     <div class="conversation">
       <div class="conv-turn engineer">
         <div class="conv-role">Engineer → Claude Code</div>
         <div class="conv-body">
-          <p>Test matrix passed on both versions. build-push failed at the credentials step. Here is the exact error:</p>
+          <p>Script fails on macOS at the timeout validation step. Exact error (verbatim):</p>
           <div class="code-wrap">
-            <div class="code-header"><span class="code-filename">Actions run log — configure-aws-credentials step</span></div>
-            <pre><code class="block">Error: Credentials could not be loaded, please check your action inputs:
-Could not load credentials from any providers
-Error: HttpError: Resource not accessible by integration
-  at /home/runner/work/_actions/aws-actions/configure-aws-credentials@v4/dist/index.js
-
-  Response: {
-    "message": "Resource not accessible by integration"
-  }
-
-The process '/usr/bin/docker' exited with code 1</code></pre>
+            <div class="code-header"><span class="code-filename">stderr on macOS (Apple Silicon, zsh terminal)</span></div>
+            <pre><code class="block">./check-deployment.sh: line 54: [[: 120: syntax error: invalid arithmetic operator (error token is "120")</code></pre>
           </div>
-          <p style="margin-top:10px;">AWS_ROLE_ARN secret is set and correct. The IAM role trust policy already has the GitHub OIDC provider configured.</p>
+          <p style="margin-top:10px;">Line 54 is: <code>if [[ "$TIMEOUT" -eq 0 ]]; then</code></p>
+          <p style="margin-top:10px;">Running macOS 14 Sonoma. The <code>bash --version</code> in the terminal is 3.2.57 despite having bash 5 installed via Homebrew — the script is being invoked with the system bash, not the Homebrew one.</p>
         </div>
       </div>
 
       <div class="conv-turn claude">
         <div class="conv-role">Claude Code</div>
         <div class="conv-body">
-          <p><strong>"Resource not accessible by integration"</strong> with OIDC credentials is almost always a <strong>permissions scope issue at the job level</strong>, not the workflow level.</p>
-          <p style="margin-top:10px;">The workflow has <code>permissions: id-token: write</code> set at the top level, but when a <code>permissions</code> block is declared at the workflow level, GitHub Actions scopes it only to jobs that don't declare their own <code>permissions</code>. The <code>build-push</code> job needs its own explicit permissions block:</p>
+          <p>The issue is that <strong>Bash 3.2 does not support arithmetic comparison with <code>-eq</code> inside <code>[[ ]]</code> when the variable is a string that matches a number.</strong> The <code>[[ ]]</code> construct in Bash 3.2 treats the right-hand side of <code>-eq</code> as a string token and errors on values it can't parse in its specific context.</p>
+          <p style="margin-top:10px;">The immediate cause is that the script uses <code>#!/usr/bin/env bash</code>, which resolves to <code>/bin/bash</code> (3.2) on macOS when run directly as <code>./check-deployment.sh</code> — the PATH lookup finds the system bash before Homebrew's. The fix has two parts:</p>
+          <p style="margin-top:10px;"><strong>Fix 1:</strong> Replace the mixed <code>[[ ]]</code> arithmetic comparison with pure arithmetic context:</p>
           <div class="code-wrap">
             <div class="code-header">
-              <span class="code-filename">Fix — add permissions block to build-push job</span>
+              <span class="code-filename">Fix — timeout validation (Bash 3.2 compatible)</span>
               <button class="code-copy" onclick="copyCode(this)">copy</button>
             </div>
-            <pre><code class="block">  <span class="kw">build-push:</span>
-    <span class="kw">name:</span> <span class="st">Build and push to ECR</span>
-    <span class="kw">runs-on:</span> <span class="st">ubuntu-latest</span>
-    <span class="kw">needs:</span> <span class="st">test</span>
-    <span class="kw">if:</span> <span class="fn">github.ref == 'refs/heads/main' && github.event_name == 'push'</span>
-    <span class="kw">permissions:</span>               <span class="cm"># Add this block</span>
-      <span class="kw">contents:</span> <span class="st">read</span>
-      <span class="kw">id-token:</span> <span class="st">write</span>           <span class="cm"># OIDC token request</span>
+            <pre><code class="block"><span class="cm"># Before (Bash 5 only):</span>
+<span class="an">if ! [[ "$TIMEOUT" =~ ^[0-9]+$ ]] || [[ "$TIMEOUT" -eq 0 ]]; then</span>
 
-    <span class="kw">steps:</span>
-      <span class="cm"># ... rest unchanged</span></code></pre>
+<span class="cm"># After (Bash 3.2 compatible):</span>
+<span class="kw">if</span> ! [[ <span class="st">"$TIMEOUT"</span> =~ ^[0-9]+$ ]]; <span class="kw">then</span>
+  <span class="fn">echo</span> <span class="st">"Error: TIMEOUT_SECONDS must be a positive integer, got: '$TIMEOUT'" >&2</span>
+  <span class="fn">usage</span>
+<span class="kw">fi</span>
+<span class="kw">if</span> (( TIMEOUT == 0 )); <span class="kw">then</span>
+  <span class="fn">echo</span> <span class="st">"Error: TIMEOUT_SECONDS must be greater than 0" >&2</span>
+  <span class="fn">usage</span>
+<span class="kw">fi</span></code></pre>
           </div>
-          <p style="margin-top:10px;">The root cause: GitHub's default token permissions were tightened in 2023 for security. When any <code>permissions</code> key is present at the workflow level, child jobs that need additional permissions must declare them explicitly — they do not inherit. The <code>test</code> job only needs <code>contents: read</code> (checkout), which is the GitHub default, so it worked without its own block. The <code>build-push</code> job needs <code>id-token: write</code> for OIDC — and without an explicit job-level block, it cannot get it.</p>
-          <p style="margin-top:8px;">This is one of the most common OIDC setup failures and one of the least obvious because the error message points at credentials, not at permissions.</p>
+          <p style="margin-top:10px;"><strong>Fix 2:</strong> Add a Bash version check at the top of the script so the error is explicit rather than cryptic when invoked with the system bash:</p>
+          <div class="code-wrap">
+            <div class="code-header">
+              <span class="code-filename">Add after shebang — Bash version guard</span>
+              <button class="code-copy" onclick="copyCode(this)">copy</button>
+            </div>
+            <pre><code class="block"><span class="cm"># Require Bash >= 3.2 — split checks to avoid the very bug we're guarding against</span>
+<span class="va">BASH_MAJOR</span>=<span class="st">"${BASH_VERSINFO[0]}"</span>
+<span class="va">BASH_MINOR</span>=<span class="st">"${BASH_VERSINFO[1]}"</span>
+<span class="kw">if</span> (( BASH_MAJOR < 3 )) || { (( BASH_MAJOR == 3 )) && (( BASH_MINOR < 2 )); }; <span class="kw">then</span>
+  <span class="fn">echo</span> <span class="st">"Error: Bash >= 3.2 required (found ${BASH_VERSINFO[0]}.${BASH_VERSINFO[1]})" >&2</span>
+  <span class="fn">exit</span> <span class="nm">1</span>
+<span class="kw">fi</span></code></pre>
+          </div>
+          <p style="margin-top:10px;">The <code>(( ))</code> arithmetic context works correctly in Bash 3.2 for integer comparisons, unlike <code>[[ -eq ]]</code> which has subtle parsing differences between versions. Apply both fixes and the script will behave identically on macOS system bash and Linux.</p>
         </div>
       </div>
     </div>
 
     <!-- Turn 3 -->
-    <div class="turn-label" style="margin-top:28px;">Turn 3 of 3 — Reusable workflow refactor</div>
+    <div class="turn-label" style="margin-top:28px;">Turn 3 of 3 — Idempotency requirement added</div>
 
     <p class="prose">
-      The pipeline is now working correctly. The team needs to make it callable from other service repos via <code>workflow_call</code> so they don't copy-paste the YAML. The ECR repository name and AWS role ARN need to be inputs rather than hardcoded values.
+      The script works correctly on both platforms. A new requirement surfaces: the CD pipeline may re-run the health check up to three times with a backoff if the first check times out. The script must be explicitly idempotent — running it multiple times against the same deployment must produce the same result without side effects, and must support a <code>--retry</code> mode that loops internally.
     </p>
 
     <div class="conversation">
       <div class="conv-turn engineer">
         <div class="conv-role">Engineer → Claude Code</div>
         <div class="conv-body">
-          <p>Refactor the workflow to be reusable via <code>workflow_call</code>. Requirements:</p>
-          <p style="margin-top:10px;">
-          — Keep the existing <code>push</code> and <code>pull_request</code> triggers so the workflow still runs standalone in this repo<br>
-          — Add <code>workflow_call</code> trigger with these inputs: <code>ecr-repository</code> (string, required), <code>aws-region</code> (string, default ap-south-1), <code>node-versions</code> (string, default '["18.x","20.x"]')<br>
-          — Add <code>workflow_call</code> secrets: <code>aws-role-arn</code> (required)<br>
-          — Internals: use inputs when called externally, fall back to hardcoded defaults when run standalone<br>
-          — Add a <code>outputs</code> block that exposes the pushed image URI so callers can use it in subsequent jobs
-          </p>
+          <p>Add two things to the script:</p>
+          <p style="margin-top:10px;">1. An optional <code>--retry N</code> flag (default 1, max 5) that retries all checks up to N times with a 15-second backoff between attempts. Print attempt number. Exit 0 only if the final attempt passes all checks.</p>
+          <p style="margin-top:10px;">2. An explicit idempotency guard — a comment block at the top that documents what the script does and does NOT modify, so operators know it is safe to re-run. The script should also verify it has only read access to the cluster (no kubectl apply/delete calls anywhere) and emit a warning if run with a kubeconfig that has write permissions to the namespace.</p>
         </div>
       </div>
 
       <div class="conv-turn claude">
         <div class="conv-role">Claude Code</div>
         <div class="conv-body">
-          <p>The key pattern here is using <code>inputs.*</code> with <code>||</code> fallback expressions so the workflow behaves correctly both when called standalone and when called via <code>workflow_call</code>:</p>
+          <p>On the permissions warning: <strong>checking write permissions before a read-only script is good practice but has a practical caveat</strong>. <code>kubectl auth can-i</code> will return true for cluster-admins even when the script itself never writes anything — so this is an advisory warning, not a hard block. The script will still run; it just informs operators of elevated permissions so they can decide whether to use a restricted kubeconfig for CI.</p>
+          <p style="margin-top:10px;">Here are the targeted additions — insert after argument validation, before Check 1:</p>
           <div class="code-wrap">
             <div class="code-header">
-              <span class="code-filename">.github/workflows/ci.yml (turn 3 — reusable)</span>
+              <span class="code-filename">Additions — retry logic and idempotency guard</span>
               <button class="code-copy" onclick="copyCode(this)">copy</button>
             </div>
-            <pre><code class="block"><span class="kw">name:</span> <span class="st">CI</span>
+            <pre><code class="block"><span class="cm"># ── Idempotency contract ─────────────────────────────────────────────────────
+# This script is READ-ONLY. It:
+#   - Reads deployment status and pod conditions via kubectl get/rollout
+#   - Does NOT modify any Kubernetes resources
+#   - Does NOT create, update, or delete any objects
+#   - Does NOT write to any files outside /tmp
+#   - Is safe to re-run any number of times against the same deployment
+# Running this script multiple times will produce the same result as running
+# it once, assuming the cluster state does not change between runs.</span>
 
-<span class="kw">on:</span>
-  <span class="kw">push:</span>
-    <span class="kw">branches:</span> <span class="st">[ main ]</span>
-  <span class="kw">pull_request:</span>
-  <span class="kw">workflow_call:</span>
-    <span class="kw">inputs:</span>
-      <span class="kw">ecr-repository:</span>
-        <span class="kw">description:</span> <span class="st">'ECR repository name (e.g. payment-api)'</span>
-        <span class="kw">required:</span> <span class="nm">true</span>
-        <span class="kw">type:</span> <span class="st">string</span>
-      <span class="kw">aws-region:</span>
-        <span class="kw">description:</span> <span class="st">'AWS region for ECR'</span>
-        <span class="kw">required:</span> <span class="nm">false</span>
-        <span class="kw">type:</span> <span class="st">string</span>
-        <span class="kw">default:</span> <span class="st">ap-south-1</span>
-      <span class="kw">node-versions:</span>
-        <span class="kw">description:</span> <span class="st">'JSON array of Node.js versions to test against'</span>
-        <span class="kw">required:</span> <span class="nm">false</span>
-        <span class="kw">type:</span> <span class="st">string</span>
-        <span class="kw">default:</span> <span class="st">'["18.x","20.x"]'</span>
-    <span class="kw">secrets:</span>
-      <span class="kw">aws-role-arn:</span>
-        <span class="kw">description:</span> <span class="st">'IAM role ARN to assume via OIDC for ECR push'</span>
-        <span class="kw">required:</span> <span class="nm">true</span>
-    <span class="kw">outputs:</span>
-      <span class="kw">image-uri:</span>
-        <span class="kw">description:</span> <span class="st">'Full ECR image URI including tag (e.g. 123.dkr.ecr.ap-south-1.amazonaws.com/payment-api:abc1234)'</span>
-        <span class="kw">value:</span> <span class="st">${{ jobs.build-push.outputs.image-uri }}</span>
+<span class="cm"># ── Permissions advisory ──────────────────────────────────────────────────────</span>
+<span class="kw">if</span> <span class="fn">kubectl</span> auth can-i create pods -n <span class="st">"$NAMESPACE"</span> &>/dev/null; <span class="kw">then</span>
+  <span class="fn">echo</span> <span class="st">"[$(timestamp)] WARN  Current kubeconfig has write access to namespace '$NAMESPACE'."</span> >&2
+  <span class="fn">echo</span> <span class="st">"[$(timestamp)] WARN  Consider using a read-only kubeconfig for CI health checks."</span> >&2
+<span class="kw">fi</span>
 
-<span class="kw">permissions:</span>
-  <span class="kw">contents:</span> <span class="st">read</span>
+<span class="cm"># ── Retry configuration ───────────────────────────────────────────────────────</span>
+<span class="va">MAX_RETRIES</span>=<span class="nm">1</span>
 
-<span class="kw">jobs:</span>
-  <span class="kw">test:</span>
-    <span class="kw">name:</span> <span class="st">Test (Node ${{ matrix.node-version }})</span>
-    <span class="kw">runs-on:</span> <span class="st">ubuntu-latest</span>
-    <span class="kw">strategy:</span>
-      <span class="kw">matrix:</span>
-        <span class="cm"># fromJSON parses the input string into an array for the matrix</span>
-        <span class="kw">node-version:</span> <span class="fn">${{ fromJSON(inputs.node-versions || '["18.x","20.x"]') }}</span>
-      <span class="kw">fail-fast:</span> <span class="nm">false</span>
+<span class="cm"># Parse --retry flag (supports --retry N or --retry=N)</span>
+<span class="kw">while</span> [[ $# -gt 0 ]]; <span class="kw">do</span>
+  <span class="kw">case</span> <span class="st">"$1"</span> <span class="kw">in</span>
+    --retry=*)
+      <span class="va">MAX_RETRIES</span>=<span class="st">"${1#--retry=}"</span>
+      <span class="kw">shift</span>
+      ;;
+    --retry)
+      <span class="va">MAX_RETRIES</span>=<span class="st">"$2"</span>
+      <span class="kw">shift</span> 2
+      ;;
+    *) <span class="kw">shift</span> ;;
+  <span class="kw">esac</span>
+<span class="kw">done</span>
 
-    <span class="kw">steps:</span>
-      - <span class="kw">name:</span> <span class="st">Checkout</span>
-        <span class="kw">uses:</span> <span class="ty">actions/checkout@v4</span>
+<span class="kw">if</span> ! [[ <span class="st">"$MAX_RETRIES"</span> =~ ^[0-9]+$ ]] || (( MAX_RETRIES < 1 )) || (( MAX_RETRIES > 5 )); <span class="kw">then</span>
+  <span class="fn">echo</span> <span class="st">"Error: --retry must be an integer between 1 and 5, got: '$MAX_RETRIES'" >&2</span>
+  <span class="fn">exit</span> <span class="nm">1</span>
+<span class="kw">fi</span>
 
-      - <span class="kw">name:</span> <span class="st">Set up Node.js ${{ matrix.node-version }}</span>
-        <span class="kw">uses:</span> <span class="ty">actions/setup-node@v4</span>
-        <span class="kw">with:</span>
-          <span class="kw">node-version:</span> <span class="st">${{ matrix.node-version }}</span>
-          <span class="kw">cache:</span> <span class="st">'npm'</span>
-          <span class="kw">cache-dependency-path:</span> <span class="st">package-lock.json</span>
+<span class="kw">readonly</span> <span class="va">RETRY_BACKOFF_SECONDS</span>=<span class="nm">15</span>
 
-      - <span class="kw">name:</span> <span class="st">Install dependencies</span>
-        <span class="kw">run:</span> <span class="st">npm ci</span>
+<span class="cm"># ── Run checks with retry ─────────────────────────────────────────────────────</span>
+<span class="fn">run_checks</span>() {
+  <span class="va">PASS_COUNT</span>=<span class="nm">0</span>
+  <span class="va">FAIL_COUNT</span>=<span class="nm">0</span>
+  <span class="cm"># ... all three checks from Turn 1 go here, unchanged ...</span>
+}
 
-      - <span class="kw">name:</span> <span class="st">Lint</span>
-        <span class="kw">run:</span> <span class="st">npm run lint</span>
+<span class="va">attempt</span>=<span class="nm">1</span>
+<span class="kw">while</span> (( attempt <= MAX_RETRIES )); <span class="kw">do</span>
+  <span class="fn">log_info</span> <span class="st">"Attempt $attempt of $MAX_RETRIES"</span>
+  <span class="fn">run_checks</span>
+  <span class="kw">if</span> [[ <span class="st">"$FAIL_COUNT"</span> -eq 0 ]]; <span class="kw">then</span>
+    <span class="fn">log_info</span> <span class="st">"Result: HEALTHY on attempt $attempt"</span>
+    <span class="fn">exit</span> <span class="nm">0</span>
+  <span class="kw">fi</span>
+  <span class="kw">if</span> (( attempt < MAX_RETRIES )); <span class="kw">then</span>
+    <span class="fn">log_info</span> <span class="st">"Attempt $attempt failed. Retrying in ${RETRY_BACKOFF_SECONDS}s..."</span>
+    <span class="fn">sleep</span> <span class="st">"$RETRY_BACKOFF_SECONDS"</span>
+  <span class="kw">fi</span>
+  (( attempt++ )) || <span class="nm">true</span>   <span class="cm"># (( expr )) exits 1 when result is 0; || true prevents set -e trigger</span>
+<span class="kw">done</span>
 
-      - <span class="kw">name:</span> <span class="st">Test</span>
-        <span class="kw">run:</span> <span class="st">npm test</span>
-
-  <span class="kw">build-push:</span>
-    <span class="kw">name:</span> <span class="st">Build and push to ECR</span>
-    <span class="kw">runs-on:</span> <span class="st">ubuntu-latest</span>
-    <span class="kw">needs:</span> <span class="st">test</span>
-    <span class="kw">if:</span> <span class="fn">github.ref == 'refs/heads/main' && github.event_name == 'push'</span>
-    <span class="kw">permissions:</span>
-      <span class="kw">contents:</span> <span class="st">read</span>
-      <span class="kw">id-token:</span> <span class="st">write</span>
-    <span class="kw">outputs:</span>
-      <span class="kw">image-uri:</span> <span class="st">${{ steps.build.outputs.image }}</span>
-
-    <span class="kw">steps:</span>
-      - <span class="kw">name:</span> <span class="st">Checkout</span>
-        <span class="kw">uses:</span> <span class="ty">actions/checkout@v4</span>
-
-      - <span class="kw">name:</span> <span class="st">Configure AWS credentials via OIDC</span>
-        <span class="kw">uses:</span> <span class="ty">aws-actions/configure-aws-credentials@v4</span>
-        <span class="kw">with:</span>
-          <span class="kw">role-to-assume:</span> <span class="fn">${{ secrets.aws-role-arn || secrets.AWS_ROLE_ARN }}</span>
-          <span class="kw">aws-region:</span> <span class="fn">${{ inputs.aws-region || 'ap-south-1' }}</span>
-
-      - <span class="kw">name:</span> <span class="st">Login to Amazon ECR</span>
-        <span class="kw">id:</span> <span class="st">login-ecr</span>
-        <span class="kw">uses:</span> <span class="ty">aws-actions/amazon-ecr-login@v2</span>
-
-      - <span class="kw">name:</span> <span class="st">Build and push Docker image</span>
-        <span class="kw">id:</span> <span class="st">build</span>
-        <span class="kw">env:</span>
-          <span class="kw">REGISTRY:</span> <span class="st">${{ steps.login-ecr.outputs.registry }}</span>
-          <span class="kw">REPO:</span> <span class="fn">${{ inputs.ecr-repository || 'payment-api' }}</span>
-          <span class="kw">IMAGE_TAG:</span> <span class="st">${{ github.sha }}</span>
-        <span class="kw">run:</span> |
-          docker build -t $REGISTRY/$REPO:$IMAGE_TAG .
-          docker push $REGISTRY/$REPO:$IMAGE_TAG
-          echo "image=$REGISTRY/$REPO:$IMAGE_TAG" >> $GITHUB_OUTPUT</code></pre>
+<span class="fn">log_info</span> <span class="st">"Result: UNHEALTHY after $MAX_RETRIES attempt(s). Failed $FAIL_COUNT check(s) on final attempt."</span>
+<span class="fn">exit</span> <span class="nm">1</span></code></pre>
           </div>
-          <p style="margin-top:12px;"><strong>The <code>inputs.node-versions || '["18.x","20.x"]'</code> pattern:</strong> when run standalone (push/pull_request trigger), <code>inputs.node-versions</code> is undefined, so the <code>||</code> fallback provides the default. When called via <code>workflow_call</code>, <code>inputs.node-versions</code> is populated by the caller. The <code>fromJSON()</code> wrapper converts the JSON string to an array that the matrix strategy can iterate.</p>
-          <p style="margin-top:8px;"><strong>Secret resolution:</strong> <code>secrets.aws-role-arn || secrets.AWS_ROLE_ARN</code> handles both invocation modes — the kebab-case name is available when called via <code>workflow_call</code>, the UPPER_CASE name is used when run standalone in this repo.</p>
-          <p style="margin-top:8px;"><strong>Calling this from another repo:</strong></p>
-          <div class="code-wrap">
-            <div class="code-header"><span class="code-filename">Caller workflow example (other-service/.github/workflows/ci.yml)</span></div>
-            <pre><code class="block"><span class="kw">jobs:</span>
-  <span class="kw">ci:</span>
-    <span class="kw">uses:</span> <span class="st">your-org/payment-api/.github/workflows/ci.yml@main</span>
-    <span class="kw">with:</span>
-      <span class="kw">ecr-repository:</span> <span class="st">other-service</span>
-      <span class="kw">node-versions:</span> <span class="st">'["20.x"]'</span>
-    <span class="kw">secrets:</span>
-      <span class="kw">aws-role-arn:</span> <span class="st">${{ secrets.AWS_ROLE_ARN }}</span>
-
-  <span class="kw">deploy:</span>
-    <span class="kw">needs:</span> <span class="st">ci</span>
-    <span class="kw">steps:</span>
-      - <span class="kw">name:</span> <span class="st">Deploy image</span>
-        <span class="cm"># Use the output from the reusable workflow</span>
-        <span class="kw">run:</span> <span class="st">echo "Deploying ${{ needs.ci.outputs.image-uri }}"</span></code></pre>
-          </div>
+          <p style="margin-top:10px;">Note the <code>(( attempt++ )) || true</code> comment — this is a subtle <code>set -e</code> trap. Arithmetic expressions in <code>(( ))</code> exit with status 1 when the result is 0 (falsy). When <code>attempt</code> increments from 0 to 1, the expression result is 1 (truthy) — fine. But if attempt ever evaluates to 0 after increment (it won't here, but the pattern is defensive), <code>set -e</code> would abort the script. The <code>|| true</code> is the standard idiom to use arithmetic increment safely under <code>set -e</code>.</p>
         </div>
       </div>
     </div>
@@ -934,65 +939,58 @@ The process '/usr/bin/docker' exited with code 1</code></pre>
 </div>
 
     <p class="prose">
-      The Turn 3 output is the final workflow. Here is a diff of what changed from the naive version — every line added is a decision with a reason.
+      Here is a side-by-side diff of the key structural differences between the naive script and the production-grade version. Every added line is a decision with a reason.
     </p>
 
     <div class="diff-wrap">
-      <div class="diff-header">Naive → final: key differences</div>
+      <div class="diff-header">Naive → final: key structural differences</div>
       <div class="diff-body">
-        <span class="diff-line neu">on:</span>
-        <span class="diff-line neu">  push: ...</span>
-        <span class="diff-line neu">  pull_request:</span>
-        <span class="diff-line add">  workflow_call:            # reusable from other repos</span>
-        <span class="diff-line add">    inputs: { ecr-repository, aws-region, node-versions }</span>
-        <span class="diff-line add">    secrets: { aws-role-arn }</span>
-        <span class="diff-line add">    outputs: { image-uri }</span>
+        <span class="diff-line rem">#!/bin/bash                     # system bash on macOS = 3.2</span>
+        <span class="diff-line add">#!/usr/bin/env bash             # picks up newer bash if installed</span>
+        <span class="diff-line add">set -euo pipefail              # abort on error, unset vars, pipe failures</span>
         <span class="diff-line neu"> </span>
-        <span class="diff-line add">permissions:              # least-privilege default</span>
-        <span class="diff-line add">  contents: read</span>
+        <span class="diff-line rem">DEPLOYMENT=$1                  # unquoted, no validation</span>
+        <span class="diff-line rem">NAMESPACE=$2</span>
+        <span class="diff-line add">if [[ $# -lt 2 ]]; then usage; fi</span>
+        <span class="diff-line add">readonly DEPLOYMENT="$1"       # quoted, validated, readonly</span>
+        <span class="diff-line add">readonly NAMESPACE="$2"</span>
+        <span class="diff-line add">readonly TIMEOUT="${3:-120}"</span>
         <span class="diff-line neu"> </span>
-        <span class="diff-line neu">jobs:</span>
-        <span class="diff-line neu">  test:</span>
-        <span class="diff-line rem">    # single Node version: '18'</span>
-        <span class="diff-line add">    strategy:               # matrix: 18.x and 20.x</span>
-        <span class="diff-line add">      matrix:</span>
-        <span class="diff-line add">        node-version: ${{ fromJSON(inputs.node-versions || '["18.x","20.x"]') }}</span>
-        <span class="diff-line add">      fail-fast: false</span>
+        <span class="diff-line rem">kubectl rollout status ...      # exit ignored, output mixed</span>
+        <span class="diff-line add">if kubectl rollout status ...; then</span>
+        <span class="diff-line add">  log_pass "Rollout completed"</span>
+        <span class="diff-line add">else</span>
+        <span class="diff-line add">  log_fail "Rollout timed out"  # FAIL_COUNT incremented, not abort</span>
+        <span class="diff-line add">fi</span>
         <span class="diff-line neu"> </span>
-        <span class="diff-line rem">      - run: npm install      # no cache, full reinstall</span>
-        <span class="diff-line add">      - uses: setup-node@v4   # built-in npm cache</span>
-        <span class="diff-line add">        with: { cache: 'npm', cache-dependency-path: package-lock.json }</span>
-        <span class="diff-line add">      - run: npm ci           # exact lockfile install</span>
+        <span class="diff-line rem">for pod in $PODS; do           # direct curl — fails in CI</span>
+        <span class="diff-line rem">  curl http://$pod:3000/health</span>
+        <span class="diff-line rem">done</span>
+        <span class="diff-line add">NOT_READY=$(kubectl get pods ... --field-selector ...)  # kubectl only</span>
+        <span class="diff-line add">if [[ "$NOT_READY" -eq 0 ]]; then log_pass; else log_fail; fi</span>
         <span class="diff-line neu"> </span>
-        <span class="diff-line neu">  build-push:</span>
-        <span class="diff-line rem">    # no needs — runs parallel to test</span>
-        <span class="diff-line add">    needs: test             # blocks until all matrix jobs pass</span>
-        <span class="diff-line add">    if: github.ref == 'refs/heads/main' && github.event_name == 'push'</span>
-        <span class="diff-line add">    permissions:            # job-level OIDC permission</span>
-        <span class="diff-line add">      id-token: write</span>
-        <span class="diff-line neu"> </span>
-        <span class="diff-line rem">      aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}   # long-lived</span>
-        <span class="diff-line rem">      aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}</span>
-        <span class="diff-line add">      role-to-assume: ${{ secrets.aws-role-arn || secrets.AWS_ROLE_ARN }}</span>
+        <span class="diff-line rem">echo "Deployment check complete" # always, regardless of outcome</span>
+        <span class="diff-line add">if [[ "$FAIL_COUNT" -gt 0 ]]; then exit 1; fi</span>
+        <span class="diff-line add">exit 0                         # only if all checks passed</span>
       </div>
     </div>
 
     <ul class="annotation-list" style="margin-top:24px;">
       <li>
-        <span class="ann-badge ann-good">Security</span>
-        <div><strong>OIDC replaces long-lived credentials.</strong> No static AWS keys stored anywhere. The IAM role is assumed via a short-lived token scoped to this workflow run. Rotation is automatic. If the repo is compromised, there are no credentials to extract.</div>
+        <span class="ann-badge ann-good">Safety</span>
+        <div><strong><code>set -euo pipefail</code> at the top.</strong> The three flags work together: <code>-e</code> aborts on any unhandled non-zero exit; <code>-u</code> treats unset variables as errors (catches typos in variable names immediately); <code>-o pipefail</code> makes the exit code of a pipeline reflect the rightmost failing command, not the last one. Together they eliminate the silent-success failure mode that plagues naive scripts.</div>
       </li>
       <li>
         <span class="ann-badge ann-good">Correctness</span>
-        <div><strong><code>needs: test</code> blocks on the full matrix.</strong> Both Node 18 and Node 20 must pass before any image is built or pushed. A version-specific regression is caught before it reaches ECR.</div>
+        <div><strong>Checks are independent — a failure accumulates, not aborts.</strong> FAIL_COUNT is incremented on each failed check but the script continues to run all checks. This means the output always covers all three checks even when the first one fails, giving the operator a complete picture of the deployment's health rather than stopping at the first problem.</div>
       </li>
       <li>
-        <span class="ann-badge ann-good">Cost</span>
-        <div><strong>npm cache via <code>setup-node</code>.</strong> The cache is keyed on <code>package-lock.json</code>. On a cache hit, <code>npm ci</code> installs from the local cache instead of the registry. For a typical Node service, this saves 2–4 minutes per run across both matrix jobs.</div>
+        <span class="ann-badge ann-good">Portability</span>
+        <div><strong>Arithmetic via <code>(( ))</code>, not <code>[[ -eq ]]</code>.</strong> After the Turn 2 fix, all integer comparisons use the arithmetic context, which behaves consistently across Bash 3.2 and 5.x. The timestamp function uses <code>date -u '+%Y-%m-%dT%H:%M:%SZ'</code> which works on both GNU date and BSD date without flags that differ between platforms.</div>
       </li>
       <li>
-        <span class="ann-badge ann-good">Reusability</span>
-        <div><strong><code>workflow_call</code> with typed inputs and outputs.</strong> Other repos can consume this workflow without duplicating it. The <code>image-uri</code> output lets caller workflows chain a deploy job without re-deriving the image name.</div>
+        <span class="ann-badge ann-good">Idempotency</span>
+        <div><strong>Explicit idempotency contract documented at the top.</strong> The comment block documents what the script reads and what it never writes. This is not just documentation — it is a commitment that future maintainers are expected to preserve. Any <code>kubectl apply</code>, <code>kubectl delete</code>, or file-write added later breaks the stated contract and should be challenged in code review.</div>
       </li>
     </ul>
   
@@ -1015,42 +1013,41 @@ The process '/usr/bin/docker' exited with code 1</code></pre>
 </div>
 
     <p class="prose">
-      Claude Code handled OIDC setup, matrix strategy, caching, dependency ordering, and the reusable workflow pattern correctly. Here is what it cannot verify or enforce without your specific environment.
+      Claude Code produced a solid, portable, idempotent script across three turns. Here is what it handled correctly and what it genuinely cannot know without your cluster context.
     </p>
 
     <div class="callout good">
       <div class="callout-label">What Claude Code handled well</div>
-      OIDC auth with job-level permissions, <code>fail-fast: false</code> on the matrix, <code>needs</code> blocking on all matrix variants, npm cache via setup-node built-in, dual-mode secret resolution, <code>fromJSON</code> for the matrix input, <code>workflow_call</code> outputs wired through job outputs to workflow outputs. These are non-trivial patterns — the Turn 2 permissions bug diagnosis was particularly accurate.
+      <code>set -euo pipefail</code> discipline throughout, argument validation with usage message, structured PASS/FAIL output with timestamps to stdout/stderr separation, <code>grep -c || true</code> idiom for zero-match safety, <code>READY="${READY:-0}"</code> for missing JSON fields, <code>(( attempt++ )) || true</code> under <code>set -e</code>, the Bash 3.2 arithmetic bug from Turn 2 diagnosed precisely, and the permissions advisory correctly framed as a warning not a hard block.
     </div>
 
     <ul class="annotation-list" style="margin-top:24px;">
       <li>
         <span class="ann-badge ann-warn">Verify</span>
-        <div><strong>IAM role trust policy must include the GitHub OIDC subject.</strong> Claude Code cannot see your AWS account. The role's trust policy must allow <code>token.actions.githubusercontent.com</code> as the OIDC provider and must include a <code>sub</code> condition scoped to your repo and branch — otherwise OIDC will fail at runtime with an access denied error that looks identical to a permissions misconfiguration. A trust policy scoped to <code>repo:your-org/payment-api:ref:refs/heads/main</code> is the minimum.</div>
+        <div><strong>The pod label selector assumes <code>app=DEPLOYMENT_NAME</code>.</strong> Claude Code used <code>-l "app=$DEPLOYMENT"</code> because it's the most common Kubernetes label convention. Your deployments may use <code>app.kubernetes.io/name</code>, <code>component</code>, or a custom label instead. If the selector doesn't match your pods, Check 2 will return zero pods and pass incorrectly — which is exactly the silent success failure mode the script was designed to prevent. Verify the label before deploying.</div>
       </li>
       <li>
         <span class="ann-badge ann-warn">Verify</span>
-        <div><strong>Cache hits require a prior successful run.</strong> On the first run after adding caching, there will be a cache miss and a full install. This is expected. Check the Actions cache tab after the second run — if the cache is not being hit, the <code>cache-dependency-path</code> may not match where your <code>package-lock.json</code> actually lives (monorepo setups often have it in a subdirectory).</div>
+        <div><strong>Check 3 replica count can be misleading during a rolling update.</strong> If the deployment is mid-rollout when the script runs, <code>readyReplicas</code> may be less than <code>spec.replicas</code> even if the rollout is progressing correctly. Check 1 (rollout status with timeout) is the authoritative gate — Check 3 is a secondary confirmation. If Check 1 passes but Check 3 fails, investigate before assuming the deployment is broken.</div>
       </li>
       <li>
         <span class="ann-badge ann-warn">Verify</span>
-        <div><strong>Secret names are case-sensitive and must match exactly.</strong> Claude Code generated <code>secrets.aws-role-arn</code> for the <code>workflow_call</code> case and <code>secrets.AWS_ROLE_ARN</code> for the standalone case. If your repo secret is named differently — <code>AWS_ROLE_ARN_PROD</code>, for example — both references fail silently; the credentials step receives an empty value and produces a misleading error. Verify secret names in Settings → Secrets → Actions before the first run.</div>
+        <div><strong>The retry backoff is fixed at 15 seconds.</strong> Claude Code hardcoded 15 seconds as a reasonable default. For a deployment with a slow startup (JVM warmup, large model loading), 15 seconds may not be enough between attempts. Make <code>RETRY_BACKOFF_SECONDS</code> a configurable argument if your services have variable startup times.</div>
       </li>
       <li>
         <span class="ann-badge ann-warn">Verify</span>
-        <div><strong><code>workflow_call</code> from a fork requires explicit secret passing.</strong> Workflows called from forked repos cannot access the parent repo's secrets by default. If you intend this workflow to be called by external contributors' forks, you need to configure <code>secrets: inherit</code> or pass secrets explicitly in the caller workflow, and enable "Allow GitHub Actions to create and approve pull requests" in org settings. This is a security decision, not a bug.</div>
+        <div><strong>The permissions advisory requires <code>kubectl auth can-i</code> to work.</strong> In some cluster configurations or RBAC setups, <code>kubectl auth can-i</code> itself requires permissions that the CI kubeconfig may not have. If the advisory check fails with a permissions error, it will trigger <code>set -e</code> and abort the script before any health checks run. Wrap it in a subshell if this is a concern: <code>if kubectl auth can-i ... 2>/dev/null; then</code>.</div>
       </li>
       <li>
         <span class="ann-badge ann-info">Note</span>
-        <div><strong>Action version pinning.</strong> The workflow uses <code>@v4</code> tags, not pinned SHAs. For highest security — particularly in a reusable workflow that other repos will consume — pin to a specific commit SHA (e.g. <code>actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683</code>). This prevents a compromised action from being swapped under a floating tag. Tools like Dependabot and <code>pinact</code> can automate this.</div>
+        <div><strong>The script tests Kubernetes-level readiness, not application-level correctness.</strong> A pod can be <code>Running</code>, <code>Ready=True</code>, and fully replicated while the application inside it is returning 500s on business logic endpoints. Kubernetes readiness probes verify that the container is ready to receive traffic — not that it is processing it correctly. For application-level verification, add a smoke test job after the health check in your CD pipeline.</div>
       </li>
     </ul>
 
     <div class="callout tip">
-      <div class="callout-label">Prompting tip for future pipelines</div>
-      The most effective addition to Turn 1 was specifying the exact Actions versions (<code>checkout@v4</code>, <code>setup-node@v4</code>, etc.). Without this, Claude Code defaults to whatever version it knows from training — which may be outdated. Always specify action versions explicitly in your prompt. For OIDC specifically, also specify the role ARN source (secret name) and the region — these are the two values most likely to differ between teams and cannot be guessed.
+      <div class="callout-label">Prompting tip for future shell scripts</div>
+      The most productive pattern across all three turns was <strong>pasting exact stderr output, not descriptions of it</strong>. The Turn 2 Bash 3.2 bug was diagnosed in one turn because the exact error message, the exact line number, and the exact bash version were provided. Paraphrasing "it fails on Mac" would have produced a list of possible causes. The exact output produced a precise diagnosis. For shell scripts especially, error messages contain the signal — always paste them verbatim.
     </div>
-
   
 <div class="reviewer-bar" id="rev-bar-5">
   <input type="checkbox" class="rev-checkbox" id="rev-cb-5" data-step="5">
@@ -1058,20 +1055,30 @@ The process '/usr/bin/docker' exited with code 1</code></pre>
 </div>
 </section>
 
+  <!-- Tier 1 complete callout -->
+  <div class="tier-complete">
+    <div class="tier-complete-label">Tier 1 complete</div>
+    <div class="tier-complete-title">All four single-file examples finished</div>
+    <div class="tier-complete-desc">
+      You have worked through a Dockerfile, a Terraform variables.tf, a GitHub Actions pipeline, and a shell script — covering the four most common single-file DevOps tasks. Each example followed the same arc: problem statement, naive approach with specific failure modes, a three-turn Claude Code dialogue with real feedback pasted back, an annotated refined output, and a practitioner-level watch-out section.<br><br>
+      Tier 2 examples (multi-step workflows) and Tier 3 examples (context-heavy cross-layer scenarios) are coming next. Return to the <a href="../course-map.html">course map</a> to see the full learning path.
+    </div>
+  </div>
+
   
 <div class="reviewer-panel">
-  <div class="reviewer-panel-label">🔍 Reviewer question — E3-1</div>
-  <div class="reviewer-q-text">In Example 3 Turn 2, the GitHub Actions OIDC configuration failed with 'Resource not accessible by integration'. What was the root cause?</div>
+  <div class="reviewer-panel-label">🔍 Reviewer question — E4-1</div>
+  <div class="reviewer-q-text">The naive shell script in Example 4 exits with code 0 even when the deployment is unhealthy. Which of the following is the PRIMARY mechanism that allows this to happen?</div>
   <div class="reviewer-options">
-    <div class="reviewer-option" data-key="A" onclick="selectRevOption('A',this)"><span class="reviewer-option-key">A</span><span>The AWS IAM role trust policy did not include the GitHub OIDC provider</span></div>
-    <div class="reviewer-option" data-key="B" onclick="selectRevOption('B',this)"><span class="reviewer-option-key">B</span><span>The `id-token: write` permission was declared at the workflow level but not at the job level, and GitHub requires job-level declaration when any permissions block is present</span></div>
-    <div class="reviewer-option" data-key="C" onclick="selectRevOption('C',this)"><span class="reviewer-option-key">C</span><span>The `AWS_ROLE_ARN` secret was not set in the repository settings</span></div>
-    <div class="reviewer-option" data-key="D" onclick="selectRevOption('D',this)"><span class="reviewer-option-key">D</span><span>The `configure-aws-credentials` action version was incompatible with OIDC</span></div>
+    <div class="reviewer-option" data-key="A" onclick="selectRevOption('A',this)"><span class="reviewer-option-key">A</span><span>The script uses `curl` which always returns exit code 0</span></div>
+    <div class="reviewer-option" data-key="B" onclick="selectRevOption('B',this)"><span class="reviewer-option-key">B</span><span>The script lacks `set -e` so it continues executing after command failures and always reaches the final `echo` which exits 0</span></div>
+    <div class="reviewer-option" data-key="C" onclick="selectRevOption('C',this)"><span class="reviewer-option-key">C</span><span>The script has a syntax error that prevents it from checking the exit code</span></div>
+    <div class="reviewer-option" data-key="D" onclick="selectRevOption('D',this)"><span class="reviewer-option-key">D</span><span>Kubernetes `rollout status` always returns 0 regardless of deployment health</span></div>
   </div>
   <button class="reviewer-reveal" id="rev-reveal-btn" onclick="revealRevAnswer()">Check answer</button>
   <div class="reviewer-explanation" id="rev-explanation">
     <div class="reviewer-exp-label"></div>
-    When any `permissions` block is declared at the workflow level, child jobs that need additional permissions must declare them explicitly — they do not inherit. The `build-push` job needed `id-token: write` at the job level to request an OIDC token. This behaviour was tightened in 2023 and is one of the most common OIDC setup failures.
+    Without `set -e`, a failing command does not abort the script. The `kubectl rollout status` can time out, curl can fail, and the script continues executing, reaching `echo 'Deployment check complete'` which exits 0. The absence of `set -euo pipefail` is the root cause of the false-confidence failure mode.
   </div>
   <div class="reviewer-comment-label">Reviewer notes</div>
   <textarea class="reviewer-comment" id="rev-comment" placeholder="Add your review notes for this example…"></textarea>
@@ -1090,15 +1097,15 @@ The process '/usr/bin/docker' exited with code 1</code></pre>
 <script>window.REV_CORRECT = "B";</script>
 
 <div class="bottom-nav">
-    <a class="nav-btn secondary" href="../example-2-terraform-variables.html">← Example 2 — Terraform variables.tf</a>
-    <a class="nav-btn" href="../example-4-shell-script.html">Example 4 — Shell script →</a>
+    <a class="nav-btn secondary" href="../example-3-github-actions-job.html">← Example 3 — GitHub Actions job</a>
+    <a class="nav-btn" href="../course-map.html">Back to course map →</a>
   </div>
 
 </div>
 
 <footer>
   <span>AIOps &amp; DevOps Learning Path · SourceFuse L&amp;D</span>
-  <span>Example 3 of 4 · Tier 1 · GitHub Actions pipeline</span>
+  <span>Example 4 of 4 · Tier 1 · Shell script</span>
 </footer>
 
 <script>
@@ -1127,7 +1134,7 @@ The process '/usr/bin/docker' exited with code 1</code></pre>
 
 <script>
 // ── Reviewer persistence ──────────────────────────────────────────────────────
-const REV_KEY   = 'reviewer_example-3';
+const REV_KEY   = 'reviewer_example-4';
 const NUM_STEPS = 5;
 
 function revLoad() { try { return JSON.parse(localStorage.getItem(REV_KEY)) || {}; } catch(e) { return {}; } }
@@ -1362,7 +1369,7 @@ const sfDb   = firebase.firestore();
 // ── Reviewer identity ─────────────────────────────────────────────────────────
 let sfReviewerEmail = null;
 let sfReviewerUid   = null;
-const EXAMPLE_ID    = 'example-3';
+const EXAMPLE_ID    = 'example-4';
 const CACHE_VERSION = '2026-03-15-v5';
 
 // ── Firestore path helper ─────────────────────────────────────────────────────
