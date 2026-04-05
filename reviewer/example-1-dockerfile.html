@@ -828,10 +828,39 @@ function sfHideOverlay(user) {
   const lbl = document.getElementById('sfSignedInEmail');
   if (bar) bar.classList.remove('hidden');
   if (lbl) lbl.textContent = 'Signed in as ' + window.sfReviewerEmail;
-  console.log('[SF Reviewer] Overlay hidden. Firebase ready:', window._sfFirebaseReady);
+  console.log('[SF Reviewer] Signed in as:', window.sfReviewerEmail, '| Firebase ready:', window._sfFirebaseReady);
+  // Write initial session doc immediately on sign-in
+  sfInitSession();
   if (window._sfFirebaseReady && typeof window.sfDb !== 'undefined') {
     sfFetchAndMerge();
   }
+}
+
+function sfInitSession() {
+  const local = revLoad();
+  if (!local.startedAt) {
+    local.startedAt = new Date().toISOString();
+    localStorage.setItem(REV_KEY, JSON.stringify(local));
+  }
+  if (!window._sfFirebaseReady || typeof window.sfDb === 'undefined' || !window.sfReviewerUid) {
+    console.log('[SF Reviewer] Firebase not ready — session in localStorage only');
+    return;
+  }
+  window.sfDb
+    .collection('reviewerSessions')
+    .doc(window.sfReviewerUid)
+    .collection('module-1')
+    .doc(window.EXAMPLE_ID || 'unknown')
+    .set({
+      email:          window.sfReviewerEmail,
+      exampleId:      window.EXAMPLE_ID || 'unknown',
+      startedAt:      local.startedAt,
+      lastUpdated:    firebase.firestore.FieldValue.serverTimestamp(),
+      reviewComplete: local.reviewComplete || false,
+      attemptCount:   local.attemptCount   || 0,
+    }, { merge: true })
+    .then(() => console.log('[SF Reviewer] Session initialised in Firestore'))
+    .catch(e  => console.warn('[SF Reviewer] Firestore init failed:', e.message));
 }
 
 function sfSignInWithEmail() {
@@ -1837,7 +1866,7 @@ const sfDb   = firebase.firestore();
 let sfReviewerEmail = null;
 let sfReviewerUid   = null;
 const EXAMPLE_ID    = 'example-1';
-const CACHE_VERSION = '2026-03-15-v8';
+const CACHE_VERSION = '2026-03-15-v9';
 
 // ── Firestore path helper ─────────────────────────────────────────────────────
 function sfDocRef() {
