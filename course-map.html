@@ -167,7 +167,7 @@
 
   .progress-fill {
     height: 100%;
-    width: 18%;
+    width: 100%;
     background: var(--blue);
     border-radius: 3px;
     transition: width 0.6s ease;
@@ -544,13 +544,13 @@
       <div class="hero-eyebrow">Course Map · AIOps &amp; DevOps Learning Path</div>
       <h1>Practical Usage of <span>Claude Code</span> for DevOps Automation</h1>
       <p class="hero-desc">
-        Each example follows a consistent arc: problem, naive approach, Claude Code interaction, refined output, and what to watch out for.
+        A structured, example-driven course showing how Claude Code participates in real DevOps workflows — from writing a Dockerfile to cross-layer incident triage. Each example follows a consistent arc: problem, naive approach, Claude Code interaction, refined output, and what to watch out for.
       </p>
       <div class="hero-meta">
         <span class="meta-pill">15 examples across 3 tiers</span>
         <span class="meta-pill">9–10 DevOps automation</span>
         <span class="meta-pill">3–4 AIOps-adjacent</span>
-        <span class="meta-pill neutral">Tier 1 active · Tiers 2 &amp; 3 coming soon</span>
+        <span class="meta-pill neutral">All tiers active · Module 1 complete</span>
       </div>
     </div>
   </div>
@@ -563,7 +563,7 @@
       <div class="progress-track">
         <div class="progress-fill"></div>
       </div>
-      <span class="progress-count">2 of 11 complete</span>
+      <span class="progress-count">13 of 13 complete</span>
     </div>
 
     <!-- Diagrams section -->
@@ -576,7 +576,7 @@
     </p>
 
     <div class="diagram-grid">
-      <a class="diagram-card" href="claude-code-devops-diagram-1.html">
+      <a class="diagram-card" href="claude-code-diagram-1.html">
         <div class="diagram-card-label">Diagram 1 of 2</div>
         <div class="diagram-card-title">Why Claude Code is different from a code generator</div>
         <div class="diagram-card-desc">
@@ -587,7 +587,7 @@
           <span class="card-arrow">→</span>
         </div>
       </a>
-      <a class="diagram-card" href="claude-code-devops-diagram-2.html">
+      <a class="diagram-card" href="claude-code-diagram-2.html">
         <div class="diagram-card-label">Diagram 2 of 2</div>
         <div class="diagram-card-title">Claude Code at every stage — from Plan to Operate</div>
         <div class="diagram-card-desc">
@@ -670,7 +670,7 @@
           </div>
         </a>
 
-        <a class="example-card" href="example-3-github-actions-job.html">
+        <a class="example-card" href="example-3-github-actions.html">
           <div class="example-num">Example 3 · Tier 1</div>
           <div class="example-title">GitHub Actions test pipeline</div>
           <div class="example-desc">
@@ -705,62 +705,62 @@
           <div class="tier-name">Tier 2 — Multi-step workflows</div>
           <div class="tier-sub">Multiple files, multiple tools, longer feedback loops.</div>
         </div>
-        <span class="tier-status status-soon">Coming soon</span>
+        <span class="tier-status status-active">Active</span>
       </div>
       <p class="section-desc" style="margin-bottom:16px;">
         Tier 2 examples span multiple files and pipeline stages. The naive approach is a partially working system with real integration gaps; the Claude Code interaction runs 5–8 turns across different context inputs.
       </p>
       <div class="example-grid">
 
-        <div class="example-card locked">
+        <a class="example-card" href="example-5-cicd-pipeline.html">
           <div class="example-num">Example 5 · Tier 2</div>
           <div class="example-title">Full CI/CD pipeline with security scanning</div>
           <div class="example-desc">End-to-end GitHub Actions pipeline: build, SAST scan, push to ECR, deploy to EKS, with environment-specific approval gates.</div>
           <div class="example-card-footer">
-            <span class="example-tag tag-locked">Coming soon</span>
-            <span class="lock-icon">🔒</span>
+            <span class="example-tag tag-tier2">DevOps automation</span>
+            <span class="card-arrow">→</span>
           </div>
-        </div>
+        </a>
 
-        <div class="example-card locked">
+        <a class="example-card" href="example-6-terraform-multienv.html">
           <div class="example-num">Example 6 · Tier 2</div>
           <div class="example-title">Multi-environment Terraform with remote state</div>
           <div class="example-desc">Workspace-based dev/staging/prod separation, S3 backend with DynamoDB locking, module structure aligned to team conventions.</div>
           <div class="example-card-footer">
-            <span class="example-tag tag-locked">Coming soon</span>
-            <span class="lock-icon">🔒</span>
+            <span class="example-tag tag-tier2">DevOps automation</span>
+            <span class="card-arrow">→</span>
           </div>
-        </div>
+        </a>
 
-        <div class="example-card locked">
+        <a class="example-card" href="example-7-kubernetes-hpa-pdb.html">
           <div class="example-num">Example 7 · Tier 2</div>
           <div class="example-title">Kubernetes deployment with HPA and PDB</div>
           <div class="example-desc">Full workload spec: Deployment, Service, HPA, PodDisruptionBudget, ConfigMap, and a readiness probe tuned for actual cold-start behaviour.</div>
           <div class="example-card-footer">
-            <span class="example-tag tag-locked">Coming soon</span>
-            <span class="lock-icon">🔒</span>
+            <span class="example-tag tag-tier2">DevOps automation</span>
+            <span class="card-arrow">→</span>
           </div>
-        </div>
+        </a>
 
-        <div class="example-card locked">
+        <a class="example-card" href="example-8-argocd-promotion.html">
           <div class="example-num">Example 8 · Tier 2</div>
           <div class="example-title">Argo CD application promotion flow</div>
           <div class="example-desc">GitOps promotion from staging to prod: ApplicationSet, image tag update via Kustomize, sync policy gates, and automated rollback on health failure.</div>
           <div class="example-card-footer">
-            <span class="example-tag tag-locked">Coming soon</span>
-            <span class="lock-icon">🔒</span>
+            <span class="example-tag tag-tier2">DevOps automation</span>
+            <span class="card-arrow">→</span>
           </div>
-        </div>
+        </a>
 
-        <div class="example-card locked">
+        <a class="example-card" href="example-9-python-automation.html">
           <div class="example-num">Example 9 · Tier 2</div>
           <div class="example-title">Python automation script with retry logic</div>
           <div class="example-desc">A cross-service automation script — API polling, exponential backoff, structured logging, and a test suite generated alongside the implementation.</div>
           <div class="example-card-footer">
-            <span class="example-tag tag-locked">Coming soon</span>
-            <span class="lock-icon">🔒</span>
+            <span class="example-tag tag-tier2">DevOps automation</span>
+            <span class="card-arrow">→</span>
           </div>
-        </div>
+        </a>
 
       </div>
     </div>
@@ -773,52 +773,52 @@
           <div class="tier-name">Tier 3 — Context-heavy scenarios</div>
           <div class="tier-sub">Cross-layer diagnosis, multi-source evidence, AIOps-adjacent workflows.</div>
         </div>
-        <span class="tier-status status-soon">Coming soon</span>
+        <span class="tier-status status-active">Active</span>
       </div>
       <p class="section-desc" style="margin-bottom:16px;">
         Tier 3 examples are the hardest and most realistic. The engineer brings logs, config files, cluster state, and pipeline output simultaneously. Claude Code's value is cross-layer correlation — the kind of diagnosis no runbook covers.
       </p>
       <div class="example-grid">
 
-        <div class="example-card locked">
+        <a class="example-card" href="example-10-cross-layer-rca.html">
           <div class="example-num">Example 10 · Tier 3</div>
           <div class="example-title">Broken deployment: cross-layer RCA</div>
           <div class="example-desc">A service rolls back in prod. Logs, kubectl events, Terraform state, and security group config provided simultaneously. Full diagnosis and remediation arc.</div>
           <div class="example-card-footer">
-            <span class="example-tag tag-locked">Coming soon</span>
-            <span class="lock-icon">🔒</span>
+            <span class="example-tag tag-tier3">AIOps-adjacent</span>
+            <span class="card-arrow">→</span>
           </div>
-        </div>
+        </a>
 
-        <div class="example-card locked">
+        <a class="example-card" href="example-11-pipeline-triage.html">
           <div class="example-num">Example 11 · Tier 3</div>
           <div class="example-title">CI pipeline performance triage</div>
           <div class="example-desc">A pipeline that grew from 4 minutes to 22 minutes over six months. Full job log, workflow YAML, dependency manifest, and cache config provided for analysis.</div>
           <div class="example-card-footer">
-            <span class="example-tag tag-locked">Coming soon</span>
-            <span class="lock-icon">🔒</span>
+            <span class="example-tag tag-tier3">AIOps-adjacent</span>
+            <span class="card-arrow">→</span>
           </div>
-        </div>
+        </a>
 
-        <div class="example-card locked">
+        <a class="example-card" href="example-12-incident-rca-aiops.html">
           <div class="example-num">Example 12 · Tier 3</div>
           <div class="example-title">Incident RCA with AIOps handoff</div>
           <div class="example-desc">A P1 incident involving three services and a network change. Claude Code triage leads to a structured RCA draft — and a natural handoff to AIOps remediation workflows.</div>
           <div class="example-card-footer">
-            <span class="example-tag tag-locked">AIOps-adjacent</span>
-            <span class="lock-icon">🔒</span>
+            <span class="example-tag tag-tier3">AIOps-adjacent</span>
+            <span class="card-arrow">→</span>
           </div>
-        </div>
+        </a>
 
-        <div class="example-card locked">
+        <a class="example-card" href="example-13-alert-enrichment.html">
           <div class="example-num">Example 13 · Tier 3</div>
           <div class="example-title">Alert enrichment and runbook generation</div>
           <div class="example-desc">Taking raw PagerDuty alert data, correlating with Datadog metrics and Terraform history, and producing a structured runbook — the bridge into AIOps automation.</div>
           <div class="example-card-footer">
-            <span class="example-tag tag-locked">AIOps-adjacent</span>
-            <span class="lock-icon">🔒</span>
+            <span class="example-tag tag-tier3">AIOps-adjacent</span>
+            <span class="card-arrow">→</span>
           </div>
-        </div>
+        </a>
 
       </div>
     </div>
@@ -827,7 +827,7 @@
 
   <footer>
     <span>AIOps &amp; DevOps Learning Path · SourceFuse L&amp;D</span>
-    <span>Practical Usage of Claude Code</span>
+    <span>Practical Usage of Claude Code for DevOps Automation</span>
   </footer>
 
 </body>
