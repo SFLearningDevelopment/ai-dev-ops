@@ -771,8 +771,15 @@
     padding:10px 12px; display:none; text-align:left;
   }
   .sf-signin-error.visible { display:block; }
-  .sf-fallback-wrap { margin-top:16px; display:none; }
-  .sf-fallback-wrap.visible { display:block; }
+  .sf-fallback-wrap { margin-top:0; display:block; }
+  .sf-signin-divider {
+    font-size:11px; color:#8fa3bc; text-align:center;
+    margin:14px 0 10px; font-family:'Source Code Pro',monospace;
+    display:flex; align-items:center; gap:8px;
+  }
+  .sf-signin-divider::before, .sf-signin-divider::after {
+    content:''; flex:1; height:1px; background:#d0dae8;
+  }
   .sf-fallback-input {
     width:100%; padding:10px 12px; border:1.5px solid #d0dae8;
     border-radius:8px; font-size:14px; font-family:'Merriweather Sans',sans-serif;
@@ -817,12 +824,13 @@
       <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">
       Sign in with Google
     </button>
-    <div class="sf-signin-error" id="sfSigninError"></div>
-    <div class="sf-fallback-wrap" id="sfFallbackWrap">
+    <div class="sf-signin-divider">or</div>
+    <div class="sf-fallback-wrap visible" id="sfFallbackWrap">
       <input type="email" class="sf-fallback-input" id="sfEmailInput"
         placeholder="your.name@sourcefuse.com" autocomplete="email">
-      <button class="sf-fallback-btn" onclick="sfSignInWithEmail()">Continue with email</button>
+      <button class="sf-fallback-btn" onclick="sfSignInWithEmail()">Continue with SF email</button>
     </div>
+    <div class="sf-signin-error" id="sfSigninError"></div>
   </div>
 </div>
 
