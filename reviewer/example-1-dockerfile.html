@@ -1837,11 +1837,28 @@ function sfHideOverlay(user) {
 async function sfSignInWithGoogle() {
   const provider = new firebase.auth.GoogleAuthProvider();
   provider.setCustomParameters({ hd: 'sourcefuse.com', prompt: 'select_account' });
+
+  // If the popup is silently blocked by the LMS iframe sandbox,
+  // signInWithPopup never resolves or rejects — show fallback after 4 seconds
+  const fallbackTimer = setTimeout(() => {
+    sfShowError(
+      'Sign in failed because popup is blocked by your browser or LMS settings. ' +
+      'Please enter your SF email address below to continue.'
+    );
+    document.getElementById('sfFallbackWrap').classList.add('visible');
+  }, 4000);
+
   try {
     const result = await sfAuth.signInWithPopup(provider);
+    clearTimeout(fallbackTimer);
     sfHideOverlay(result.user);
   } catch(err) {
-    if (err.code === 'auth/popup-blocked' || err.code === 'auth/popup-closed-by-user') {
+    clearTimeout(fallbackTimer);
+    if (
+      err.code === 'auth/popup-blocked' ||
+      err.code === 'auth/popup-closed-by-user' ||
+      err.code === 'auth/operation-not-allowed'
+    ) {
       sfShowError(
         'Sign in failed because popup is blocked by your browser or LMS settings. ' +
         'Please enter your SF email address below to continue.'
@@ -1849,6 +1866,7 @@ async function sfSignInWithGoogle() {
       document.getElementById('sfFallbackWrap').classList.add('visible');
     } else {
       sfShowError('Sign in error: ' + err.message);
+      document.getElementById('sfFallbackWrap').classList.add('visible');
     }
   }
 }
