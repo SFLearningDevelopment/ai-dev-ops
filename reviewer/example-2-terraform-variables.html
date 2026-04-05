@@ -1379,7 +1379,7 @@ const sfDb   = firebase.firestore();
 let sfReviewerEmail = null;
 let sfReviewerUid   = null;
 const EXAMPLE_ID    = 'example-2';
-const CACHE_VERSION = '2026-03-15-v4';
+const CACHE_VERSION = '2026-03-15-v5';
 
 // ── Firestore path helper ─────────────────────────────────────────────────────
 function sfDocRef() {
@@ -1415,6 +1415,8 @@ async function sfFetchAndMerge() {
 
 // ── Write current state to Firestore ─────────────────────────────────────────
 function sfWrite(extraFields) {
+  // Guard: only write to Firestore if Firebase loaded and user is signed in
+  if (!window._sfFirebaseReady || typeof sfDb === 'undefined' || !sfReviewerUid) return;
   const ref = sfDocRef();
   if (!ref) return;
   const local = revLoad();
@@ -1469,14 +1471,17 @@ function sfShowError(msg) {
 
 function sfHideOverlay(user) {
   sfReviewerEmail = user.email || user; // string (email fallback) or Firebase user
-  sfReviewerUid   = user.uid  || 'email_' + btoa(user.email || user).replace(/=/g,'');
+  sfReviewerUid   = user.uid  || 'email_' + btoa(sfReviewerEmail).replace(/=/g,'');
+  // Dismiss overlay immediately — works even if Firebase is not loaded
   document.getElementById('sfSigninOverlay').classList.add('hidden');
   const bar = document.getElementById('sfSignedInBar');
   const lbl = document.getElementById('sfSignedInEmail');
-  bar.classList.remove('hidden');
-  lbl.textContent = 'Signed in as ' + (user.email || user);
-  // Fetch Firestore state and merge
-  sfFetchAndMerge();
+  if (bar) { bar.classList.remove('hidden'); }
+  if (lbl) { lbl.textContent = 'Signed in as ' + sfReviewerEmail; }
+  // Attempt Firestore sync only if Firebase loaded successfully
+  if (window._sfFirebaseReady && typeof sfDb !== 'undefined') {
+    sfFetchAndMerge();
+  }
 }
 
 async function sfSignInWithGoogle() {
