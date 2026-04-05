@@ -1,0 +1,1224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>[Reviewer] Example 3 — GitHub Actions Test Pipeline</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Merriweather+Sans:wght@300;400;600;700&family=Source+Code+Pro:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:           #eef2f7;
+    --bg2:          #ffffff;
+    --bg3:          #f0f4f9;
+    --border:       #d0dae8;
+    --text:         #1a2332;
+    --text-dim:     #4a5568;
+    --text-dimmer:  #8fa3bc;
+    --blue:         #1a6eb5;
+    --blue-light:   #e8f1fb;
+    --blue-mid:     #b8d0ed;
+    --blue-dark:    #0f4a7a;
+    --teal:         #0e7a6b;
+    --teal-light:   #e6f4f2;
+    --coral:        #c0392b;
+    --coral-light:  #fdf0ee;
+    --coral-mid:    #f0b8b2;
+    --green:        #1a6b3a;
+    --green-light:  #e8f5ed;
+    --amber:        #92600a;
+    --amber-light:  #fdf3e3;
+    --code-bg:      #1e2433;
+    --code-text:    #cdd6f4;
+    --radius:       12px;
+  }
+
+  html, body { min-height:100%; background:var(--bg); color:var(--text); font-family:'Merriweather Sans',sans-serif; font-size:15px; line-height:1.6; }
+
+  .topnav { background:var(--bg2); border-bottom:1px solid var(--border); padding:0 40px; height:52px; display:flex; align-items:center; gap:8px; font-size:12px; color:var(--text-dimmer); font-family:'Source Code Pro',monospace; position:sticky; top:0; z-index:100; }
+  .topnav a { color:var(--blue); text-decoration:none; }
+  .topnav a:hover { text-decoration:underline; }
+  .topnav .sep { margin:0 4px; color:var(--text-dimmer); }
+
+  .stepnav { background:var(--bg2); border-bottom:1px solid var(--border); padding:0 40px; display:flex; align-items:stretch; position:sticky; top:52px; z-index:99; overflow-x:auto; }
+  .stepnav-item { display:flex; align-items:center; gap:8px; padding:14px 20px; font-size:12px; font-family:'Source Code Pro',monospace; color:var(--text-dimmer); cursor:pointer; border-bottom:3px solid transparent; white-space:nowrap; transition:color 0.15s,border-color 0.15s; text-decoration:none; }
+  .stepnav-item:hover { color:var(--text-dim); }
+  .stepnav-item.active { color:var(--blue); border-bottom-color:var(--blue); font-weight:600; }
+  .stepnav-num { width:20px; height:20px; border-radius:50%; background:var(--bg3); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; flex-shrink:0; transition:background 0.15s,border-color 0.15s,color 0.15s; }
+  .stepnav-item.active .stepnav-num { background:var(--blue); border-color:var(--blue); color:white; }
+
+  .hero { background:var(--bg2); border-bottom:2px solid var(--border); padding:40px 40px 32px; }
+  .hero-inner { max-width:860px; margin:0 auto; }
+  .hero-eyebrow { font-size:10px; letter-spacing:0.2em; text-transform:uppercase; color:var(--blue); font-weight:600; margin-bottom:10px; font-family:'Source Code Pro',monospace; }
+  .hero h1 { font-size:clamp(18px,2.5vw,26px); font-weight:700; color:var(--text); line-height:1.25; }
+  .hero h1 span { color:var(--blue); }
+  .hero-meta { margin-top:14px; display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+  .meta-pill { font-size:10.5px; font-family:'Source Code Pro',monospace; padding:3px 10px; border-radius:20px; font-weight:600; }
+  .pill-tier  { background:var(--blue-light); color:var(--blue); border:1px solid var(--blue-mid); }
+  .pill-topic { background:var(--teal-light); color:var(--teal); border:1px solid #a3d4ce; }
+  .pill-turns { background:var(--bg3); color:var(--text-dim); border:1px solid var(--border); font-weight:400; }
+
+  .main { max-width:860px; margin:0 auto; padding:40px 40px 80px; }
+
+  .step-section { margin-bottom:56px; scroll-margin-top:120px; }
+  .step-header { display:flex; align-items:center; gap:14px; margin-bottom:20px; padding-bottom:16px; border-bottom:2px solid var(--border); }
+  .step-number { width:40px; height:40px; border-radius:50%; background:var(--blue); color:white; display:flex; align-items:center; justify-content:center; font-size:16px; font-weight:700; font-family:'Source Code Pro',monospace; flex-shrink:0; }
+  .step-label { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:0.18em; text-transform:uppercase; color:var(--blue); font-weight:600; margin-bottom:3px; }
+  .step-title { font-size:18px; font-weight:700; color:var(--text); line-height:1.25; }
+
+  .prose { font-size:14.5px; color:var(--text-dim); line-height:1.8; margin-bottom:20px; }
+  .prose strong { color:var(--text); font-weight:600; }
+  .prose code { font-family:'Source Code Pro',monospace; font-size:13px; background:var(--bg3); border:1px solid var(--border); padding:1px 5px; border-radius:4px; color:var(--blue-dark); }
+  .prose em { color:var(--text-dim); font-style:italic; }
+
+  .callout { border-radius:var(--radius); padding:16px 18px; margin:20px 0; font-size:13.5px; line-height:1.7; }
+  .callout-label { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:0.15em; text-transform:uppercase; font-weight:700; margin-bottom:6px; }
+  .callout.info { background:var(--blue-light); border:1px solid var(--blue-mid); border-left:3px solid var(--blue); color:var(--text-dim); }
+  .callout.info .callout-label { color:var(--blue); }
+  .callout.warn { background:#fdf5f5; border:1px solid var(--coral-mid); border-left:3px solid var(--coral); color:var(--text-dim); }
+  .callout.warn .callout-label { color:var(--coral); }
+  .callout.good { background:var(--green-light); border:1px solid #a3d4b8; border-left:3px solid var(--green); color:var(--text-dim); }
+  .callout.good .callout-label { color:var(--green); }
+  .callout.tip { background:var(--amber-light); border:1px solid #f0d4a0; border-left:3px solid var(--amber); color:var(--text-dim); }
+  .callout.tip .callout-label { color:var(--amber); }
+  .callout strong { color:var(--text); font-weight:600; }
+  .callout code { font-family:'Source Code Pro',monospace; font-size:12.5px; background:rgba(0,0,0,0.06); padding:1px 5px; border-radius:4px; }
+
+  .code-wrap { margin:20px 0; border-radius:0; overflow:hidden; border:1px solid #2a3144; background:#1e2433; }
+  .code-header { background:#252b3b; padding:10px 16px; display:flex; align-items:center; justify-content:space-between; }
+  .code-filename { font-size:11px; font-family:'Source Code Pro',monospace; color:#ffffff; letter-spacing:0.05em; }
+  .code-lang { font-size:10px; font-family:'Source Code Pro',monospace; color:#4a5568; letter-spacing:0.1em; text-transform:uppercase; }
+  .code-copy { font-size:10px; font-family:'Source Code Pro',monospace; color:#7a8ab0; background:none; border:1px solid #3a4155; border-radius:4px; padding:2px 8px; cursor:pointer; transition:color 0.15s,border-color 0.15s; }
+  .code-copy:hover { color:#cdd6f4; border-color:#6a7ab0; }
+  pre { background:#1e2433 !important; padding:20px; overflow-x:auto; margin:0; }
+  code.block { font-family:'Source Code Pro',monospace; font-size:13px; line-height:1.7; color:var(--code-text); background:none; border:none; padding:0; display:block; }
+
+  /* Syntax colours */
+  .kw  { color:#cba6f7; }   /* YAML key / keyword */
+  .cm  { color:#6c7086; font-style:italic; }  /* comment */
+  .st  { color:#a6e3a1; }   /* string value */
+  .nm  { color:#fab387; }   /* number / boolean */
+  .op  { color:#89dceb; }   /* operator / special */
+  .an  { color:#f38ba8; }   /* annotation / warning */
+  .ty  { color:#f9e2af; }   /* type / action reference */
+  .fn  { color:#89b4fa; }   /* function / expression */
+  .sc  { color:#cba6f7; }   /* section header */
+
+  .diff-wrap { margin:20px 0; border-radius:0; overflow:hidden; border:1px solid #2a3144; background:#1e2433; }
+  .diff-header { background:#252b3b; padding:10px 16px; font-size:11px; font-family:'Source Code Pro',monospace; color:#ffffff; }
+  .diff-body { background:#1e2433 !important; padding:16px 0; overflow-x:auto; }
+  .diff-line { padding:1px 20px; font-family:'Source Code Pro',monospace; font-size:13px; line-height:1.65; color:var(--code-text); display:block; }
+  .diff-line.add { background:rgba(166,227,161,0.12); color:#a6e3a1; }
+  .diff-line.add::before { content:'+  '; color:#a6e3a1; }
+  .diff-line.rem { background:rgba(243,139,168,0.12); color:#f38ba8; }
+  .diff-line.rem::before { content:'-  '; color:#f38ba8; }
+  .diff-line.neu::before { content:'   '; }
+
+  .annotation-list { list-style:none; display:flex; flex-direction:column; gap:12px; margin:20px 0; }
+  .annotation-list li { display:flex; gap:12px; align-items:flex-start; font-size:13.5px; color:var(--text-dim); line-height:1.7; }
+  .ann-badge { flex-shrink:0; font-size:10px; font-family:'Source Code Pro',monospace; font-weight:700; padding:2px 8px; border-radius:4px; margin-top:2px; }
+  .ann-good { background:var(--green-light); color:var(--green); border:1px solid #a3d4b8; }
+  .ann-warn { background:var(--coral-light); color:var(--coral); border:1px solid var(--coral-mid); }
+  .ann-info { background:var(--blue-light); color:var(--blue); border:1px solid var(--blue-mid); }
+  .annotation-list li strong { color:var(--text); font-weight:600; }
+  .annotation-list li code { font-family:'Source Code Pro',monospace; font-size:12.5px; background:var(--bg3); border:1px solid var(--border); padding:1px 5px; border-radius:4px; color:var(--blue-dark); }
+
+  .conversation { display:flex; flex-direction:column; gap:0; margin:24px 0; border:1px solid #2a3144; border-radius:var(--radius); overflow:hidden; }
+  .conv-turn { padding:18px 22px; }
+  .conv-turn + .conv-turn { border-top:1px solid #2a3144; }
+  .conv-turn.engineer { background:var(--bg3); }
+  .conv-turn.claude   { background:#1e2433; }
+  .conv-role { font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:0.18em; text-transform:uppercase; font-weight:700; margin-bottom:8px; }
+  .conv-turn.engineer .conv-role { color:var(--teal); }
+  .conv-turn.claude   .conv-role { color:#7a8ab0; }
+  .conv-body { font-size:13.5px; line-height:1.75; }
+  .conv-turn.engineer .conv-body { color:var(--text-dim); }
+  .conv-turn.claude .conv-body { color:#cdd6f4; }
+  .conv-turn.engineer .conv-body strong { color:var(--text); font-weight:600; }
+  .conv-turn.claude .conv-body strong { color:#ffffff; font-weight:600; }
+  .conv-turn.engineer .conv-body code { font-family:'Source Code Pro',monospace; font-size:12.5px; background:var(--bg3); border:1px solid var(--border); padding:1px 5px; border-radius:4px; color:var(--blue-dark); }
+  .conv-turn.claude .conv-body code { font-family:'Source Code Pro',monospace; font-size:12.5px; background:#252b3b; border:1px solid #3a4155; padding:1px 5px; border-radius:4px; color:#89dceb; }
+  .conv-turn.claude .conv-body em { font-style:italic; color:#6c7086; }
+  .conv-turn.claude .code-wrap { margin:12px 0; }
+
+  .turn-label { display:inline-flex; align-items:center; gap:6px; font-size:9px; font-family:'Source Code Pro',monospace; letter-spacing:0.12em; text-transform:uppercase; color:var(--text-dimmer); background:var(--bg3); border:1px solid var(--border); border-radius:20px; padding:3px 10px; margin-bottom:14px; font-weight:600; }
+
+  .section-divider { height:1px; background:var(--border); margin:40px 0; }
+
+  .bottom-nav { display:flex; justify-content:space-between; align-items:center; padding:20px 0 0; border-top:1px solid var(--border); margin-top:40px; }
+  .nav-btn { display:inline-flex; align-items:center; gap:8px; font-size:13px; font-family:'Source Code Pro',monospace; color:var(--blue); text-decoration:none; padding:10px 18px; border:1px solid var(--blue-mid); border-radius:8px; background:var(--blue-light); transition:background 0.15s,border-color 0.15s; font-weight:600; }
+  .nav-btn:hover { background:var(--blue-mid); border-color:var(--blue); }
+  .nav-btn.secondary { background:var(--bg2); color:var(--text-dim); border-color:var(--border); }
+  .nav-btn.secondary:hover { background:var(--bg3); }
+
+  footer { background:var(--bg2); border-top:1px solid var(--border); padding:14px 40px; font-size:11px; font-family:'Source Code Pro',monospace; color:var(--text-dimmer); display:flex; justify-content:space-between; align-items:center; }
+
+  @media (max-width:640px) { .topnav,.main,footer { padding-left:20px; padding-right:20px; } .hero { padding:28px 20px; } .stepnav { padding:0 20px; } }
+
+  /* ── Reviewer additions ──────────────────────────────────────────────────── */
+  .reviewer-bar {
+    background: #fff8e6;
+    border: 1px solid #f0d4a0;
+    border-left: 3px solid #92600a;
+    border-radius: 8px;
+    padding: 10px 16px;
+    margin-top: 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: #92600a;
+    font-family: 'Source Code Pro', monospace;
+  }
+  .reviewer-bar input[type="checkbox"] {
+    width: 16px; height: 16px; cursor: pointer; flex-shrink: 0;
+    accent-color: #1a6b3a;
+  }
+  .reviewer-bar label { cursor: pointer; font-weight: 600; user-select: none; }
+  .reviewer-bar.checked { background: #e8f5ed; border-color: #a3d4b8; border-left-color: #1a6b3a; color: #1a6b3a; }
+
+  .reviewer-panel {
+    background: #f5f0ff;
+    border: 1px solid #c4bdf0;
+    border-top: 3px solid #5b4fcf;
+    border-radius: 12px;
+    padding: 24px 28px;
+    margin: 32px 0;
+  }
+  .reviewer-panel-label {
+    font-size: 9px; font-family: 'Source Code Pro', monospace;
+    letter-spacing: .18em; text-transform: uppercase;
+    color: #5b4fcf; font-weight: 600; margin-bottom: 16px;
+  }
+  .reviewer-q-text {
+    font-size: 14px; font-weight: 600; color: #1a2332;
+    line-height: 1.65; margin-bottom: 14px;
+  }
+  .reviewer-options { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
+  .reviewer-option {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 10px 14px; border: 1px solid #d0dae8;
+    border-radius: 8px; cursor: pointer;
+    font-size: 13.5px; color: #4a5568; line-height: 1.5;
+    transition: background .12s, border-color .12s;
+    background: #ffffff;
+  }
+  .reviewer-option:hover { background: #f0f4f9; border-color: #b8d0ed; }
+  .reviewer-option.selected { background: #e8f1fb; border-color: #1a6eb5; color: #1a2332; }
+  .reviewer-option.correct  { background: #e8f5ed; border-color: #a3d4b8; color: #1a6b3a; }
+  .reviewer-option.wrong    { background: #fdf0ee; border-color: #f0b8b2; color: #c0392b; }
+  .reviewer-option-key { font-family: 'Source Code Pro', monospace; font-size: 11px; font-weight: 700; color: #8fa3bc; flex-shrink: 0; margin-top: 1px; }
+
+  .reviewer-tf { display: flex; gap: 10px; margin-bottom: 18px; }
+  .reviewer-tf-btn {
+    flex: 1; padding: 10px; border: 1px solid #d0dae8;
+    border-radius: 8px; cursor: pointer; text-align: center;
+    font-size: 13.5px; font-weight: 600;
+    font-family: 'Source Code Pro', monospace; color: #4a5568;
+    background: #ffffff; transition: background .12s;
+  }
+  .reviewer-tf-btn:hover { background: #f0f4f9; border-color: #b8d0ed; }
+  .reviewer-tf-btn.selected { background: #e8f1fb; border-color: #1a6eb5; color: #1a6eb5; }
+  .reviewer-tf-btn.correct  { background: #e8f5ed; border-color: #a3d4b8; color: #1a6b3a; }
+  .reviewer-tf-btn.wrong    { background: #fdf0ee; border-color: #f0b8b2; color: #c0392b; }
+
+  .reviewer-reveal {
+    font-size: 12px; font-family: 'Source Code Pro', monospace;
+    color: #5b4fcf; cursor: pointer; text-decoration: underline;
+    background: none; border: none; padding: 0; margin-bottom: 14px; display: block;
+  }
+  .reviewer-explanation {
+    font-size: 13px; color: #4a5568; line-height: 1.7;
+    padding: 12px 14px; background: #eef2f7; border-radius: 8px;
+    margin-bottom: 16px; display: none;
+  }
+  .reviewer-explanation.visible { display: block; }
+  .reviewer-exp-label { font-size: 9px; font-family: 'Source Code Pro', monospace; letter-spacing: .15em; text-transform: uppercase; font-weight: 700; margin-bottom: 4px; }
+  .reviewer-exp-label.correct { color: #1a6b3a; }
+  .reviewer-exp-label.wrong   { color: #c0392b; }
+
+  .reviewer-comment-label {
+    font-size: 11px; font-family: 'Source Code Pro', monospace;
+    letter-spacing: .12em; text-transform: uppercase;
+    color: #8fa3bc; font-weight: 600; margin-bottom: 6px;
+  }
+  .reviewer-comment {
+    width: 100%; min-height: 80px; padding: 10px 12px;
+    border: 1px solid #c4bdf0; border-radius: 8px;
+    font-family: 'Merriweather Sans', sans-serif; font-size: 13.5px;
+    color: #1a2332; background: #ffffff; resize: vertical;
+    line-height: 1.6; transition: border-color .15s;
+  }
+  .reviewer-comment:focus { outline: none; border-color: #5b4fcf; }
+  .reviewer-save-note {
+    font-size: 11px; font-family: 'Source Code Pro', monospace;
+    color: #8fa3bc; margin-top: 6px;
+  }
+
+  .reviewer-topbanner {
+    background: #f5f0ff; border-bottom: 2px solid #c4bdf0;
+    padding: 10px 40px; font-size: 12px;
+    font-family: 'Source Code Pro', monospace; color: #5b4fcf;
+    display: flex; align-items: center; gap: 8px;
+  }
+
+
+  /* ── Review complete checkbox ────────────────────────────────────────────── */
+  .rev-complete-wrap { margin:24px 0 0; }
+  .rev-complete-bar {
+    display:flex; align-items:center; gap:10px;
+    padding:14px 18px; border-radius:8px;
+    font-size:13.5px; font-family:'Source Code Pro',monospace; font-weight:600;
+    border:1.5px solid var(--border); background:var(--bg3);
+    color:var(--text-dimmer); transition:all .2s;
+  }
+  .rev-complete-bar.disabled { opacity:.6; cursor:not-allowed; }
+  .rev-complete-bar.ready {
+    background:#fff8e6; border-color:#f0d4a0; border-left:3px solid #92600a;
+    color:#92600a; cursor:pointer;
+  }
+  .rev-complete-bar.done {
+    background:var(--green-light); border-color:var(--green-mid);
+    border-left:3px solid var(--green); color:var(--green); cursor:default;
+  }
+  .rev-complete-bar input[type="checkbox"] {
+    width:18px; height:18px; flex-shrink:0; accent-color:var(--green);
+  }
+  .rev-complete-bar.disabled input { cursor:not-allowed; }
+  .rev-complete-hint {
+    font-size:11px; font-family:'Source Code Pro',monospace;
+    color:var(--text-dimmer); margin-top:6px; min-height:16px;
+  }
+
+</style>
+</head>
+<body>
+<div class="reviewer-topbanner">
+  <span>👁</span>
+  <span><strong>Reviewer mode</strong> — checkboxes, question answers, and notes are saved in your browser.</span>
+</div>
+
+
+<nav class="topnav">
+  <a href="../course-map.html">Course map</a>
+  <span class="sep">/</span>
+  <a href="../course-map.html">Tier 1 examples</a>
+  <span class="sep">/</span>
+  <span>Example 3 — GitHub Actions test pipeline</span>
+</nav>
+
+<nav class="stepnav" id="stepnav">
+  <a class="stepnav-item active" href="#step-1"><span class="stepnav-num">1</span>Problem</a>
+  <a class="stepnav-item" href="#step-2"><span class="stepnav-num">2</span>Naive approach</a>
+  <a class="stepnav-item" href="#step-3"><span class="stepnav-num">3</span>Claude Code interaction</a>
+  <a class="stepnav-item" href="#step-4"><span class="stepnav-num">4</span>Refined output</a>
+  <a class="stepnav-item" href="#step-5"><span class="stepnav-num">5</span>Watch out</a>
+</nav>
+
+<div class="hero">
+  <div class="hero-inner">
+    <div class="hero-eyebrow">Example 3 of 4 · Tier 1 · Single-file task</div>
+    <h1>GitHub Actions <span>test pipeline</span></h1>
+    <div class="hero-meta">
+      <span class="meta-pill pill-tier">Tier 1 — Single-file task</span>
+      <span class="meta-pill pill-topic">CI/CD Pipelines</span>
+      <span class="meta-pill pill-turns">3-turn interaction</span>
+      <span class="meta-pill pill-turns">DevOps automation</span>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- ══ STEP 1: PROBLEM ══ -->
+  <section class="step-section" id="step-1">
+    <div class="step-header">
+      <div class="step-number">1</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 1 of 5</div>
+        <div class="step-title">The problem</div>
+      </div>
+</div>
+
+    <p class="prose">
+      The <code>payment-api</code> service now has a Dockerfile and a Terraform module. The next step is a CI pipeline that runs on every pull request: install dependencies, run the test suite, build the Docker image, and push to ECR if the branch is <code>main</code>. The pipeline needs to be production-grade from day one because three other teams will be using the same pattern for their own services.
+    </p>
+
+    <div class="callout info">
+      <div class="callout-label">Requirements</div>
+      — Trigger on push to <code>main</code> and on all pull requests<br>
+      — Jobs: <strong>test</strong> (install, lint, unit tests) and <strong>build-push</strong> (Docker build + ECR push, main branch only)<br>
+      — Node.js version matrix: test against <strong>18.x and 20.x</strong><br>
+      — Dependency caching: <code>npm</code> cache keyed on <code>package-lock.json</code><br>
+      — AWS auth via <strong>OIDC</strong> — no long-lived credentials stored as secrets<br>
+      — ECR region: <code>ap-south-1</code>, image tagged with git SHA<br>
+      — <code>build-push</code> must only run after <code>test</code> passes on both Node versions<br>
+      — The workflow must be <strong>reusable</strong> — callable from other repos via <code>workflow_call</code>
+    </div>
+
+    <p class="prose">
+      The reusability requirement is what makes this non-trivial. A standard workflow that just runs tests is straightforward. A reusable workflow with OIDC authentication, matrix testing, and conditional ECR push requires understanding several GitHub Actions patterns that interact in non-obvious ways.
+    </p>
+  
+<div class="reviewer-bar" id="rev-bar-1">
+  <input type="checkbox" class="rev-checkbox" id="rev-cb-1" data-step="1">
+  <label for="rev-cb-1">Mark step as reviewed</label>
+</div>
+</section>
+
+  <div class="section-divider"></div>
+
+  <!-- ══ STEP 2: NAIVE APPROACH ══ -->
+  <section class="step-section" id="step-2">
+    <div class="step-header">
+      <div class="step-number">2</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 2 of 5</div>
+        <div class="step-title">The naive approach</div>
+      </div>
+</div>
+
+    <p class="prose">
+      Here is the workflow an engineer under time pressure typically writes — referencing a previous project's CI config, adapting it quickly, and calling it done when the first run goes green.
+    </p>
+
+    <div class="code-wrap">
+      <div class="code-header">
+        <span class="code-filename">.github/workflows/ci.yml (naive)</span>
+        <span class="code-lang">yaml</span>
+      </div>
+      <pre><code class="block"><span class="kw">name:</span> <span class="st">CI</span>
+
+<span class="kw">on:</span>
+  <span class="kw">push:</span>
+    <span class="kw">branches:</span> <span class="st">[ main ]</span>
+  <span class="kw">pull_request:</span>
+
+<span class="kw">jobs:</span>
+  <span class="kw">test:</span>
+    <span class="kw">runs-on:</span> <span class="st">ubuntu-latest</span>
+    <span class="kw">steps:</span>
+      <span class="cm"># Hardcoded Node version — no matrix</span>
+      - <span class="kw">uses:</span> <span class="ty">actions/checkout@v3</span>
+      - <span class="kw">uses:</span> <span class="ty">actions/setup-node@v3</span>
+        <span class="kw">with:</span>
+          <span class="kw">node-version:</span> <span class="st">'18'</span>
+      <span class="cm"># No caching — full reinstall every run</span>
+      - <span class="kw">run:</span> <span class="st">npm install</span>
+      - <span class="kw">run:</span> <span class="st">npm test</span>
+
+  <span class="kw">build-push:</span>
+    <span class="kw">runs-on:</span> <span class="st">ubuntu-latest</span>
+    <span class="cm"># No dependency on test job — runs in parallel</span>
+    <span class="kw">steps:</span>
+      - <span class="kw">uses:</span> <span class="ty">actions/checkout@v3</span>
+      <span class="cm"># Long-lived AWS credentials stored as secrets</span>
+      - <span class="kw">name:</span> <span class="st">Configure AWS credentials</span>
+        <span class="kw">uses:</span> <span class="ty">aws-actions/configure-aws-credentials@v2</span>
+        <span class="kw">with:</span>
+          <span class="kw">aws-access-key-id:</span> <span class="an">${{ secrets.AWS_ACCESS_KEY_ID }}</span>
+          <span class="kw">aws-secret-access-key:</span> <span class="an">${{ secrets.AWS_SECRET_ACCESS_KEY }}</span>
+          <span class="kw">aws-region:</span> <span class="st">ap-south-1</span>
+      - <span class="kw">name:</span> <span class="st">Login to ECR</span>
+        <span class="kw">id:</span> <span class="st">login-ecr</span>
+        <span class="kw">uses:</span> <span class="ty">aws-actions/amazon-ecr-login@v1</span>
+      - <span class="kw">name:</span> <span class="st">Build and push</span>
+        <span class="cm"># Pushes on every branch, not just main</span>
+        <span class="kw">run:</span> |
+          docker build -t <span class="an">${{ steps.login-ecr.outputs.registry }}</span>/payment-api:<span class="an">${{ github.sha }}</span> .
+          docker push <span class="an">${{ steps.login-ecr.outputs.registry }}</span>/payment-api:<span class="an">${{ github.sha }}</span></code></pre>
+    </div>
+
+    <p class="prose">This workflow runs. Tests pass, image gets pushed, the team moves on. But it has six problems that will cost real time and money:</p>
+
+    <ul class="annotation-list">
+      <li>
+        <span class="ann-badge ann-warn">Security</span>
+        <div><strong>Long-lived AWS credentials stored as repository secrets.</strong> <code>AWS_ACCESS_KEY_ID</code> and <code>AWS_SECRET_ACCESS_KEY</code> are static credentials that never expire. If the repository is compromised, or if the secrets are accidentally logged, those credentials remain valid until manually rotated. OIDC eliminates this entirely — no credentials are stored anywhere.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Correctness</span>
+        <div><strong><code>build-push</code> has no dependency on <code>test</code>.</strong> Without <code>needs: test</code>, both jobs run in parallel. A broken commit that fails tests will still push a broken image to ECR. Any downstream system that pulls <code>latest</code> or the SHA tag will pick up the broken image.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Correctness</span>
+        <div><strong>Image is pushed on every branch, not just <code>main</code>.</strong> Every PR that touches Docker will push an image to ECR. Over time this floods ECR with images from feature branches that were never merged, bloating storage costs and making it impossible to identify what's actually running in production.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Cost</span>
+        <div><strong>No dependency caching.</strong> <code>npm install</code> downloads all dependencies from scratch on every run. For a large <code>node_modules</code>, this adds 2–4 minutes per run and increases network egress costs. At 50 PRs/week, this is 100–200 minutes of avoidable runtime per week.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Coverage</span>
+        <div><strong>Tests only run on Node 18.</strong> The service targets Node 20 in production. Compatibility regressions between Node versions — particularly around native modules, crypto APIs, and fs behaviour changes — will not be caught until they appear in staging or production.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Reusability</span>
+        <div><strong>Not reusable across repos.</strong> The workflow uses <code>on: push</code> and <code>on: pull_request</code> triggers only. Other teams cannot call it via <code>workflow_call</code>. Each team will copy-paste and diverge, making future security or tooling updates require changes across every repo.</div>
+      </li>
+    </ul>
+
+    <div class="callout warn">
+      <div class="callout-label">The core problem</div>
+      The naive workflow optimises for getting the first run green as fast as possible. Production-grade CI optimises for correctness, security, cost efficiency, and maintainability across all future runs. These are different objectives — and the gap between them only becomes visible when something goes wrong.
+    </div>
+  
+<div class="reviewer-bar" id="rev-bar-2">
+  <input type="checkbox" class="rev-checkbox" id="rev-cb-2" data-step="2">
+  <label for="rev-cb-2">Mark step as reviewed</label>
+</div>
+</section>
+
+  <div class="section-divider"></div>
+
+  <!-- ══ STEP 3: CLAUDE CODE INTERACTION ══ -->
+  <section class="step-section" id="step-3">
+    <div class="step-header">
+      <div class="step-number">3</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 3 of 5</div>
+        <div class="step-title">The Claude Code interaction</div>
+      </div>
+</div>
+
+    <p class="prose">
+      Three turns. Turn 1 generates the initial workflow with OIDC, caching, and matrix. Turn 2 pastes a real permissions error from the first run. Turn 3 adds the <code>workflow_call</code> trigger and input parameters to make it reusable.
+    </p>
+
+    <!-- Turn 1 -->
+    <div class="turn-label">Turn 1 of 3 — Initial generation</div>
+
+    <div class="conversation">
+      <div class="conv-turn engineer">
+        <div class="conv-role">Engineer → Claude Code</div>
+        <div class="conv-body">
+          <p>Generate a GitHub Actions workflow for the payment-api Node.js service with these requirements:</p>
+          <p style="margin-top:10px;">
+          Triggers: push to main, all pull_requests<br>
+          Jobs: (1) test — runs on Node 18.x and 20.x matrix, installs with npm ci, runs npm run lint and npm test, npm cache keyed on package-lock.json hash; (2) build-push — Docker build and ECR push, only runs after test matrix passes, only on main branch<br>
+          AWS auth: OIDC, not long-lived credentials. Role ARN from secret: AWS_ROLE_ARN. Region: ap-south-1<br>
+          Image tag: git SHA. ECR registry from aws-actions/amazon-ecr-login output<br>
+          Actions versions: checkout@v4, setup-node@v4, configure-aws-credentials@v4, amazon-ecr-login@v2
+          </p>
+        </div>
+      </div>
+
+      <div class="conv-turn claude">
+        <div class="conv-role">Claude Code</div>
+        <div class="conv-body">
+          <div class="code-wrap">
+            <div class="code-header">
+              <span class="code-filename">.github/workflows/ci.yml (turn 1 output)</span>
+              <button class="code-copy" onclick="copyCode(this)">copy</button>
+            </div>
+            <pre><code class="block"><span class="kw">name:</span> <span class="st">CI</span>
+
+<span class="kw">on:</span>
+  <span class="kw">push:</span>
+    <span class="kw">branches:</span> <span class="st">[ main ]</span>
+  <span class="kw">pull_request:</span>
+
+<span class="kw">permissions:</span>
+  <span class="kw">contents:</span> <span class="st">read</span>
+  <span class="kw">id-token:</span> <span class="st">write</span>   <span class="cm"># Required for OIDC token request</span>
+
+<span class="kw">jobs:</span>
+  <span class="kw">test:</span>
+    <span class="kw">name:</span> <span class="st">Test (Node ${{ matrix.node-version }})</span>
+    <span class="kw">runs-on:</span> <span class="st">ubuntu-latest</span>
+    <span class="kw">strategy:</span>
+      <span class="kw">matrix:</span>
+        <span class="kw">node-version:</span> <span class="st">[ '18.x', '20.x' ]</span>
+      <span class="kw">fail-fast:</span> <span class="nm">false</span>   <span class="cm"># Run all matrix versions even if one fails</span>
+
+    <span class="kw">steps:</span>
+      - <span class="kw">name:</span> <span class="st">Checkout</span>
+        <span class="kw">uses:</span> <span class="ty">actions/checkout@v4</span>
+
+      - <span class="kw">name:</span> <span class="st">Set up Node.js ${{ matrix.node-version }}</span>
+        <span class="kw">uses:</span> <span class="ty">actions/setup-node@v4</span>
+        <span class="kw">with:</span>
+          <span class="kw">node-version:</span> <span class="st">${{ matrix.node-version }}</span>
+          <span class="kw">cache:</span> <span class="st">'npm'</span>
+          <span class="kw">cache-dependency-path:</span> <span class="st">package-lock.json</span>
+
+      - <span class="kw">name:</span> <span class="st">Install dependencies</span>
+        <span class="kw">run:</span> <span class="st">npm ci</span>
+
+      - <span class="kw">name:</span> <span class="st">Lint</span>
+        <span class="kw">run:</span> <span class="st">npm run lint</span>
+
+      - <span class="kw">name:</span> <span class="st">Test</span>
+        <span class="kw">run:</span> <span class="st">npm test</span>
+
+  <span class="kw">build-push:</span>
+    <span class="kw">name:</span> <span class="st">Build and push to ECR</span>
+    <span class="kw">runs-on:</span> <span class="st">ubuntu-latest</span>
+    <span class="kw">needs:</span> <span class="st">test</span>   <span class="cm"># Waits for all matrix jobs to pass</span>
+    <span class="kw">if:</span> <span class="fn">github.ref == 'refs/heads/main' && github.event_name == 'push'</span>
+
+    <span class="kw">steps:</span>
+      - <span class="kw">name:</span> <span class="st">Checkout</span>
+        <span class="kw">uses:</span> <span class="ty">actions/checkout@v4</span>
+
+      - <span class="kw">name:</span> <span class="st">Configure AWS credentials via OIDC</span>
+        <span class="kw">uses:</span> <span class="ty">aws-actions/configure-aws-credentials@v4</span>
+        <span class="kw">with:</span>
+          <span class="kw">role-to-assume:</span> <span class="st">${{ secrets.AWS_ROLE_ARN }}</span>
+          <span class="kw">aws-region:</span> <span class="st">ap-south-1</span>
+
+      - <span class="kw">name:</span> <span class="st">Login to Amazon ECR</span>
+        <span class="kw">id:</span> <span class="st">login-ecr</span>
+        <span class="kw">uses:</span> <span class="ty">aws-actions/amazon-ecr-login@v2</span>
+
+      - <span class="kw">name:</span> <span class="st">Build and push Docker image</span>
+        <span class="kw">env:</span>
+          <span class="kw">REGISTRY:</span> <span class="st">${{ steps.login-ecr.outputs.registry }}</span>
+          <span class="kw">IMAGE_TAG:</span> <span class="st">${{ github.sha }}</span>
+        <span class="kw">run:</span> |
+          docker build -t $REGISTRY/payment-api:$IMAGE_TAG .
+          docker push $REGISTRY/payment-api:$IMAGE_TAG
+          echo "image=$REGISTRY/payment-api:$IMAGE_TAG" >> $GITHUB_OUTPUT</code></pre>
+          </div>
+          <p style="margin-top:12px;"><strong>Key decisions:</strong></p>
+          <p style="margin-top:8px;">— <code>permissions: id-token: write</code> is required at the workflow level for OIDC to work. Without it, the token request to GitHub's OIDC provider will be denied and the AWS credentials step will fail with a cryptic error.</p>
+          <p style="margin-top:8px;">— <code>fail-fast: false</code> on the matrix means both Node versions complete their run even if one fails. This gives you the full picture of which versions are broken, rather than stopping at the first failure.</p>
+          <p style="margin-top:8px;">— <code>needs: test</code> on <code>build-push</code> waits for all matrix jobs — not just one. GitHub Actions treats a matrix job as a single job group; <code>needs</code> will block until every matrix variant has a success status.</p>
+          <p style="margin-top:8px;">— The <code>if</code> condition on <code>build-push</code> uses <strong>both</strong> <code>github.ref</code> and <code>github.event_name</code>. Using only <code>github.ref</code> would still trigger on pull requests targeting main from a fork, which could push untrusted code to your ECR. The <code>event_name == 'push'</code> check ensures only merged commits trigger the push.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Turn 2 -->
+    <div class="turn-label" style="margin-top:28px;">Turn 2 of 3 — Real failure pasted back verbatim</div>
+
+    <p class="prose">
+      The engineer pushes the workflow. The test job passes on both Node versions. The <code>build-push</code> job fails at the AWS credentials step. The exact error is pasted back without paraphrasing.
+    </p>
+
+    <div class="conversation">
+      <div class="conv-turn engineer">
+        <div class="conv-role">Engineer → Claude Code</div>
+        <div class="conv-body">
+          <p>Test matrix passed on both versions. build-push failed at the credentials step. Here is the exact error:</p>
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">Actions run log — configure-aws-credentials step</span></div>
+            <pre><code class="block">Error: Credentials could not be loaded, please check your action inputs:
+Could not load credentials from any providers
+Error: HttpError: Resource not accessible by integration
+  at /home/runner/work/_actions/aws-actions/configure-aws-credentials@v4/dist/index.js
+
+  Response: {
+    "message": "Resource not accessible by integration"
+  }
+
+The process '/usr/bin/docker' exited with code 1</code></pre>
+          </div>
+          <p style="margin-top:10px;">AWS_ROLE_ARN secret is set and correct. The IAM role trust policy already has the GitHub OIDC provider configured.</p>
+        </div>
+      </div>
+
+      <div class="conv-turn claude">
+        <div class="conv-role">Claude Code</div>
+        <div class="conv-body">
+          <p><strong>"Resource not accessible by integration"</strong> with OIDC credentials is almost always a <strong>permissions scope issue at the job level</strong>, not the workflow level.</p>
+          <p style="margin-top:10px;">The workflow has <code>permissions: id-token: write</code> set at the top level, but when a <code>permissions</code> block is declared at the workflow level, GitHub Actions scopes it only to jobs that don't declare their own <code>permissions</code>. The <code>build-push</code> job needs its own explicit permissions block:</p>
+          <div class="code-wrap">
+            <div class="code-header">
+              <span class="code-filename">Fix — add permissions block to build-push job</span>
+              <button class="code-copy" onclick="copyCode(this)">copy</button>
+            </div>
+            <pre><code class="block">  <span class="kw">build-push:</span>
+    <span class="kw">name:</span> <span class="st">Build and push to ECR</span>
+    <span class="kw">runs-on:</span> <span class="st">ubuntu-latest</span>
+    <span class="kw">needs:</span> <span class="st">test</span>
+    <span class="kw">if:</span> <span class="fn">github.ref == 'refs/heads/main' && github.event_name == 'push'</span>
+    <span class="kw">permissions:</span>               <span class="cm"># Add this block</span>
+      <span class="kw">contents:</span> <span class="st">read</span>
+      <span class="kw">id-token:</span> <span class="st">write</span>           <span class="cm"># OIDC token request</span>
+
+    <span class="kw">steps:</span>
+      <span class="cm"># ... rest unchanged</span></code></pre>
+          </div>
+          <p style="margin-top:10px;">The root cause: GitHub's default token permissions were tightened in 2023 for security. When any <code>permissions</code> key is present at the workflow level, child jobs that need additional permissions must declare them explicitly — they do not inherit. The <code>test</code> job only needs <code>contents: read</code> (checkout), which is the GitHub default, so it worked without its own block. The <code>build-push</code> job needs <code>id-token: write</code> for OIDC — and without an explicit job-level block, it cannot get it.</p>
+          <p style="margin-top:8px;">This is one of the most common OIDC setup failures and one of the least obvious because the error message points at credentials, not at permissions.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Turn 3 -->
+    <div class="turn-label" style="margin-top:28px;">Turn 3 of 3 — Reusable workflow refactor</div>
+
+    <p class="prose">
+      The pipeline is now working correctly. The team needs to make it callable from other service repos via <code>workflow_call</code> so they don't copy-paste the YAML. The ECR repository name and AWS role ARN need to be inputs rather than hardcoded values.
+    </p>
+
+    <div class="conversation">
+      <div class="conv-turn engineer">
+        <div class="conv-role">Engineer → Claude Code</div>
+        <div class="conv-body">
+          <p>Refactor the workflow to be reusable via <code>workflow_call</code>. Requirements:</p>
+          <p style="margin-top:10px;">
+          — Keep the existing <code>push</code> and <code>pull_request</code> triggers so the workflow still runs standalone in this repo<br>
+          — Add <code>workflow_call</code> trigger with these inputs: <code>ecr-repository</code> (string, required), <code>aws-region</code> (string, default ap-south-1), <code>node-versions</code> (string, default '["18.x","20.x"]')<br>
+          — Add <code>workflow_call</code> secrets: <code>aws-role-arn</code> (required)<br>
+          — Internals: use inputs when called externally, fall back to hardcoded defaults when run standalone<br>
+          — Add a <code>outputs</code> block that exposes the pushed image URI so callers can use it in subsequent jobs
+          </p>
+        </div>
+      </div>
+
+      <div class="conv-turn claude">
+        <div class="conv-role">Claude Code</div>
+        <div class="conv-body">
+          <p>The key pattern here is using <code>inputs.*</code> with <code>||</code> fallback expressions so the workflow behaves correctly both when called standalone and when called via <code>workflow_call</code>:</p>
+          <div class="code-wrap">
+            <div class="code-header">
+              <span class="code-filename">.github/workflows/ci.yml (turn 3 — reusable)</span>
+              <button class="code-copy" onclick="copyCode(this)">copy</button>
+            </div>
+            <pre><code class="block"><span class="kw">name:</span> <span class="st">CI</span>
+
+<span class="kw">on:</span>
+  <span class="kw">push:</span>
+    <span class="kw">branches:</span> <span class="st">[ main ]</span>
+  <span class="kw">pull_request:</span>
+  <span class="kw">workflow_call:</span>
+    <span class="kw">inputs:</span>
+      <span class="kw">ecr-repository:</span>
+        <span class="kw">description:</span> <span class="st">'ECR repository name (e.g. payment-api)'</span>
+        <span class="kw">required:</span> <span class="nm">true</span>
+        <span class="kw">type:</span> <span class="st">string</span>
+      <span class="kw">aws-region:</span>
+        <span class="kw">description:</span> <span class="st">'AWS region for ECR'</span>
+        <span class="kw">required:</span> <span class="nm">false</span>
+        <span class="kw">type:</span> <span class="st">string</span>
+        <span class="kw">default:</span> <span class="st">ap-south-1</span>
+      <span class="kw">node-versions:</span>
+        <span class="kw">description:</span> <span class="st">'JSON array of Node.js versions to test against'</span>
+        <span class="kw">required:</span> <span class="nm">false</span>
+        <span class="kw">type:</span> <span class="st">string</span>
+        <span class="kw">default:</span> <span class="st">'["18.x","20.x"]'</span>
+    <span class="kw">secrets:</span>
+      <span class="kw">aws-role-arn:</span>
+        <span class="kw">description:</span> <span class="st">'IAM role ARN to assume via OIDC for ECR push'</span>
+        <span class="kw">required:</span> <span class="nm">true</span>
+    <span class="kw">outputs:</span>
+      <span class="kw">image-uri:</span>
+        <span class="kw">description:</span> <span class="st">'Full ECR image URI including tag (e.g. 123.dkr.ecr.ap-south-1.amazonaws.com/payment-api:abc1234)'</span>
+        <span class="kw">value:</span> <span class="st">${{ jobs.build-push.outputs.image-uri }}</span>
+
+<span class="kw">permissions:</span>
+  <span class="kw">contents:</span> <span class="st">read</span>
+
+<span class="kw">jobs:</span>
+  <span class="kw">test:</span>
+    <span class="kw">name:</span> <span class="st">Test (Node ${{ matrix.node-version }})</span>
+    <span class="kw">runs-on:</span> <span class="st">ubuntu-latest</span>
+    <span class="kw">strategy:</span>
+      <span class="kw">matrix:</span>
+        <span class="cm"># fromJSON parses the input string into an array for the matrix</span>
+        <span class="kw">node-version:</span> <span class="fn">${{ fromJSON(inputs.node-versions || '["18.x","20.x"]') }}</span>
+      <span class="kw">fail-fast:</span> <span class="nm">false</span>
+
+    <span class="kw">steps:</span>
+      - <span class="kw">name:</span> <span class="st">Checkout</span>
+        <span class="kw">uses:</span> <span class="ty">actions/checkout@v4</span>
+
+      - <span class="kw">name:</span> <span class="st">Set up Node.js ${{ matrix.node-version }}</span>
+        <span class="kw">uses:</span> <span class="ty">actions/setup-node@v4</span>
+        <span class="kw">with:</span>
+          <span class="kw">node-version:</span> <span class="st">${{ matrix.node-version }}</span>
+          <span class="kw">cache:</span> <span class="st">'npm'</span>
+          <span class="kw">cache-dependency-path:</span> <span class="st">package-lock.json</span>
+
+      - <span class="kw">name:</span> <span class="st">Install dependencies</span>
+        <span class="kw">run:</span> <span class="st">npm ci</span>
+
+      - <span class="kw">name:</span> <span class="st">Lint</span>
+        <span class="kw">run:</span> <span class="st">npm run lint</span>
+
+      - <span class="kw">name:</span> <span class="st">Test</span>
+        <span class="kw">run:</span> <span class="st">npm test</span>
+
+  <span class="kw">build-push:</span>
+    <span class="kw">name:</span> <span class="st">Build and push to ECR</span>
+    <span class="kw">runs-on:</span> <span class="st">ubuntu-latest</span>
+    <span class="kw">needs:</span> <span class="st">test</span>
+    <span class="kw">if:</span> <span class="fn">github.ref == 'refs/heads/main' && github.event_name == 'push'</span>
+    <span class="kw">permissions:</span>
+      <span class="kw">contents:</span> <span class="st">read</span>
+      <span class="kw">id-token:</span> <span class="st">write</span>
+    <span class="kw">outputs:</span>
+      <span class="kw">image-uri:</span> <span class="st">${{ steps.build.outputs.image }}</span>
+
+    <span class="kw">steps:</span>
+      - <span class="kw">name:</span> <span class="st">Checkout</span>
+        <span class="kw">uses:</span> <span class="ty">actions/checkout@v4</span>
+
+      - <span class="kw">name:</span> <span class="st">Configure AWS credentials via OIDC</span>
+        <span class="kw">uses:</span> <span class="ty">aws-actions/configure-aws-credentials@v4</span>
+        <span class="kw">with:</span>
+          <span class="kw">role-to-assume:</span> <span class="fn">${{ secrets.aws-role-arn || secrets.AWS_ROLE_ARN }}</span>
+          <span class="kw">aws-region:</span> <span class="fn">${{ inputs.aws-region || 'ap-south-1' }}</span>
+
+      - <span class="kw">name:</span> <span class="st">Login to Amazon ECR</span>
+        <span class="kw">id:</span> <span class="st">login-ecr</span>
+        <span class="kw">uses:</span> <span class="ty">aws-actions/amazon-ecr-login@v2</span>
+
+      - <span class="kw">name:</span> <span class="st">Build and push Docker image</span>
+        <span class="kw">id:</span> <span class="st">build</span>
+        <span class="kw">env:</span>
+          <span class="kw">REGISTRY:</span> <span class="st">${{ steps.login-ecr.outputs.registry }}</span>
+          <span class="kw">REPO:</span> <span class="fn">${{ inputs.ecr-repository || 'payment-api' }}</span>
+          <span class="kw">IMAGE_TAG:</span> <span class="st">${{ github.sha }}</span>
+        <span class="kw">run:</span> |
+          docker build -t $REGISTRY/$REPO:$IMAGE_TAG .
+          docker push $REGISTRY/$REPO:$IMAGE_TAG
+          echo "image=$REGISTRY/$REPO:$IMAGE_TAG" >> $GITHUB_OUTPUT</code></pre>
+          </div>
+          <p style="margin-top:12px;"><strong>The <code>inputs.node-versions || '["18.x","20.x"]'</code> pattern:</strong> when run standalone (push/pull_request trigger), <code>inputs.node-versions</code> is undefined, so the <code>||</code> fallback provides the default. When called via <code>workflow_call</code>, <code>inputs.node-versions</code> is populated by the caller. The <code>fromJSON()</code> wrapper converts the JSON string to an array that the matrix strategy can iterate.</p>
+          <p style="margin-top:8px;"><strong>Secret resolution:</strong> <code>secrets.aws-role-arn || secrets.AWS_ROLE_ARN</code> handles both invocation modes — the kebab-case name is available when called via <code>workflow_call</code>, the UPPER_CASE name is used when run standalone in this repo.</p>
+          <p style="margin-top:8px;"><strong>Calling this from another repo:</strong></p>
+          <div class="code-wrap">
+            <div class="code-header"><span class="code-filename">Caller workflow example (other-service/.github/workflows/ci.yml)</span></div>
+            <pre><code class="block"><span class="kw">jobs:</span>
+  <span class="kw">ci:</span>
+    <span class="kw">uses:</span> <span class="st">your-org/payment-api/.github/workflows/ci.yml@main</span>
+    <span class="kw">with:</span>
+      <span class="kw">ecr-repository:</span> <span class="st">other-service</span>
+      <span class="kw">node-versions:</span> <span class="st">'["20.x"]'</span>
+    <span class="kw">secrets:</span>
+      <span class="kw">aws-role-arn:</span> <span class="st">${{ secrets.AWS_ROLE_ARN }}</span>
+
+  <span class="kw">deploy:</span>
+    <span class="kw">needs:</span> <span class="st">ci</span>
+    <span class="kw">steps:</span>
+      - <span class="kw">name:</span> <span class="st">Deploy image</span>
+        <span class="cm"># Use the output from the reusable workflow</span>
+        <span class="kw">run:</span> <span class="st">echo "Deploying ${{ needs.ci.outputs.image-uri }}"</span></code></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  
+<div class="reviewer-bar" id="rev-bar-3">
+  <input type="checkbox" class="rev-checkbox" id="rev-cb-3" data-step="3">
+  <label for="rev-cb-3">Mark step as reviewed</label>
+</div>
+</section>
+
+  <div class="section-divider"></div>
+
+  <!-- ══ STEP 4: REFINED OUTPUT ══ -->
+  <section class="step-section" id="step-4">
+    <div class="step-header">
+      <div class="step-number">4</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 4 of 5</div>
+        <div class="step-title">The refined output</div>
+      </div>
+</div>
+
+    <p class="prose">
+      The Turn 3 output is the final workflow. Here is a diff of what changed from the naive version — every line added is a decision with a reason.
+    </p>
+
+    <div class="diff-wrap">
+      <div class="diff-header">Naive → final: key differences</div>
+      <div class="diff-body">
+        <span class="diff-line neu">on:</span>
+        <span class="diff-line neu">  push: ...</span>
+        <span class="diff-line neu">  pull_request:</span>
+        <span class="diff-line add">  workflow_call:            # reusable from other repos</span>
+        <span class="diff-line add">    inputs: { ecr-repository, aws-region, node-versions }</span>
+        <span class="diff-line add">    secrets: { aws-role-arn }</span>
+        <span class="diff-line add">    outputs: { image-uri }</span>
+        <span class="diff-line neu"> </span>
+        <span class="diff-line add">permissions:              # least-privilege default</span>
+        <span class="diff-line add">  contents: read</span>
+        <span class="diff-line neu"> </span>
+        <span class="diff-line neu">jobs:</span>
+        <span class="diff-line neu">  test:</span>
+        <span class="diff-line rem">    # single Node version: '18'</span>
+        <span class="diff-line add">    strategy:               # matrix: 18.x and 20.x</span>
+        <span class="diff-line add">      matrix:</span>
+        <span class="diff-line add">        node-version: ${{ fromJSON(inputs.node-versions || '["18.x","20.x"]') }}</span>
+        <span class="diff-line add">      fail-fast: false</span>
+        <span class="diff-line neu"> </span>
+        <span class="diff-line rem">      - run: npm install      # no cache, full reinstall</span>
+        <span class="diff-line add">      - uses: setup-node@v4   # built-in npm cache</span>
+        <span class="diff-line add">        with: { cache: 'npm', cache-dependency-path: package-lock.json }</span>
+        <span class="diff-line add">      - run: npm ci           # exact lockfile install</span>
+        <span class="diff-line neu"> </span>
+        <span class="diff-line neu">  build-push:</span>
+        <span class="diff-line rem">    # no needs — runs parallel to test</span>
+        <span class="diff-line add">    needs: test             # blocks until all matrix jobs pass</span>
+        <span class="diff-line add">    if: github.ref == 'refs/heads/main' && github.event_name == 'push'</span>
+        <span class="diff-line add">    permissions:            # job-level OIDC permission</span>
+        <span class="diff-line add">      id-token: write</span>
+        <span class="diff-line neu"> </span>
+        <span class="diff-line rem">      aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}   # long-lived</span>
+        <span class="diff-line rem">      aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}</span>
+        <span class="diff-line add">      role-to-assume: ${{ secrets.aws-role-arn || secrets.AWS_ROLE_ARN }}</span>
+      </div>
+    </div>
+
+    <ul class="annotation-list" style="margin-top:24px;">
+      <li>
+        <span class="ann-badge ann-good">Security</span>
+        <div><strong>OIDC replaces long-lived credentials.</strong> No static AWS keys stored anywhere. The IAM role is assumed via a short-lived token scoped to this workflow run. Rotation is automatic. If the repo is compromised, there are no credentials to extract.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-good">Correctness</span>
+        <div><strong><code>needs: test</code> blocks on the full matrix.</strong> Both Node 18 and Node 20 must pass before any image is built or pushed. A version-specific regression is caught before it reaches ECR.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-good">Cost</span>
+        <div><strong>npm cache via <code>setup-node</code>.</strong> The cache is keyed on <code>package-lock.json</code>. On a cache hit, <code>npm ci</code> installs from the local cache instead of the registry. For a typical Node service, this saves 2–4 minutes per run across both matrix jobs.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-good">Reusability</span>
+        <div><strong><code>workflow_call</code> with typed inputs and outputs.</strong> Other repos can consume this workflow without duplicating it. The <code>image-uri</code> output lets caller workflows chain a deploy job without re-deriving the image name.</div>
+      </li>
+    </ul>
+  
+<div class="reviewer-bar" id="rev-bar-4">
+  <input type="checkbox" class="rev-checkbox" id="rev-cb-4" data-step="4">
+  <label for="rev-cb-4">Mark step as reviewed</label>
+</div>
+</section>
+
+  <div class="section-divider"></div>
+
+  <!-- ══ STEP 5: WATCH OUT ══ -->
+  <section class="step-section" id="step-5">
+    <div class="step-header">
+      <div class="step-number">5</div>
+      <div class="step-header-text">
+        <div class="step-label">Step 5 of 5</div>
+        <div class="step-title">Watch out</div>
+      </div>
+</div>
+
+    <p class="prose">
+      Claude Code handled OIDC setup, matrix strategy, caching, dependency ordering, and the reusable workflow pattern correctly. Here is what it cannot verify or enforce without your specific environment.
+    </p>
+
+    <div class="callout good">
+      <div class="callout-label">What Claude Code handled well</div>
+      OIDC auth with job-level permissions, <code>fail-fast: false</code> on the matrix, <code>needs</code> blocking on all matrix variants, npm cache via setup-node built-in, dual-mode secret resolution, <code>fromJSON</code> for the matrix input, <code>workflow_call</code> outputs wired through job outputs to workflow outputs. These are non-trivial patterns — the Turn 2 permissions bug diagnosis was particularly accurate.
+    </div>
+
+    <ul class="annotation-list" style="margin-top:24px;">
+      <li>
+        <span class="ann-badge ann-warn">Verify</span>
+        <div><strong>IAM role trust policy must include the GitHub OIDC subject.</strong> Claude Code cannot see your AWS account. The role's trust policy must allow <code>token.actions.githubusercontent.com</code> as the OIDC provider and must include a <code>sub</code> condition scoped to your repo and branch — otherwise OIDC will fail at runtime with an access denied error that looks identical to a permissions misconfiguration. A trust policy scoped to <code>repo:your-org/payment-api:ref:refs/heads/main</code> is the minimum.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Verify</span>
+        <div><strong>Cache hits require a prior successful run.</strong> On the first run after adding caching, there will be a cache miss and a full install. This is expected. Check the Actions cache tab after the second run — if the cache is not being hit, the <code>cache-dependency-path</code> may not match where your <code>package-lock.json</code> actually lives (monorepo setups often have it in a subdirectory).</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Verify</span>
+        <div><strong>Secret names are case-sensitive and must match exactly.</strong> Claude Code generated <code>secrets.aws-role-arn</code> for the <code>workflow_call</code> case and <code>secrets.AWS_ROLE_ARN</code> for the standalone case. If your repo secret is named differently — <code>AWS_ROLE_ARN_PROD</code>, for example — both references fail silently; the credentials step receives an empty value and produces a misleading error. Verify secret names in Settings → Secrets → Actions before the first run.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-warn">Verify</span>
+        <div><strong><code>workflow_call</code> from a fork requires explicit secret passing.</strong> Workflows called from forked repos cannot access the parent repo's secrets by default. If you intend this workflow to be called by external contributors' forks, you need to configure <code>secrets: inherit</code> or pass secrets explicitly in the caller workflow, and enable "Allow GitHub Actions to create and approve pull requests" in org settings. This is a security decision, not a bug.</div>
+      </li>
+      <li>
+        <span class="ann-badge ann-info">Note</span>
+        <div><strong>Action version pinning.</strong> The workflow uses <code>@v4</code> tags, not pinned SHAs. For highest security — particularly in a reusable workflow that other repos will consume — pin to a specific commit SHA (e.g. <code>actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683</code>). This prevents a compromised action from being swapped under a floating tag. Tools like Dependabot and <code>pinact</code> can automate this.</div>
+      </li>
+    </ul>
+
+    <div class="callout tip">
+      <div class="callout-label">Prompting tip for future pipelines</div>
+      The most effective addition to Turn 1 was specifying the exact Actions versions (<code>checkout@v4</code>, <code>setup-node@v4</code>, etc.). Without this, Claude Code defaults to whatever version it knows from training — which may be outdated. Always specify action versions explicitly in your prompt. For OIDC specifically, also specify the role ARN source (secret name) and the region — these are the two values most likely to differ between teams and cannot be guessed.
+    </div>
+
+  
+<div class="reviewer-bar" id="rev-bar-5">
+  <input type="checkbox" class="rev-checkbox" id="rev-cb-5" data-step="5">
+  <label for="rev-cb-5">Mark step as reviewed</label>
+</div>
+</section>
+
+  
+<div class="reviewer-panel">
+  <div class="reviewer-panel-label">🔍 Reviewer question — E3-1</div>
+  <div class="reviewer-q-text">In Example 3 Turn 2, the GitHub Actions OIDC configuration failed with 'Resource not accessible by integration'. What was the root cause?</div>
+  <div class="reviewer-options">
+    <div class="reviewer-option" data-key="A" onclick="selectRevOption('A',this)"><span class="reviewer-option-key">A</span><span>The AWS IAM role trust policy did not include the GitHub OIDC provider</span></div>
+    <div class="reviewer-option" data-key="B" onclick="selectRevOption('B',this)"><span class="reviewer-option-key">B</span><span>The `id-token: write` permission was declared at the workflow level but not at the job level, and GitHub requires job-level declaration when any permissions block is present</span></div>
+    <div class="reviewer-option" data-key="C" onclick="selectRevOption('C',this)"><span class="reviewer-option-key">C</span><span>The `AWS_ROLE_ARN` secret was not set in the repository settings</span></div>
+    <div class="reviewer-option" data-key="D" onclick="selectRevOption('D',this)"><span class="reviewer-option-key">D</span><span>The `configure-aws-credentials` action version was incompatible with OIDC</span></div>
+  </div>
+  <button class="reviewer-reveal" id="rev-reveal-btn" onclick="revealRevAnswer()">Check answer</button>
+  <div class="reviewer-explanation" id="rev-explanation">
+    <div class="reviewer-exp-label"></div>
+    When any `permissions` block is declared at the workflow level, child jobs that need additional permissions must declare them explicitly — they do not inherit. The `build-push` job needed `id-token: write` at the job level to request an OIDC token. This behaviour was tightened in 2023 and is one of the most common OIDC setup failures.
+  </div>
+  <div class="reviewer-comment-label">Reviewer notes</div>
+  <textarea class="reviewer-comment" id="rev-comment" placeholder="Add your review notes for this example…"></textarea>
+  <div class="reviewer-save-note">Notes are auto-saved in your browser.</div>
+</div>
+<div class="rev-complete-wrap" id="rev-complete-wrap">
+  <div class="rev-complete-bar disabled" id="rev-complete-bar">
+    <input type="checkbox" id="rev-complete-cb" disabled>
+    <label for="rev-complete-cb" id="rev-complete-label">
+      Complete all steps and answer the question correctly to unlock
+    </label>
+  </div>
+  <div class="rev-complete-hint" id="rev-complete-hint"></div>
+</div>
+
+<script>window.REV_CORRECT = "B";</script>
+
+<div class="bottom-nav">
+    <a class="nav-btn secondary" href="../example-2-terraform-variables.html">← Example 2 — Terraform variables.tf</a>
+    <a class="nav-btn" href="../example-4-shell-script.html">Example 4 — Shell script →</a>
+  </div>
+
+</div>
+
+<footer>
+  <span>AIOps &amp; DevOps Learning Path · SourceFuse L&amp;D</span>
+  <span>Example 3 of 4 · Tier 1 · GitHub Actions pipeline</span>
+</footer>
+
+<script>
+  const sections = document.querySelectorAll('.step-section');
+  const navItems = document.querySelectorAll('.stepnav-item');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const id = entry.target.id;
+        navItems.forEach(item => {
+          item.classList.toggle('active', item.getAttribute('href') === '#' + id);
+        });
+      }
+    });
+  }, { rootMargin: '-30% 0px -60% 0px', threshold: 0 });
+  sections.forEach(s => observer.observe(s));
+
+  function copyCode(btn) {
+    const pre = btn.closest('.code-wrap').querySelector('pre');
+    navigator.clipboard.writeText(pre.innerText).then(() => {
+      btn.textContent = 'copied!';
+      setTimeout(() => btn.textContent = 'copy', 2000);
+    });
+  }
+</script>
+
+<script>
+// ── Cache busting ─────────────────────────────────────────────────────────────
+const CACHE_VERSION = '2026-03-15-v2';
+(function() {
+  function addVersion(url) {
+    if (!url || url.startsWith('http') || url.startsWith('#') || url.startsWith('mailto')) return url;
+    if (!url.endsWith('.html') && !url.includes('.html?')) return url;
+    const sep = url.includes('?') ? '&' : '?';
+    if (url.includes('v=' + CACHE_VERSION)) return url;
+    return url + sep + 'v=' + CACHE_VERSION;
+  }
+  document.querySelectorAll('a[href]').forEach(a => { a.href = addVersion(a.getAttribute('href')); });
+  document.querySelectorAll('iframe[src]').forEach(fr => { fr.src = addVersion(fr.getAttribute('src')); });
+})();
+
+// ── Reviewer persistence ──────────────────────────────────────────────────────
+const REV_KEY   = 'reviewer_example-3';
+const NUM_STEPS = 5;
+
+function revLoad() { try { return JSON.parse(localStorage.getItem(REV_KEY)) || {}; } catch(e) { return {}; } }
+function revSave(s) { localStorage.setItem(REV_KEY, JSON.stringify(s)); }
+
+// ── Check completion state ────────────────────────────────────────────────────
+function allStepsChecked() {
+  for (let i = 1; i <= NUM_STEPS; i++) {
+    const cb = document.getElementById('rev-cb-' + i);
+    if (cb && !cb.checked) return false;
+  }
+  return true;
+}
+
+function questionAnsweredCorrectly() {
+  const s = revLoad();
+  return s.questionCorrect === true;
+}
+
+function updateCompleteBar() {
+  const bar   = document.getElementById('rev-complete-bar');
+  const cb    = document.getElementById('rev-complete-cb');
+  const label = document.getElementById('rev-complete-label');
+  const hint  = document.getElementById('rev-complete-hint');
+  if (!bar) return;
+
+  const stepsOk    = allStepsChecked();
+  const questionOk = questionAnsweredCorrectly();
+  const s          = revLoad();
+
+  if (s.reviewComplete) {
+    bar.className = 'rev-complete-bar done';
+    cb.disabled   = false;
+    cb.checked    = true;
+    label.textContent = '✓ Review complete';
+    hint.textContent  = '';
+    return;
+  }
+
+  const missing = [];
+  if (!stepsOk)    missing.push('all steps checked');
+  if (!questionOk) missing.push('question answered correctly');
+
+  if (stepsOk && questionOk) {
+    bar.className = 'rev-complete-bar ready';
+    cb.disabled   = false;
+    label.textContent = 'Mark review as complete';
+    hint.textContent  = '';
+  } else {
+    bar.className = 'rev-complete-bar disabled';
+    cb.disabled   = true;
+    label.textContent = 'Complete all steps and answer the question correctly to unlock';
+    hint.textContent  = 'Still needed: ' + missing.join(' · ');
+  }
+}
+
+// ── Step checkboxes ───────────────────────────────────────────────────────────
+document.querySelectorAll('.rev-checkbox').forEach(cb => {
+  const s = revLoad();
+  if (s['cb_' + cb.dataset.step]) {
+    cb.checked = true;
+    const bar = cb.closest('.reviewer-bar');
+    if (bar) {
+      bar.classList.add('checked');
+      bar.querySelector('label').textContent = '✓ Step reviewed';
+    }
+  }
+  cb.addEventListener('change', () => {
+    const s = revLoad();
+    s['cb_' + cb.dataset.step] = cb.checked;
+    revSave(s);
+    const bar = cb.closest('.reviewer-bar');
+    if (bar) {
+      bar.classList.toggle('checked', cb.checked);
+      bar.querySelector('label').textContent = cb.checked ? '✓ Step reviewed' : 'Mark step as reviewed';
+    }
+    updateCompleteBar();
+  });
+});
+
+// ── Review complete checkbox ──────────────────────────────────────────────────
+const completeCb = document.getElementById('rev-complete-cb');
+if (completeCb) {
+  completeCb.addEventListener('change', () => {
+    if (!completeCb.checked) return;
+    const s = revLoad();
+    s.reviewComplete = true;
+    revSave(s);
+    updateCompleteBar();
+  });
+}
+
+// ── Comment textarea ──────────────────────────────────────────────────────────
+const commentEl = document.getElementById('rev-comment');
+if (commentEl) {
+  const s = revLoad();
+  if (s.comment) commentEl.value = s.comment;
+  commentEl.addEventListener('input', () => {
+    const s = revLoad(); s.comment = commentEl.value; revSave(s);
+  });
+}
+
+// ── Reviewer question logic ───────────────────────────────────────────────────
+let revAnswer    = null;
+let revSubmitted = false;
+
+(function restoreRevQ() {
+  const s = revLoad();
+  if (s.revAnswer !== undefined) {
+    revAnswer    = s.revAnswer;
+    revSubmitted = s.revSubmitted || false;
+    if (revAnswer !== null) applyRevAnswer(revAnswer, revSubmitted);
+  }
+})();
+
+function selectRevOption(key, el) {
+  if (revSubmitted) return;
+  revAnswer = key;
+  document.querySelectorAll('.reviewer-option').forEach(o => o.classList.toggle('selected', o.dataset.key === key));
+  const s = revLoad(); s.revAnswer = key; revSave(s);
+}
+
+function selectRevTF(val, el) {
+  if (revSubmitted) return;
+  revAnswer = val;
+  document.querySelectorAll('.reviewer-tf-btn').forEach(b => {
+    b.classList.toggle('selected', (b.dataset.val === 'true') === val);
+  });
+  const s = revLoad(); s.revAnswer = val; revSave(s);
+}
+
+function revealRevAnswer() {
+  if (revAnswer === null) { alert('Please select an answer first.'); return; }
+  revSubmitted = true;
+  const s = revLoad(); s.revSubmitted = true; revSave(s);
+  applyRevAnswer(revAnswer, true);
+}
+
+function applyRevAnswer(ans, showResult) {
+  const correctVal = window.REV_CORRECT;
+  const isCorrect  = (ans === correctVal);
+
+  document.querySelectorAll('.reviewer-option').forEach(o => {
+    o.classList.remove('selected','correct','wrong');
+    if (showResult) {
+      if (o.dataset.key === String(correctVal)) o.classList.add('correct');
+      else if (o.dataset.key === ans && String(o.dataset.key) !== String(correctVal)) o.classList.add('wrong');
+    } else {
+      if (o.dataset.key === ans) o.classList.add('selected');
+    }
+  });
+
+  document.querySelectorAll('.reviewer-tf-btn').forEach(b => {
+    b.classList.remove('selected','correct','wrong');
+    const bVal = b.dataset.val === 'true';
+    if (showResult) {
+      if (bVal === correctVal) b.classList.add('correct');
+      else if (bVal === ans && bVal !== correctVal) b.classList.add('wrong');
+    } else {
+      if (bVal === ans) b.classList.add('selected');
+    }
+  });
+
+  if (showResult) {
+    const expEl = document.getElementById('rev-explanation');
+    const btnEl = document.getElementById('rev-reveal-btn');
+    if (expEl) {
+      expEl.classList.add('visible');
+      const lbl = expEl.querySelector('.reviewer-exp-label');
+      if (lbl) {
+        lbl.textContent = isCorrect ? '✓ Correct' : '✗ Incorrect';
+        lbl.className   = 'reviewer-exp-label ' + (isCorrect ? 'correct' : 'wrong');
+      }
+    }
+    if (btnEl) btnEl.style.display = 'none';
+    if (isCorrect) {
+      const s = revLoad(); s.questionCorrect = true; revSave(s);
+    }
+    updateCompleteBar();
+  }
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+updateCompleteBar();
+</script>
+</body>
+</html>
