@@ -898,7 +898,7 @@ async function sfSignInWithGoogle() {
       'Sign in failed because popup is blocked by your browser or LMS settings. ' +
       'Please enter your SF email address below to continue.'
     );
-  }, 4000);
+  }, 30000);
   try {
     const result = await firebase.auth().signInWithPopup(provider);
     clearTimeout(fallbackTimer);
