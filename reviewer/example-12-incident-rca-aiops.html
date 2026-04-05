@@ -429,6 +429,7 @@ function sfSignInWithEmail() {
 
 async function sfSignInWithGoogle() {
   console.log('[SF Reviewer] Google sign-in clicked. Firebase ready:', window._sfFirebaseReady);
+  // If Firebase SDK not loaded, show fallback message immediately — no timer needed
   if (typeof firebase === 'undefined' || !window._sfFirebaseReady) {
     sfShowError(
       'Sign in failed because popup is blocked by your browser or LMS settings. ' +
@@ -438,8 +439,12 @@ async function sfSignInWithGoogle() {
   }
   const provider = new firebase.auth.GoogleAuthProvider();
   provider.setCustomParameters({ hd: 'sourcefuse.com', prompt: 'select_account' });
+  // 4-second timer only starts when Firebase IS loaded but popup may be silently blocked
   const fallbackTimer = setTimeout(() => {
-    sfShowError('Sign in failed because popup is blocked by your browser or LMS settings. Please enter your SF email address below to continue.');
+    sfShowError(
+      'Sign in failed because popup is blocked by your browser or LMS settings. ' +
+      'Please enter your SF email address below to continue.'
+    );
   }, 4000);
   try {
     const result = await firebase.auth().signInWithPopup(provider);
@@ -447,7 +452,10 @@ async function sfSignInWithGoogle() {
     sfHideOverlay(result.user);
   } catch(err) {
     clearTimeout(fallbackTimer);
-    sfShowError('Sign in failed because popup is blocked by your browser or LMS settings. Please enter your SF email address below to continue.');
+    sfShowError(
+      'Sign in failed because popup is blocked by your browser or LMS settings. ' +
+      'Please enter your SF email address below to continue.'
+    );
   }
 }
 
@@ -1531,9 +1539,7 @@ let sfReviewerEmail = null;
 let sfReviewerUid   = null;
 const EXAMPLE_ID    = 'example-12';
   window.EXAMPLE_ID   = 'example-12';
-  window.EXAMPLE_ID   = 'const EXAMPLE_ID    = 'example-12';
-  window.EXAMPLE_ID   = 'example-12';';
-const CACHE_VERSION = '2026-03-15-v10';
+const CACHE_VERSION = '2026-03-15-v13';
 
 // ── Firestore path helper ─────────────────────────────────────────────────────
 function sfDocRef() {
