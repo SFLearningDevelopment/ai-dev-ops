@@ -2,6 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>[Reviewer] Diagram 1 — Participation Model</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -90,9 +93,108 @@
 
   footer { background:var(--bg2); border-top:1px solid var(--border); padding:14px 40px; font-size:11px; font-family:'Source Code Pro',monospace; color:var(--text-dimmer); display:flex; justify-content:space-between; }
   @media(max-width:640px){.topnav,.main,footer,.reviewer-topbanner,.hero{padding-left:20px;padding-right:20px;}}
+/* ── Firebase sign-in overlay ─────────────────────────────────────────────── */
+  .sf-signin-overlay {
+    position:fixed; inset:0; background:rgba(20,30,50,.82);
+    display:flex; align-items:center; justify-content:center;
+    z-index:9999; backdrop-filter:blur(3px);
+  }
+  .sf-signin-overlay.hidden { display:none; }
+  .sf-signin-card {
+    background:#ffffff; border-radius:16px; padding:36px 40px;
+    max-width:420px; width:90%; box-shadow:0 20px 60px rgba(0,0,0,.3);
+    text-align:center;
+  }
+  .sf-signin-logo { font-size:32px; margin-bottom:12px; }
+  .sf-signin-title {
+    font-size:17px; font-weight:700; color:#1a2332;
+    margin-bottom:8px; font-family:'Merriweather Sans',sans-serif;
+  }
+  .sf-signin-sub {
+    font-size:13px; color:#4a5568; line-height:1.6; margin-bottom:24px;
+    font-family:'Merriweather Sans',sans-serif;
+  }
+  .sf-google-btn {
+    display:inline-flex; align-items:center; gap:10px;
+    background:#ffffff; border:1.5px solid #d0dae8; border-radius:8px;
+    padding:11px 20px; font-size:14px; font-weight:600; cursor:pointer;
+    color:#1a2332; font-family:'Merriweather Sans',sans-serif;
+    transition:box-shadow .15s, border-color .15s; width:100%;
+    justify-content:center;
+  }
+  .sf-google-btn:hover { box-shadow:0 2px 8px rgba(0,0,0,.12); border-color:#b8d0ed; }
+  .sf-google-btn img { width:20px; height:20px; }
+  .sf-signin-error {
+    margin-top:14px; font-size:12.5px; color:#c0392b;
+    font-family:'Source Code Pro',monospace; line-height:1.5;
+    background:#fdf0ee; border:1px solid #f0b8b2; border-radius:6px;
+    padding:10px 12px; display:none; text-align:left;
+  }
+  .sf-signin-error.visible { display:block; }
+  .sf-fallback-wrap { margin-top:0; display:block; }
+  .sf-signin-divider {
+    font-size:11px; color:#8fa3bc; text-align:center;
+    margin:14px 0 10px; font-family:'Source Code Pro',monospace;
+    display:flex; align-items:center; gap:8px;
+  }
+  .sf-signin-divider::before, .sf-signin-divider::after {
+    content:''; flex:1; height:1px; background:#d0dae8;
+  }
+  .sf-fallback-input {
+    width:100%; padding:10px 12px; border:1.5px solid #d0dae8;
+    border-radius:8px; font-size:14px; font-family:'Merriweather Sans',sans-serif;
+    color:#1a2332; margin-bottom:10px; outline:none;
+  }
+  .sf-fallback-input:focus { border-color:#1a6eb5; }
+  .sf-fallback-btn {
+    width:100%; padding:10px; background:#1a6eb5; color:#ffffff;
+    border:none; border-radius:8px; font-size:14px; font-weight:600;
+    cursor:pointer; font-family:'Merriweather Sans',sans-serif;
+    transition:background .15s;
+  }
+  .sf-fallback-btn:hover { background:#0f4a7a; }
+  .sf-signed-in-bar {
+    background:#e8f5ed; border-bottom:1px solid #a3d4b8;
+    padding:8px 40px; font-size:11px; font-family:'Source Code Pro',monospace;
+    color:#1a6b3a; display:flex; align-items:center; justify-content:space-between;
+    gap:12px;
+  }
+  .sf-signed-in-bar.hidden { display:none; }
+  .sf-signout-btn {
+    font-size:10px; font-family:'Source Code Pro',monospace;
+    color:#1a6eb5; background:none; border:1px solid #b8d0ed;
+    border-radius:4px; padding:2px 8px; cursor:pointer;
+  }
+  .sf-signout-btn:hover { background:#e8f1fb; }
 </style>
 </head>
 <body>
+<!-- ── SF Reviewer Sign-in overlay ─────────────────────────────────────────── -->
+<div class="sf-signin-overlay" id="sfSigninOverlay">
+  <div class="sf-signin-card">
+    <div class="sf-signin-logo">🔐</div>
+    <div class="sf-signin-title">Sign in to save your progress</div>
+    <div class="sf-signin-sub">
+      Sign in with your SourceFuse Gmail account. Your review progress,
+      checkboxes, and question attempts will be saved and restored across devices.
+    </div>
+    <button class="sf-google-btn" id="sfGoogleSignInBtn" onclick="sfSignInWithGoogle()">
+      <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">
+      Sign in with Google
+    </button>
+    <div class="sf-signin-divider">or</div>
+    <div class="sf-fallback-wrap visible" id="sfFallbackWrap">
+      <input type="text" class="sf-fallback-input" id="sfEmailInput"
+        placeholder="your.name@sourcefuse.com"
+        autocomplete="off" autocorrect="off" autocapitalize="off"
+        spellcheck="false" inputmode="email">
+      <button class="sf-fallback-btn" onclick="sfSignInWithEmail()">Continue with SF email</button>
+    </div>
+    <div class="sf-signin-error" id="sfSigninError"></div>
+  </div>
+</div>
+
+
 
 <nav class="topnav">
   <a href="index.html">← Reviewer dashboard</a>
@@ -182,7 +284,7 @@
 const REV_KEY = 'reviewer_diagram-1';
 
 function revLoad() { try { return JSON.parse(localStorage.getItem(REV_KEY)) || {}; } catch(e) { return {}; } }
-function revSave(s) { localStorage.setItem(REV_KEY, JSON.stringify(s)); }
+function revSave(s) { localStorage.setItem(REV_KEY, JSON.stringify(s)); sfWrite(s); }
 
 // Restore checkbox
 const cb = document.getElementById('rev-cb');
@@ -260,6 +362,260 @@ function revealAnswer(id, correct, type) {
   if (s['q_D1-1']) selectMcq('D1-1', s['q_D1-1'], null);
   if (s['q_D1-2'] !== undefined) selectTF('D1-2', s['q_D1-2'], null);
 })();
+</script>
+<script>
+// ── Cache busting — update VERSION when any page content changes ─────────────
+const CACHE_VERSION = '2026-03-15-v5';
+(function() {
+  function addVersion(url) {
+    if (!url || url.startsWith('http') || url.startsWith('#') || url.startsWith('mailto')) return url;
+    if (!url.endsWith('.html') && !url.includes('.html?')) return url;
+    const sep = url.includes('?') ? '&' : '?';
+    // Don't double-add
+    if (url.includes('v=' + CACHE_VERSION)) return url;
+    return url + sep + 'v=' + CACHE_VERSION;
+  }
+  // Patch all <a> links
+  document.querySelectorAll('a[href]').forEach(a => {
+    a.href = addVersion(a.getAttribute('href'));
+  });
+  // Patch all iframes
+  document.querySelectorAll('iframe[src]').forEach(fr => {
+    fr.src = addVersion(fr.getAttribute('src'));
+  });
+})();
+</script>
+<!-- Firebase SDK — loaded synchronously to guarantee order -->
+<script>
+// Dynamically load Firebase SDK scripts in sequence, then init
+(function() {
+  var scripts = [
+    'https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js',
+    'https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js',
+    'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js'
+  ];
+  function loadNext(i) {
+    if (i >= scripts.length) { window._sfFirebaseReady = true; initFirebase(); return; }
+    var s = document.createElement('script');
+    s.src = scripts[i];
+    s.onload = function() { loadNext(i + 1); };
+    s.onerror = function() {
+      console.warn('Failed to load Firebase SDK:', scripts[i]);
+      // SDK unavailable — email fallback will be used instead
+      window._sfFirebaseReady = false;
+    };
+    document.head.appendChild(s);
+  }
+  loadNext(0);
+})();
+</script>
+<script>
+function initFirebase() {
+// ══ Firebase configuration ════════════════════════════════════════════════════
+// Replace placeholder values with your sfcertification-grafana project credentials
+const SF_FIREBASE_CONFIG = {
+    apiKey:            "AIzaSyC-I-IOCq2fCwa471fsD5xOn6SYQSBDp7Q",
+    authDomain:        "sfcertification-grafana.firebaseapp.com",
+    projectId:         "sfcertification-grafana",
+    storageBucket:     "sfcertification-grafana.firebasestorage.app",
+    messagingSenderId: "227322696511",
+    appId:             "1:227322696511:web:12e7ced7dd3d45fa06798a"
+  };
+
+firebase.initializeApp(SF_FIREBASE_CONFIG);
+const sfAuth = firebase.auth();
+const sfDb   = firebase.firestore();
+
+// ── Reviewer identity ─────────────────────────────────────────────────────────
+let sfReviewerEmail = null;
+let sfReviewerUid   = null;
+const EXAMPLE_ID    = 'diagram-1';
+const CACHE_VERSION = '2026-03-15-v4';
+
+// ── Firestore path helper ─────────────────────────────────────────────────────
+function sfDocRef() {
+  if (!sfReviewerUid) return null;
+  return sfDb
+    .collection('reviewerSessions')
+    .doc(sfReviewerUid)
+    .collection('module-1')
+    .doc(EXAMPLE_ID);
+}
+
+// ── Merge Firestore state into localStorage (Firestore wins) ──────────────────
+async function sfFetchAndMerge() {
+  const ref = sfDocRef();
+  if (!ref) return;
+  try {
+    const snap = await ref.get();
+    if (!snap.exists) return;
+    const remote = snap.data();
+    // Merge: remote fields overwrite local fields
+    const local = revLoad();
+    const merged = Object.assign({}, local, remote);
+    // Remove Firestore-only fields not needed in localStorage
+    delete merged.email;
+    delete merged.lastUpdated;
+    revSave(merged);
+    // Re-apply UI state from merged data
+    applyRestoredState(merged);
+  } catch(e) {
+    console.warn('Firestore fetch failed, using localStorage:', e.message);
+  }
+}
+
+// ── Write current state to Firestore ─────────────────────────────────────────
+function sfWrite(extraFields) {
+  // Guard: only write to Firestore if Firebase loaded and user is signed in
+  if (!window._sfFirebaseReady || typeof sfDb === 'undefined' || !sfReviewerUid) return;
+  const ref = sfDocRef();
+  if (!ref) return;
+  const local = revLoad();
+  const payload = Object.assign({}, local, extraFields, {
+    email:       sfReviewerEmail,
+    exampleId:   EXAMPLE_ID,
+    lastUpdated: firebase.firestore.FieldValue.serverTimestamp(),
+  });
+  ref.set(payload, { merge: true }).catch(e => {
+    console.warn('Firestore write failed:', e.message);
+  });
+}
+
+// ── Apply restored state to UI after Firestore fetch ─────────────────────────
+function applyRestoredState(state) {
+  // Restore step checkboxes
+  document.querySelectorAll('.rev-checkbox').forEach(cb => {
+    if (state['cb_' + cb.dataset.step]) {
+      cb.checked = true;
+      const bar = cb.closest('.reviewer-bar');
+      if (bar) {
+        bar.classList.add('checked');
+        const lbl = bar.querySelector('label');
+        if (lbl) lbl.textContent = '✓ Step reviewed';
+      }
+    }
+  });
+  // Restore comment
+  const commentEl = document.getElementById('rev-comment');
+  if (commentEl && state.comment) commentEl.value = state.comment;
+  // Restore question answer
+  if (state.revAnswer !== undefined && state.revAnswer !== null) {
+    revAnswer    = state.revAnswer;
+    revSubmitted = state.revSubmitted || false;
+    if (revAnswer !== null) applyRevAnswer(revAnswer, revSubmitted);
+  }
+  // Restore review complete
+  if (state.reviewComplete) {
+    const cb = document.getElementById('rev-complete-cb');
+    if (cb) { cb.checked = true; cb.disabled = false; }
+  }
+  updateCompleteBar();
+}
+
+// ══ Sign-in flow ══════════════════════════════════════════════════════════════
+
+function sfShowError(msg) {
+  const el = document.getElementById('sfSigninError');
+  el.textContent = msg;
+  el.classList.add('visible');
+}
+
+function sfHideOverlay(user) {
+  sfReviewerEmail = user.email || user; // string (email fallback) or Firebase user
+  sfReviewerUid   = user.uid  || 'email_' + btoa(sfReviewerEmail).replace(/=/g,'');
+  // Dismiss overlay immediately — works even if Firebase is not loaded
+  document.getElementById('sfSigninOverlay').classList.add('hidden');
+  const bar = document.getElementById('sfSignedInBar');
+  const lbl = document.getElementById('sfSignedInEmail');
+  if (bar) { bar.classList.remove('hidden'); }
+  if (lbl) { lbl.textContent = 'Signed in as ' + sfReviewerEmail; }
+  // Attempt Firestore sync only if Firebase loaded successfully
+  if (window._sfFirebaseReady && typeof sfDb !== 'undefined') {
+    sfFetchAndMerge();
+  }
+}
+
+async function sfSignInWithGoogle() {
+  // If Firebase SDK failed to load (e.g. CDN blocked in this environment),
+  // skip straight to the email fallback immediately
+  if (typeof firebase === 'undefined' || !window._sfFirebaseReady) {
+    sfShowError(
+      'Sign in failed because popup is blocked by your browser or LMS settings. ' +
+      'Please enter your SF email address below to continue.'
+    );
+    document.getElementById('sfFallbackWrap').classList.add('visible');
+    return;
+  }
+
+  const provider = new firebase.auth.GoogleAuthProvider();
+  provider.setCustomParameters({ hd: 'sourcefuse.com', prompt: 'select_account' });
+
+  // If the popup is silently blocked by the LMS iframe sandbox,
+  // signInWithPopup never resolves or rejects — show fallback after 4 seconds
+  const fallbackTimer = setTimeout(() => {
+    sfShowError(
+      'Sign in failed because popup is blocked by your browser or LMS settings. ' +
+      'Please enter your SF email address below to continue.'
+    );
+    document.getElementById('sfFallbackWrap').classList.add('visible');
+  }, 4000);
+
+  try {
+    const result = await sfAuth.signInWithPopup(provider);
+    clearTimeout(fallbackTimer);
+    sfHideOverlay(result.user);
+  } catch(err) {
+    clearTimeout(fallbackTimer);
+    if (
+      err.code === 'auth/popup-blocked' ||
+      err.code === 'auth/popup-closed-by-user' ||
+      err.code === 'auth/operation-not-allowed'
+    ) {
+      sfShowError(
+        'Sign in failed because popup is blocked by your browser or LMS settings. ' +
+        'Please enter your SF email address below to continue.'
+      );
+      document.getElementById('sfFallbackWrap').classList.add('visible');
+    } else {
+      sfShowError('Sign in error: ' + err.message);
+      document.getElementById('sfFallbackWrap').classList.add('visible');
+    }
+  }
+}
+
+function sfSignInWithEmail() {
+  const email = document.getElementById('sfEmailInput').value.trim();
+  if (!email || !email.includes('@')) {
+    sfShowError('Please enter a valid email address.');
+    return;
+  }
+  if (!email.endsWith('@sourcefuse.com')) {
+    sfShowError('Please use your @sourcefuse.com email address.');
+    return;
+  }
+  sfHideOverlay(email);
+}
+
+async function sfSignOut() {
+  await sfAuth.signOut();
+  sfReviewerEmail = null;
+  sfReviewerUid   = null;
+  document.getElementById('sfSignedInBar').classList.add('hidden');
+  document.getElementById('sfSigninOverlay').classList.remove('hidden');
+  document.getElementById('sfSigninError').classList.remove('visible');
+  document.getElementById('sfFallbackWrap').classList.remove('visible');
+}
+
+// ── Restore existing Firebase session on page load ────────────────────────────
+sfAuth.onAuthStateChanged(user => {
+  if (user) {
+    sfHideOverlay(user);
+  } else {
+    // Show sign-in overlay
+    document.getElementById('sfSigninOverlay').classList.remove('hidden');
+  }
+});
+} // end initFirebase
 </script>
 </body>
 </html>
