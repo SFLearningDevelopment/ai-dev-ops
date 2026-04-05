@@ -361,6 +361,95 @@
 
 </head>
 <body>
+<script>
+// sfSignInWithEmail defined at page level
+// ── Sign-in functions — defined at page level so onclick handlers work immediately ──
+function sfShowError(msg) {
+  const el = document.getElementById('sfSigninError');
+  if (el) { el.textContent = msg; el.classList.add('visible'); }
+}
+
+function sfHideOverlay(user) {
+  console.log('[SF Reviewer] sfHideOverlay called with:', typeof user === 'string' ? user : user.email);
+  window.sfReviewerEmail = user.email || user;
+  window.sfReviewerUid   = user.uid  || 'email_' + btoa(window.sfReviewerEmail).replace(/=/g,'');
+  const overlay = document.getElementById('sfSigninOverlay');
+  if (overlay) overlay.classList.add('hidden');
+  const bar = document.getElementById('sfSignedInBar');
+  const lbl = document.getElementById('sfSignedInEmail');
+  if (bar) bar.classList.remove('hidden');
+  if (lbl) lbl.textContent = 'Signed in as ' + window.sfReviewerEmail;
+  console.log('[SF Reviewer] Overlay hidden. Firebase ready:', window._sfFirebaseReady);
+  if (window._sfFirebaseReady && typeof window.sfDb !== 'undefined') {
+    sfFetchAndMerge();
+  }
+}
+
+function sfSignInWithEmail() {
+  console.log('[SF Reviewer] Continue with SF email clicked');
+  const emailEl = document.getElementById('sfEmailInput');
+  if (!emailEl) { console.error('[SF Reviewer] sfEmailInput not found'); return; }
+  const email = emailEl.value.trim();
+  console.log('[SF Reviewer] Email value:', email);
+  if (!email || !email.includes('@')) {
+    sfShowError('Please enter a valid email address.');
+    return;
+  }
+  if (!email.endsWith('@sourcefuse.com')) {
+    sfShowError('Please use your @sourcefuse.com email address.');
+    return;
+  }
+  sfHideOverlay(email);
+}
+
+async function sfSignInWithGoogle() {
+  console.log('[SF Reviewer] Google sign-in clicked. Firebase ready:', window._sfFirebaseReady);
+  if (typeof firebase === 'undefined' || !window._sfFirebaseReady) {
+    sfShowError(
+      'Sign in failed because popup is blocked by your browser or LMS settings. ' +
+      'Please enter your SF email address below to continue.'
+    );
+    return;
+  }
+  const provider = new firebase.auth.GoogleAuthProvider();
+  provider.setCustomParameters({ hd: 'sourcefuse.com', prompt: 'select_account' });
+  const fallbackTimer = setTimeout(() => {
+    sfShowError('Sign in failed because popup is blocked by your browser or LMS settings. Please enter your SF email address below to continue.');
+  }, 4000);
+  try {
+    const result = await firebase.auth().signInWithPopup(provider);
+    clearTimeout(fallbackTimer);
+    sfHideOverlay(result.user);
+  } catch(err) {
+    clearTimeout(fallbackTimer);
+    sfShowError('Sign in failed because popup is blocked by your browser or LMS settings. Please enter your SF email address below to continue.');
+  }
+}
+
+function sfSignOut() {
+  window.sfReviewerEmail = null;
+  window.sfReviewerUid   = null;
+  const bar = document.getElementById('sfSignedInBar');
+  const overlay = document.getElementById('sfSigninOverlay');
+  const errEl = document.getElementById('sfSigninError');
+  if (bar) bar.classList.add('hidden');
+  if (overlay) overlay.classList.remove('hidden');
+  if (errEl) errEl.classList.remove('visible');
+  if (typeof firebase !== 'undefined' && window._sfFirebaseReady) firebase.auth().signOut();
+}
+
+// Attach event listeners via JS instead of inline onclick
+// — required for TalentLMS embedded iframe sandbox compatibility
+document.addEventListener('DOMContentLoaded', function() {
+  const googleBtn = document.getElementById('sfGoogleSignInBtn');
+  const emailBtn  = document.getElementById('sfEmailSignInBtn');
+  const signoutBtn = document.getElementById('sfSignoutLink');
+  if (googleBtn) googleBtn.addEventListener('click', sfSignInWithGoogle);
+  if (emailBtn)  emailBtn.addEventListener('click', sfSignInWithEmail);
+  if (signoutBtn) signoutBtn.addEventListener('click', sfSignOut);
+  console.log('[SF Reviewer] Event listeners attached. Google:', !!googleBtn, 'Email:', !!emailBtn);
+});
+</script>
 
 <!-- ── SF Reviewer Sign-in overlay ─────────────────────────────────────────── -->
 <div class="sf-signin-overlay" id="sfSigninOverlay">
@@ -371,7 +460,7 @@
       Sign in with your SourceFuse Gmail account. Your review progress,
       checkboxes, and question attempts will be saved and restored across devices.
     </div>
-    <button class="sf-google-btn" id="sfGoogleSignInBtn" onclick="sfSignInWithGoogle()">
+    <button class="sf-google-btn" id="sfGoogleSignInBtn">
       <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">
       Sign in with Google
     </button>
@@ -381,7 +470,7 @@
         placeholder="your.name@sourcefuse.com"
         autocomplete="off" autocorrect="off" autocapitalize="off"
         spellcheck="false" inputmode="email">
-      <button class="sf-fallback-btn" onclick="sfSignInWithEmail()">Continue with SF email</button>
+      <button class="sf-fallback-btn" id="sfEmailSignInBtn">Continue with SF email</button>
     </div>
     <div class="sf-signin-error" id="sfSigninError"></div>
   </div>
@@ -390,7 +479,7 @@
 <!-- ── Signed-in status bar (shown below topnav when authenticated) ────────── -->
 <div class="sf-signed-in-bar hidden" id="sfSignedInBar">
   <span id="sfSignedInEmail">Signed in as …</span>
-  <button class="sf-signout-btn" onclick="sfSignOut()">Sign out</button>
+  <button class="sf-signout-btn" id="sfSignoutLink">Sign out</button>
 </div>
 
 <div class="reviewer-topbanner">
@@ -1646,7 +1735,7 @@ const sfDb   = firebase.firestore();
 let sfReviewerEmail = null;
 let sfReviewerUid   = null;
 const EXAMPLE_ID    = 'example-9';
-const CACHE_VERSION = '2026-03-15-v5';
+const CACHE_VERSION = '2026-03-15-v8';
 
 // ── Firestore path helper ─────────────────────────────────────────────────────
 function sfDocRef() {
@@ -1737,15 +1826,17 @@ function sfShowError(msg) {
 }
 
 function sfHideOverlay(user) {
-  sfReviewerEmail = user.email || user; // string (email fallback) or Firebase user
+  console.log('[SF Reviewer] sfHideOverlay called with:', user);
+  sfReviewerEmail = user.email || user;
   sfReviewerUid   = user.uid  || 'email_' + btoa(sfReviewerEmail).replace(/=/g,'');
-  // Dismiss overlay immediately — works even if Firebase is not loaded
-  document.getElementById('sfSigninOverlay').classList.add('hidden');
+  const overlay = document.getElementById('sfSigninOverlay');
+  console.log('[SF Reviewer] overlay element:', overlay);
+  if (overlay) { overlay.classList.add('hidden'); }
   const bar = document.getElementById('sfSignedInBar');
   const lbl = document.getElementById('sfSignedInEmail');
   if (bar) { bar.classList.remove('hidden'); }
   if (lbl) { lbl.textContent = 'Signed in as ' + sfReviewerEmail; }
-  // Attempt Firestore sync only if Firebase loaded successfully
+  console.log('[SF Reviewer] Overlay hidden. Firebase ready:', window._sfFirebaseReady);
   if (window._sfFirebaseReady && typeof sfDb !== 'undefined') {
     sfFetchAndMerge();
   }
@@ -1800,15 +1891,22 @@ async function sfSignInWithGoogle() {
 }
 
 function sfSignInWithEmail() {
-  const email = document.getElementById('sfEmailInput').value.trim();
+  console.log('[SF Reviewer] Continue with SF email clicked');
+  const emailEl = document.getElementById('sfEmailInput');
+  if (!emailEl) { console.error('[SF Reviewer] emailInput element not found'); return; }
+  const email = emailEl.value.trim();
+  console.log('[SF Reviewer] Email value:', email);
   if (!email || !email.includes('@')) {
+    console.warn('[SF Reviewer] Invalid email');
     sfShowError('Please enter a valid email address.');
     return;
   }
   if (!email.endsWith('@sourcefuse.com')) {
+    console.warn('[SF Reviewer] Not a sourcefuse.com email');
     sfShowError('Please use your @sourcefuse.com email address.');
     return;
   }
+  console.log('[SF Reviewer] Calling sfHideOverlay with email:', email);
   sfHideOverlay(email);
 }
 
