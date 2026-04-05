@@ -1703,11 +1703,15 @@ updateCompleteBar();
     'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js'
   ];
   function loadNext(i) {
-    if (i >= scripts.length) { initFirebase(); return; }
+    if (i >= scripts.length) { window._sfFirebaseReady = true; initFirebase(); return; }
     var s = document.createElement('script');
     s.src = scripts[i];
     s.onload = function() { loadNext(i + 1); };
-    s.onerror = function() { console.error('Failed to load Firebase SDK:', scripts[i]); };
+    s.onerror = function() {
+      console.warn('Failed to load Firebase SDK:', scripts[i]);
+      // SDK unavailable — email fallback will be used instead
+      window._sfFirebaseReady = false;
+    };
     document.head.appendChild(s);
   }
   loadNext(0);
@@ -1835,6 +1839,17 @@ function sfHideOverlay(user) {
 }
 
 async function sfSignInWithGoogle() {
+  // If Firebase SDK failed to load (e.g. CDN blocked in this environment),
+  // skip straight to the email fallback immediately
+  if (typeof firebase === 'undefined' || !window._sfFirebaseReady) {
+    sfShowError(
+      'Sign in failed because popup is blocked by your browser or LMS settings. ' +
+      'Please enter your SF email address below to continue.'
+    );
+    document.getElementById('sfFallbackWrap').classList.add('visible');
+    return;
+  }
+
   const provider = new firebase.auth.GoogleAuthProvider();
   provider.setCustomParameters({ hd: 'sourcefuse.com', prompt: 'select_account' });
 
