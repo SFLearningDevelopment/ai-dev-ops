@@ -826,8 +826,10 @@
     </button>
     <div class="sf-signin-divider">or</div>
     <div class="sf-fallback-wrap visible" id="sfFallbackWrap">
-      <input type="email" class="sf-fallback-input" id="sfEmailInput"
-        placeholder="your.name@sourcefuse.com" autocomplete="email">
+      <input type="text" class="sf-fallback-input" id="sfEmailInput"
+        placeholder="your.name@sourcefuse.com"
+        autocomplete="off" autocorrect="off" autocapitalize="off"
+        spellcheck="false" inputmode="email">
       <button class="sf-fallback-btn" onclick="sfSignInWithEmail()">Continue with SF email</button>
     </div>
     <div class="sf-signin-error" id="sfSigninError"></div>
@@ -1746,7 +1748,7 @@ const sfDb   = firebase.firestore();
 let sfReviewerEmail = null;
 let sfReviewerUid   = null;
 const EXAMPLE_ID    = 'example-1';
-const CACHE_VERSION = '2026-03-15-v2';
+const CACHE_VERSION = '2026-03-15-v4';
 
 // ── Firestore path helper ─────────────────────────────────────────────────────
 function sfDocRef() {
