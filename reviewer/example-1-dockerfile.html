@@ -2,6 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>[Reviewer] Example 1 — Dockerfile for a Node.js API Service</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -701,6 +704,34 @@
     display: flex; align-items: center; gap: 8px;
   }
 
+
+  /* ── Review complete checkbox ────────────────────────────────────────────── */
+  .rev-complete-wrap { margin:24px 0 0; }
+  .rev-complete-bar {
+    display:flex; align-items:center; gap:10px;
+    padding:14px 18px; border-radius:8px;
+    font-size:13.5px; font-family:'Source Code Pro',monospace; font-weight:600;
+    border:1.5px solid var(--border); background:var(--bg3);
+    color:var(--text-dimmer); transition:all .2s;
+  }
+  .rev-complete-bar.disabled { opacity:.6; cursor:not-allowed; }
+  .rev-complete-bar.ready {
+    background:#fff8e6; border-color:#f0d4a0; border-left:3px solid #92600a;
+    color:#92600a; cursor:pointer;
+  }
+  .rev-complete-bar.done {
+    background:var(--green-light); border-color:var(--green-mid);
+    border-left:3px solid var(--green); color:var(--green); cursor:default;
+  }
+  .rev-complete-bar input[type="checkbox"] {
+    width:18px; height:18px; flex-shrink:0; accent-color:var(--green);
+  }
+  .rev-complete-bar.disabled input { cursor:not-allowed; }
+  .rev-complete-hint {
+    font-size:11px; font-family:'Source Code Pro',monospace;
+    color:var(--text-dimmer); margin-top:6px; min-height:16px;
+  }
+
 </style>
 </head>
 <body>
@@ -753,12 +784,7 @@
         <div class="step-label">Step 1 of 5</div>
         <div class="step-title">The problem</div>
       </div>
-<div class="reviewer-bar" id="rev-bar-1">
-  <input type="checkbox" class="rev-checkbox" id="rev-cb-1" data-step="1">
-  <label for="rev-cb-1">Mark step as reviewed</label>
 </div>
-
-    </div>
 
     <p class="prose">
       You have a Node.js Express API service — <code>payment-api</code> — that runs fine locally and passes all tests. The service needs to be containerised so it can be deployed to an EKS cluster via an existing CI/CD pipeline. The pipeline expects an image pushed to ECR, built from a <code>Dockerfile</code> in the repo root.
@@ -776,7 +802,12 @@
     <p class="prose">
       This is about as common a scenario as exists in DevOps. The question is not whether you can write a Dockerfile — it's whether the one you write under time pressure will be production-worthy, or whether it will accumulate security and performance debt that surfaces six months later.
     </p>
-  </section>
+  
+<div class="reviewer-bar" id="rev-bar-1">
+  <input type="checkbox" class="rev-checkbox" id="rev-cb-1" data-step="1">
+  <label for="rev-cb-1">Mark step as reviewed</label>
+</div>
+</section>
 
   <div class="section-divider"></div>
 
@@ -788,12 +819,7 @@
         <div class="step-label">Step 2 of 5</div>
         <div class="step-title">The naive approach</div>
       </div>
-<div class="reviewer-bar" id="rev-bar-2">
-  <input type="checkbox" class="rev-checkbox" id="rev-cb-2" data-step="2">
-  <label for="rev-cb-2">Mark step as reviewed</label>
 </div>
-
-    </div>
 
     <p class="prose">
       Under time pressure, most engineers reach for a Dockerfile they've used before — or copy one from a tutorial. Here is what typically gets written, and what gets committed to the repo:
@@ -852,7 +878,12 @@
       <div class="callout-label">The core problem</div>
       None of these issues cause an immediate failure. The service runs. The tests pass. The CI pipeline is green. This is exactly why naive Dockerfiles persist in codebases for years — they only become problems at the worst possible time: a security audit, a production incident, or a compliance review.
     </div>
-  </section>
+  
+<div class="reviewer-bar" id="rev-bar-2">
+  <input type="checkbox" class="rev-checkbox" id="rev-cb-2" data-step="2">
+  <label for="rev-cb-2">Mark step as reviewed</label>
+</div>
+</section>
 
   <div class="section-divider"></div>
 
@@ -864,12 +895,7 @@
         <div class="step-label">Step 3 of 5</div>
         <div class="step-title">The Claude Code interaction</div>
       </div>
-<div class="reviewer-bar" id="rev-bar-3">
-  <input type="checkbox" class="rev-checkbox" id="rev-cb-3" data-step="3">
-  <label for="rev-cb-3">Mark step as reviewed</label>
 </div>
-
-    </div>
 
     <p class="prose">
       This interaction runs three turns. Notice what changes at each turn and why — the engineer is not just accepting output, they are feeding back specific real results and asking for targeted refinements. That discipline is what makes the difference between a first-pass Dockerfile and a production-grade one.
@@ -1092,7 +1118,12 @@ Layer: node_modules/micromatch</code></pre>
       </div>
     </div>
 
-  </section>
+  
+<div class="reviewer-bar" id="rev-bar-3">
+  <input type="checkbox" class="rev-checkbox" id="rev-cb-3" data-step="3">
+  <label for="rev-cb-3">Mark step as reviewed</label>
+</div>
+</section>
 
   <div class="section-divider"></div>
 
@@ -1104,12 +1135,7 @@ Layer: node_modules/micromatch</code></pre>
         <div class="step-label">Step 4 of 5</div>
         <div class="step-title">The refined output</div>
       </div>
-<div class="reviewer-bar" id="rev-bar-4">
-  <input type="checkbox" class="rev-checkbox" id="rev-cb-4" data-step="4">
-  <label for="rev-cb-4">Mark step as reviewed</label>
 </div>
-
-    </div>
 
     <p class="prose">
       Here is the final Dockerfile after all three turns. Each decision is annotated so the next engineer who touches this file understands the intent — not just the implementation.
@@ -1242,7 +1268,12 @@ Dockerfile
       </div>
     </div>
 
-  </section>
+  
+<div class="reviewer-bar" id="rev-bar-4">
+  <input type="checkbox" class="rev-checkbox" id="rev-cb-4" data-step="4">
+  <label for="rev-cb-4">Mark step as reviewed</label>
+</div>
+</section>
 
   <div class="section-divider"></div>
 
@@ -1254,12 +1285,7 @@ Dockerfile
         <div class="step-label">Step 5 of 5</div>
         <div class="step-title">Watch out</div>
       </div>
-<div class="reviewer-bar" id="rev-bar-5">
-  <input type="checkbox" class="rev-checkbox" id="rev-cb-5" data-step="5">
-  <label for="rev-cb-5">Mark step as reviewed</label>
 </div>
-
-    </div>
 
     <p class="prose">
       Claude Code produced a strong Dockerfile in three turns. Here are the things it got right, and the things you still need to verify yourself — because Claude Code cannot know your specific environment.
@@ -1298,7 +1324,12 @@ Dockerfile
       The Turn 1 prompt worked well because it was <strong>specific about constraints</strong> rather than intent. "Production-grade" alone is too vague. The effective additions were: explicit Node version, entrypoint command, port, health endpoint path, and the four named requirements (no root, cache-optimised, minimal image, healthcheck). Give Claude Code the same specificity for any new service and the first-pass output will be close to production-ready.
     </div>
 
-  </section>
+  
+<div class="reviewer-bar" id="rev-bar-5">
+  <input type="checkbox" class="rev-checkbox" id="rev-cb-5" data-step="5">
+  <label for="rev-cb-5">Mark step as reviewed</label>
+</div>
+</section>
 
   <!-- Bottom nav -->
   
@@ -1320,10 +1351,19 @@ Dockerfile
   <textarea class="reviewer-comment" id="rev-comment" placeholder="Add your review notes for this example…"></textarea>
   <div class="reviewer-save-note">Notes are auto-saved in your browser.</div>
 </div>
+<div class="rev-complete-wrap" id="rev-complete-wrap">
+  <div class="rev-complete-bar disabled" id="rev-complete-bar">
+    <input type="checkbox" id="rev-complete-cb" disabled>
+    <label for="rev-complete-cb" id="rev-complete-label">
+      Complete all steps and answer the question correctly to unlock
+    </label>
+  </div>
+  <div class="rev-complete-hint" id="rev-complete-hint"></div>
+</div>
+
 <script>window.REV_CORRECT = "B";</script>
 
 <div class="bottom-nav">
-    <a class="nav-btn secondary" href="../course-map.html">← Course map</a>
     <a class="nav-btn" href="../example-2-terraform-variables.html">Example 2 — Terraform variables.tf →</a>
   </div>
 
@@ -1364,56 +1404,133 @@ Dockerfile
 </script>
 
 <script>
-// ── Reviewer persistence ─────────────────────────────────────────────────────
-const REV_KEY = 'reviewer_example-1';
+// ── Cache busting ─────────────────────────────────────────────────────────────
+const CACHE_VERSION = '2026-03-15-v2';
+(function() {
+  function addVersion(url) {
+    if (!url || url.startsWith('http') || url.startsWith('#') || url.startsWith('mailto')) return url;
+    if (!url.endsWith('.html') && !url.includes('.html?')) return url;
+    const sep = url.includes('?') ? '&' : '?';
+    if (url.includes('v=' + CACHE_VERSION)) return url;
+    return url + sep + 'v=' + CACHE_VERSION;
+  }
+  document.querySelectorAll('a[href]').forEach(a => { a.href = addVersion(a.getAttribute('href')); });
+  document.querySelectorAll('iframe[src]').forEach(fr => { fr.src = addVersion(fr.getAttribute('src')); });
+})();
 
-function revLoad() {
-  try { return JSON.parse(localStorage.getItem(REV_KEY)) || {}; } catch(e) { return {}; }
+// ── Reviewer persistence ──────────────────────────────────────────────────────
+const REV_KEY   = 'reviewer_example-1';
+const NUM_STEPS = 5;
+
+function revLoad() { try { return JSON.parse(localStorage.getItem(REV_KEY)) || {}; } catch(e) { return {}; } }
+function revSave(s) { localStorage.setItem(REV_KEY, JSON.stringify(s)); }
+
+// ── Check completion state ────────────────────────────────────────────────────
+function allStepsChecked() {
+  for (let i = 1; i <= NUM_STEPS; i++) {
+    const cb = document.getElementById('rev-cb-' + i);
+    if (cb && !cb.checked) return false;
+  }
+  return true;
 }
 
-function revSave(state) {
-  localStorage.setItem(REV_KEY, JSON.stringify(state));
+function questionAnsweredCorrectly() {
+  const s = revLoad();
+  return s.questionCorrect === true;
 }
 
-// Restore checkboxes
+function updateCompleteBar() {
+  const bar   = document.getElementById('rev-complete-bar');
+  const cb    = document.getElementById('rev-complete-cb');
+  const label = document.getElementById('rev-complete-label');
+  const hint  = document.getElementById('rev-complete-hint');
+  if (!bar) return;
+
+  const stepsOk    = allStepsChecked();
+  const questionOk = questionAnsweredCorrectly();
+  const s          = revLoad();
+
+  if (s.reviewComplete) {
+    bar.className = 'rev-complete-bar done';
+    cb.disabled   = false;
+    cb.checked    = true;
+    label.textContent = '✓ Review complete';
+    hint.textContent  = '';
+    return;
+  }
+
+  const missing = [];
+  if (!stepsOk)    missing.push('all steps checked');
+  if (!questionOk) missing.push('question answered correctly');
+
+  if (stepsOk && questionOk) {
+    bar.className = 'rev-complete-bar ready';
+    cb.disabled   = false;
+    label.textContent = 'Mark review as complete';
+    hint.textContent  = '';
+  } else {
+    bar.className = 'rev-complete-bar disabled';
+    cb.disabled   = true;
+    label.textContent = 'Complete all steps and answer the question correctly to unlock';
+    hint.textContent  = 'Still needed: ' + missing.join(' · ');
+  }
+}
+
+// ── Step checkboxes ───────────────────────────────────────────────────────────
 document.querySelectorAll('.rev-checkbox').forEach(cb => {
-  const state = revLoad();
-  if (state['cb_' + cb.dataset.step]) {
+  const s = revLoad();
+  if (s['cb_' + cb.dataset.step]) {
     cb.checked = true;
-    cb.closest('.reviewer-bar').classList.add('checked');
-    cb.closest('.reviewer-bar').querySelector('label').textContent = '✓ Step reviewed';
+    const bar = cb.closest('.reviewer-bar');
+    if (bar) {
+      bar.classList.add('checked');
+      bar.querySelector('label').textContent = '✓ Step reviewed';
+    }
   }
   cb.addEventListener('change', () => {
     const s = revLoad();
     s['cb_' + cb.dataset.step] = cb.checked;
     revSave(s);
     const bar = cb.closest('.reviewer-bar');
-    bar.classList.toggle('checked', cb.checked);
-    bar.querySelector('label').textContent = cb.checked ? '✓ Step reviewed' : 'Mark step as reviewed';
+    if (bar) {
+      bar.classList.toggle('checked', cb.checked);
+      bar.querySelector('label').textContent = cb.checked ? '✓ Step reviewed' : 'Mark step as reviewed';
+    }
+    updateCompleteBar();
   });
 });
 
-// Restore comment
-const commentEl = document.getElementById('rev-comment');
-if (commentEl) {
-  const state = revLoad();
-  if (state.comment) commentEl.value = state.comment;
-  commentEl.addEventListener('input', () => {
+// ── Review complete checkbox ──────────────────────────────────────────────────
+const completeCb = document.getElementById('rev-complete-cb');
+if (completeCb) {
+  completeCb.addEventListener('change', () => {
+    if (!completeCb.checked) return;
     const s = revLoad();
-    s.comment = commentEl.value;
+    s.reviewComplete = true;
     revSave(s);
+    updateCompleteBar();
   });
 }
 
-// Reviewer question logic
-let revAnswer = null;
+// ── Comment textarea ──────────────────────────────────────────────────────────
+const commentEl = document.getElementById('rev-comment');
+if (commentEl) {
+  const s = revLoad();
+  if (s.comment) commentEl.value = s.comment;
+  commentEl.addEventListener('input', () => {
+    const s = revLoad(); s.comment = commentEl.value; revSave(s);
+  });
+}
+
+// ── Reviewer question logic ───────────────────────────────────────────────────
+let revAnswer    = null;
 let revSubmitted = false;
 
 (function restoreRevQ() {
-  const state = revLoad();
-  if (state.revAnswer !== undefined) {
-    revAnswer = state.revAnswer;
-    revSubmitted = state.revSubmitted || false;
+  const s = revLoad();
+  if (s.revAnswer !== undefined) {
+    revAnswer    = s.revAnswer;
+    revSubmitted = s.revSubmitted || false;
     if (revAnswer !== null) applyRevAnswer(revAnswer, revSubmitted);
   }
 })();
@@ -1443,17 +1560,18 @@ function revealRevAnswer() {
 
 function applyRevAnswer(ans, showResult) {
   const correctVal = window.REV_CORRECT;
-  // MCQ
+  const isCorrect  = (ans === correctVal);
+
   document.querySelectorAll('.reviewer-option').forEach(o => {
     o.classList.remove('selected','correct','wrong');
     if (showResult) {
-      if (o.dataset.key === correctVal) o.classList.add('correct');
-      else if (o.dataset.key === ans && o.dataset.key !== correctVal) o.classList.add('wrong');
+      if (o.dataset.key === String(correctVal)) o.classList.add('correct');
+      else if (o.dataset.key === ans && String(o.dataset.key) !== String(correctVal)) o.classList.add('wrong');
     } else {
       if (o.dataset.key === ans) o.classList.add('selected');
     }
   });
-  // T/F
+
   document.querySelectorAll('.reviewer-tf-btn').forEach(b => {
     b.classList.remove('selected','correct','wrong');
     const bVal = b.dataset.val === 'true';
@@ -1464,19 +1582,28 @@ function applyRevAnswer(ans, showResult) {
       if (bVal === ans) b.classList.add('selected');
     }
   });
+
   if (showResult) {
     const expEl = document.getElementById('rev-explanation');
     const btnEl = document.getElementById('rev-reveal-btn');
     if (expEl) {
-      const isCorrect = (ans === correctVal) || (ans === correctVal);
       expEl.classList.add('visible');
       const lbl = expEl.querySelector('.reviewer-exp-label');
-      if (lbl) { lbl.textContent = isCorrect ? '✓ Correct' : '✗ Incorrect'; lbl.className = 'reviewer-exp-label ' + (isCorrect ? 'correct' : 'wrong'); }
+      if (lbl) {
+        lbl.textContent = isCorrect ? '✓ Correct' : '✗ Incorrect';
+        lbl.className   = 'reviewer-exp-label ' + (isCorrect ? 'correct' : 'wrong');
+      }
     }
     if (btnEl) btnEl.style.display = 'none';
+    if (isCorrect) {
+      const s = revLoad(); s.questionCorrect = true; revSave(s);
+    }
+    updateCompleteBar();
   }
 }
-</script>
 
+// ── Init ──────────────────────────────────────────────────────────────────────
+updateCompleteBar();
+</script>
 </body>
 </html>
