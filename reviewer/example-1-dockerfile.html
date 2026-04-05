@@ -1748,7 +1748,7 @@ const sfDb   = firebase.firestore();
 let sfReviewerEmail = null;
 let sfReviewerUid   = null;
 const EXAMPLE_ID    = 'example-1';
-const CACHE_VERSION = '2026-03-15-v5';
+const CACHE_VERSION = '2026-03-15-v6';
 
 // ── Firestore path helper ─────────────────────────────────────────────────────
 function sfDocRef() {
@@ -1839,15 +1839,17 @@ function sfShowError(msg) {
 }
 
 function sfHideOverlay(user) {
-  sfReviewerEmail = user.email || user; // string (email fallback) or Firebase user
+  console.log('[SF Reviewer] sfHideOverlay called with:', user);
+  sfReviewerEmail = user.email || user;
   sfReviewerUid   = user.uid  || 'email_' + btoa(sfReviewerEmail).replace(/=/g,'');
-  // Dismiss overlay immediately — works even if Firebase is not loaded
-  document.getElementById('sfSigninOverlay').classList.add('hidden');
+  const overlay = document.getElementById('sfSigninOverlay');
+  console.log('[SF Reviewer] overlay element:', overlay);
+  if (overlay) { overlay.classList.add('hidden'); }
   const bar = document.getElementById('sfSignedInBar');
   const lbl = document.getElementById('sfSignedInEmail');
   if (bar) { bar.classList.remove('hidden'); }
   if (lbl) { lbl.textContent = 'Signed in as ' + sfReviewerEmail; }
-  // Attempt Firestore sync only if Firebase loaded successfully
+  console.log('[SF Reviewer] Overlay hidden. Firebase ready:', window._sfFirebaseReady);
   if (window._sfFirebaseReady && typeof sfDb !== 'undefined') {
     sfFetchAndMerge();
   }
@@ -1902,15 +1904,22 @@ async function sfSignInWithGoogle() {
 }
 
 function sfSignInWithEmail() {
-  const email = document.getElementById('sfEmailInput').value.trim();
+  console.log('[SF Reviewer] Continue with SF email clicked');
+  const emailEl = document.getElementById('sfEmailInput');
+  if (!emailEl) { console.error('[SF Reviewer] emailInput element not found'); return; }
+  const email = emailEl.value.trim();
+  console.log('[SF Reviewer] Email value:', email);
   if (!email || !email.includes('@')) {
+    console.warn('[SF Reviewer] Invalid email');
     sfShowError('Please enter a valid email address.');
     return;
   }
   if (!email.endsWith('@sourcefuse.com')) {
+    console.warn('[SF Reviewer] Not a sourcefuse.com email');
     sfShowError('Please use your @sourcefuse.com email address.');
     return;
   }
+  console.log('[SF Reviewer] Calling sfHideOverlay with email:', email);
   sfHideOverlay(email);
 }
 
