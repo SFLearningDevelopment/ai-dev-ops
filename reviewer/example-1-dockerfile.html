@@ -1859,14 +1859,19 @@ const SF_FIREBASE_CONFIG = {
   };
 
 firebase.initializeApp(SF_FIREBASE_CONFIG);
-const sfAuth = firebase.auth();
-const sfDb   = firebase.firestore();
+window.sfAuth = firebase.auth();
+window.sfDb   = firebase.firestore();
+const sfAuth  = window.sfAuth;
+const sfDb    = window.sfDb;
 
 // ── Reviewer identity ─────────────────────────────────────────────────────────
 let sfReviewerEmail = null;
 let sfReviewerUid   = null;
 const EXAMPLE_ID    = 'example-1';
-const CACHE_VERSION = '2026-03-15-v9';
+  window.EXAMPLE_ID   = 'example-1';
+  window.EXAMPLE_ID   = 'const EXAMPLE_ID    = 'example-1';
+  window.EXAMPLE_ID   = 'example-1';';
+const CACHE_VERSION = '2026-03-15-v10';
 
 // ── Firestore path helper ─────────────────────────────────────────────────────
 function sfDocRef() {
