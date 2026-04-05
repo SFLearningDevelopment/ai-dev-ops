@@ -2,6 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>[Reviewer] Example 13 — Alert Enrichment and Runbook Generation</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -246,6 +249,34 @@
     display: flex; align-items: center; gap: 8px;
   }
 
+
+  /* ── Review complete checkbox ────────────────────────────────────────────── */
+  .rev-complete-wrap { margin:24px 0 0; }
+  .rev-complete-bar {
+    display:flex; align-items:center; gap:10px;
+    padding:14px 18px; border-radius:8px;
+    font-size:13.5px; font-family:'Source Code Pro',monospace; font-weight:600;
+    border:1.5px solid var(--border); background:var(--bg3);
+    color:var(--text-dimmer); transition:all .2s;
+  }
+  .rev-complete-bar.disabled { opacity:.6; cursor:not-allowed; }
+  .rev-complete-bar.ready {
+    background:#fff8e6; border-color:#f0d4a0; border-left:3px solid #92600a;
+    color:#92600a; cursor:pointer;
+  }
+  .rev-complete-bar.done {
+    background:var(--green-light); border-color:var(--green-mid);
+    border-left:3px solid var(--green); color:var(--green); cursor:default;
+  }
+  .rev-complete-bar input[type="checkbox"] {
+    width:18px; height:18px; flex-shrink:0; accent-color:var(--green);
+  }
+  .rev-complete-bar.disabled input { cursor:not-allowed; }
+  .rev-complete-hint {
+    font-size:11px; font-family:'Source Code Pro',monospace;
+    color:var(--text-dimmer); margin-top:6px; min-height:16px;
+  }
+
 </style>
 </head>
 <body>
@@ -294,12 +325,7 @@
         <div class="step-label">Step 1 of 5</div>
         <div class="step-title">The problem</div>
       </div>
-<div class="reviewer-bar" id="rev-bar-1">
-  <input type="checkbox" class="rev-checkbox" id="rev-cb-1" data-step="1">
-  <label for="rev-cb-1">Mark step as reviewed</label>
 </div>
-
-    </div>
 
     <p class="prose">
       The <code>payment-api</code> team has accumulated twelve Prometheus alert rules over nine months. Each alert fires reliably — but when they fire at 03:00, the on-call engineer opens them to find a single line of metric context with no operational guidance. The alert says <em>what</em> crossed a threshold; it does not say <em>why it matters</em>, <em>what to check first</em>, or <em>what the last three times this alert fired looked like</em>.
@@ -342,7 +368,12 @@
         </tbody>
       </table>
     </div>
-  </section>
+  
+<div class="reviewer-bar" id="rev-bar-1">
+  <input type="checkbox" class="rev-checkbox" id="rev-cb-1" data-step="1">
+  <label for="rev-cb-1">Mark step as reviewed</label>
+</div>
+</section>
 
   <div class="section-divider"></div>
 
@@ -354,12 +385,7 @@
         <div class="step-label">Step 2 of 5</div>
         <div class="step-title">The naive approach</div>
       </div>
-<div class="reviewer-bar" id="rev-bar-2">
-  <input type="checkbox" class="rev-checkbox" id="rev-cb-2" data-step="2">
-  <label for="rev-cb-2">Mark step as reviewed</label>
 </div>
-
-    </div>
 
     <p class="prose">The naive alert definition is a threshold with a label. The naive runbook is a Confluence page that has not been updated since the alert was created.</p>
 
@@ -383,7 +409,12 @@
       <div class="callout-label">The core problem</div>
       The on-call engineer receives a Slack notification at 03:00: "High error rate on payment-api." They open PagerDuty and find the alert expression. They open Grafana and look at a graph. They look at the logs. They remember what happened last time — if they were on-call last time. If they were not, they start from zero. The alert contains everything the monitoring system knows and nothing the engineering team knows. Alert enrichment closes that gap proactively, before the next 03:00 page.
     </div>
-  </section>
+  
+<div class="reviewer-bar" id="rev-bar-2">
+  <input type="checkbox" class="rev-checkbox" id="rev-cb-2" data-step="2">
+  <label for="rev-cb-2">Mark step as reviewed</label>
+</div>
+</section>
 
   <div class="section-divider"></div>
 
@@ -395,12 +426,7 @@
         <div class="step-label">Step 3 of 5</div>
         <div class="step-title">The Claude Code interaction</div>
       </div>
-<div class="reviewer-bar" id="rev-bar-3">
-  <input type="checkbox" class="rev-checkbox" id="rev-cb-3" data-step="3">
-  <label for="rev-cb-3">Mark step as reviewed</label>
 </div>
-
-    </div>
 
     <p class="prose">Five turns. Turn 1 provides all inputs simultaneously — alert definitions, service context, incident history, dependency map. Turn 2 produces enriched alert annotations. Turn 3 produces the structured runbook for the highest-priority alert. Turn 4 adds the machine-readable enrichment payload for the AIOps pipeline. Turn 5 produces a PrometheusRule file with the enriched annotations baked in.</p>
 
@@ -868,7 +894,12 @@ BRANCH D: Deployment regression
       </div>
     </div>
 
-  </section>
+  
+<div class="reviewer-bar" id="rev-bar-3">
+  <input type="checkbox" class="rev-checkbox" id="rev-cb-3" data-step="3">
+  <label for="rev-cb-3">Mark step as reviewed</label>
+</div>
+</section>
 
   <div class="section-divider"></div>
 
@@ -880,12 +911,7 @@ BRANCH D: Deployment regression
         <div class="step-label">Step 4 of 5</div>
         <div class="step-title">The refined output</div>
       </div>
-<div class="reviewer-bar" id="rev-bar-4">
-  <input type="checkbox" class="rev-checkbox" id="rev-cb-4" data-step="4">
-  <label for="rev-cb-4">Mark step as reviewed</label>
 </div>
-
-    </div>
 
     <p class="prose">Example 13 produces three distinct outputs: enriched Prometheus annotations deployable to the cluster, a structured runbook for the highest-priority alert, and a machine-readable enrichment payload for the AIOps pipeline. The runbook box below shows the HighErrorRate runbook structure.</p>
 
@@ -947,7 +973,12 @@ BRANCH D: Deployment regression
         <div><strong>Alert correlation is bidirectional in the enrichment payload.</strong> HighErrorRate lists DatabaseConnectionPoolExhausted as a co-fire that should be resolved first. DatabaseConnectionPoolExhausted lists HighErrorRate as a downstream symptom to resolve automatically. Both relationships are in the payload — the AIOps pipeline can use either alert as the entry point and navigate to the correct resolution sequence regardless of which fires first.</div>
       </li>
     </ul>
-  </section>
+  
+<div class="reviewer-bar" id="rev-bar-4">
+  <input type="checkbox" class="rev-checkbox" id="rev-cb-4" data-step="4">
+  <label for="rev-cb-4">Mark step as reviewed</label>
+</div>
+</section>
 
   <div class="section-divider"></div>
 
@@ -959,12 +990,7 @@ BRANCH D: Deployment regression
         <div class="step-label">Step 5 of 5</div>
         <div class="step-title">Watch out</div>
       </div>
-<div class="reviewer-bar" id="rev-bar-5">
-  <input type="checkbox" class="rev-checkbox" id="rev-cb-5" data-step="5">
-  <label for="rev-cb-5">Mark step as reviewed</label>
 </div>
-
-    </div>
 
     <p class="prose">Claude Code produced accurate enrichment grounded in the incident history, a correctly branched runbook, and a machine-readable payload with bidirectional correlation rules. Here is what requires ongoing maintenance and human judgment.</p>
 
@@ -996,7 +1022,12 @@ BRANCH D: Deployment regression
       <div class="callout-label">Prompting tip for alert enrichment</div>
       <strong>Provide incident history structured by alert, not by date.</strong> A chronological incident log ("here is everything that happened in Q1") requires Claude Code to categorise incidents by alert before it can derive root cause distributions — which adds a reasoning step that may introduce classification errors. Providing history pre-grouped by alert name ("here are the last three firings of HighErrorRate") lets Claude Code focus on deriving distributions and patterns rather than categorisation. The more structured the input, the more precise the enrichment output.
     </div>
-  </section>
+  
+<div class="reviewer-bar" id="rev-bar-5">
+  <input type="checkbox" class="rev-checkbox" id="rev-cb-5" data-step="5">
+  <label for="rev-cb-5">Mark step as reviewed</label>
+</div>
+</section>
 
   <!-- Tier 3 + Module 1 complete -->
   <div class="tier-complete">
@@ -1027,6 +1058,16 @@ BRANCH D: Deployment regression
   <textarea class="reviewer-comment" id="rev-comment" placeholder="Add your review notes for this example…"></textarea>
   <div class="reviewer-save-note">Notes are auto-saved in your browser.</div>
 </div>
+<div class="rev-complete-wrap" id="rev-complete-wrap">
+  <div class="rev-complete-bar disabled" id="rev-complete-bar">
+    <input type="checkbox" id="rev-complete-cb" disabled>
+    <label for="rev-complete-cb" id="rev-complete-label">
+      Complete all steps and answer the question correctly to unlock
+    </label>
+  </div>
+  <div class="rev-complete-hint" id="rev-complete-hint"></div>
+</div>
+
 <script>window.REV_CORRECT = "B";</script>
 
 <div class="bottom-nav">
@@ -1066,56 +1107,133 @@ BRANCH D: Deployment regression
 </script>
 
 <script>
-// ── Reviewer persistence ─────────────────────────────────────────────────────
-const REV_KEY = 'reviewer_example-13';
+// ── Cache busting ─────────────────────────────────────────────────────────────
+const CACHE_VERSION = '2026-03-15-v2';
+(function() {
+  function addVersion(url) {
+    if (!url || url.startsWith('http') || url.startsWith('#') || url.startsWith('mailto')) return url;
+    if (!url.endsWith('.html') && !url.includes('.html?')) return url;
+    const sep = url.includes('?') ? '&' : '?';
+    if (url.includes('v=' + CACHE_VERSION)) return url;
+    return url + sep + 'v=' + CACHE_VERSION;
+  }
+  document.querySelectorAll('a[href]').forEach(a => { a.href = addVersion(a.getAttribute('href')); });
+  document.querySelectorAll('iframe[src]').forEach(fr => { fr.src = addVersion(fr.getAttribute('src')); });
+})();
 
-function revLoad() {
-  try { return JSON.parse(localStorage.getItem(REV_KEY)) || {}; } catch(e) { return {}; }
+// ── Reviewer persistence ──────────────────────────────────────────────────────
+const REV_KEY   = 'reviewer_example-13';
+const NUM_STEPS = 5;
+
+function revLoad() { try { return JSON.parse(localStorage.getItem(REV_KEY)) || {}; } catch(e) { return {}; } }
+function revSave(s) { localStorage.setItem(REV_KEY, JSON.stringify(s)); }
+
+// ── Check completion state ────────────────────────────────────────────────────
+function allStepsChecked() {
+  for (let i = 1; i <= NUM_STEPS; i++) {
+    const cb = document.getElementById('rev-cb-' + i);
+    if (cb && !cb.checked) return false;
+  }
+  return true;
 }
 
-function revSave(state) {
-  localStorage.setItem(REV_KEY, JSON.stringify(state));
+function questionAnsweredCorrectly() {
+  const s = revLoad();
+  return s.questionCorrect === true;
 }
 
-// Restore checkboxes
+function updateCompleteBar() {
+  const bar   = document.getElementById('rev-complete-bar');
+  const cb    = document.getElementById('rev-complete-cb');
+  const label = document.getElementById('rev-complete-label');
+  const hint  = document.getElementById('rev-complete-hint');
+  if (!bar) return;
+
+  const stepsOk    = allStepsChecked();
+  const questionOk = questionAnsweredCorrectly();
+  const s          = revLoad();
+
+  if (s.reviewComplete) {
+    bar.className = 'rev-complete-bar done';
+    cb.disabled   = false;
+    cb.checked    = true;
+    label.textContent = '✓ Review complete';
+    hint.textContent  = '';
+    return;
+  }
+
+  const missing = [];
+  if (!stepsOk)    missing.push('all steps checked');
+  if (!questionOk) missing.push('question answered correctly');
+
+  if (stepsOk && questionOk) {
+    bar.className = 'rev-complete-bar ready';
+    cb.disabled   = false;
+    label.textContent = 'Mark review as complete';
+    hint.textContent  = '';
+  } else {
+    bar.className = 'rev-complete-bar disabled';
+    cb.disabled   = true;
+    label.textContent = 'Complete all steps and answer the question correctly to unlock';
+    hint.textContent  = 'Still needed: ' + missing.join(' · ');
+  }
+}
+
+// ── Step checkboxes ───────────────────────────────────────────────────────────
 document.querySelectorAll('.rev-checkbox').forEach(cb => {
-  const state = revLoad();
-  if (state['cb_' + cb.dataset.step]) {
+  const s = revLoad();
+  if (s['cb_' + cb.dataset.step]) {
     cb.checked = true;
-    cb.closest('.reviewer-bar').classList.add('checked');
-    cb.closest('.reviewer-bar').querySelector('label').textContent = '✓ Step reviewed';
+    const bar = cb.closest('.reviewer-bar');
+    if (bar) {
+      bar.classList.add('checked');
+      bar.querySelector('label').textContent = '✓ Step reviewed';
+    }
   }
   cb.addEventListener('change', () => {
     const s = revLoad();
     s['cb_' + cb.dataset.step] = cb.checked;
     revSave(s);
     const bar = cb.closest('.reviewer-bar');
-    bar.classList.toggle('checked', cb.checked);
-    bar.querySelector('label').textContent = cb.checked ? '✓ Step reviewed' : 'Mark step as reviewed';
+    if (bar) {
+      bar.classList.toggle('checked', cb.checked);
+      bar.querySelector('label').textContent = cb.checked ? '✓ Step reviewed' : 'Mark step as reviewed';
+    }
+    updateCompleteBar();
   });
 });
 
-// Restore comment
-const commentEl = document.getElementById('rev-comment');
-if (commentEl) {
-  const state = revLoad();
-  if (state.comment) commentEl.value = state.comment;
-  commentEl.addEventListener('input', () => {
+// ── Review complete checkbox ──────────────────────────────────────────────────
+const completeCb = document.getElementById('rev-complete-cb');
+if (completeCb) {
+  completeCb.addEventListener('change', () => {
+    if (!completeCb.checked) return;
     const s = revLoad();
-    s.comment = commentEl.value;
+    s.reviewComplete = true;
     revSave(s);
+    updateCompleteBar();
   });
 }
 
-// Reviewer question logic
-let revAnswer = null;
+// ── Comment textarea ──────────────────────────────────────────────────────────
+const commentEl = document.getElementById('rev-comment');
+if (commentEl) {
+  const s = revLoad();
+  if (s.comment) commentEl.value = s.comment;
+  commentEl.addEventListener('input', () => {
+    const s = revLoad(); s.comment = commentEl.value; revSave(s);
+  });
+}
+
+// ── Reviewer question logic ───────────────────────────────────────────────────
+let revAnswer    = null;
 let revSubmitted = false;
 
 (function restoreRevQ() {
-  const state = revLoad();
-  if (state.revAnswer !== undefined) {
-    revAnswer = state.revAnswer;
-    revSubmitted = state.revSubmitted || false;
+  const s = revLoad();
+  if (s.revAnswer !== undefined) {
+    revAnswer    = s.revAnswer;
+    revSubmitted = s.revSubmitted || false;
     if (revAnswer !== null) applyRevAnswer(revAnswer, revSubmitted);
   }
 })();
@@ -1145,17 +1263,18 @@ function revealRevAnswer() {
 
 function applyRevAnswer(ans, showResult) {
   const correctVal = window.REV_CORRECT;
-  // MCQ
+  const isCorrect  = (ans === correctVal);
+
   document.querySelectorAll('.reviewer-option').forEach(o => {
     o.classList.remove('selected','correct','wrong');
     if (showResult) {
-      if (o.dataset.key === correctVal) o.classList.add('correct');
-      else if (o.dataset.key === ans && o.dataset.key !== correctVal) o.classList.add('wrong');
+      if (o.dataset.key === String(correctVal)) o.classList.add('correct');
+      else if (o.dataset.key === ans && String(o.dataset.key) !== String(correctVal)) o.classList.add('wrong');
     } else {
       if (o.dataset.key === ans) o.classList.add('selected');
     }
   });
-  // T/F
+
   document.querySelectorAll('.reviewer-tf-btn').forEach(b => {
     b.classList.remove('selected','correct','wrong');
     const bVal = b.dataset.val === 'true';
@@ -1166,19 +1285,28 @@ function applyRevAnswer(ans, showResult) {
       if (bVal === ans) b.classList.add('selected');
     }
   });
+
   if (showResult) {
     const expEl = document.getElementById('rev-explanation');
     const btnEl = document.getElementById('rev-reveal-btn');
     if (expEl) {
-      const isCorrect = (ans === correctVal) || (ans === correctVal);
       expEl.classList.add('visible');
       const lbl = expEl.querySelector('.reviewer-exp-label');
-      if (lbl) { lbl.textContent = isCorrect ? '✓ Correct' : '✗ Incorrect'; lbl.className = 'reviewer-exp-label ' + (isCorrect ? 'correct' : 'wrong'); }
+      if (lbl) {
+        lbl.textContent = isCorrect ? '✓ Correct' : '✗ Incorrect';
+        lbl.className   = 'reviewer-exp-label ' + (isCorrect ? 'correct' : 'wrong');
+      }
     }
     if (btnEl) btnEl.style.display = 'none';
+    if (isCorrect) {
+      const s = revLoad(); s.questionCorrect = true; revSave(s);
+    }
+    updateCompleteBar();
   }
 }
-</script>
 
+// ── Init ──────────────────────────────────────────────────────────────────────
+updateCompleteBar();
+</script>
 </body>
 </html>
